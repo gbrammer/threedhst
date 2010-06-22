@@ -1,6 +1,3 @@
-__author__ = "Gabriel Brammer <gbrammer@gmail.com>"
-#__date__ = "$Date: 2005/12/01 07:35:55 $"
-#__version__ = "$Revision: 1.4 $"
 import os
 from pyraf import iraf
 no = iraf.no
