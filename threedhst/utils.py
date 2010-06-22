@@ -1,3 +1,9 @@
+"""
+3DHST.utils
+
+Utilities for reading/writing ASN and DS9/region files.
+
+"""
 import os,pyfits
 import numpy as np
 
