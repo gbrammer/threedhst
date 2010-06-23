@@ -2,18 +2,18 @@
 import os,sys
 from threedhst import utils
 
-def main(argv):
+def main():
     """
-main(argv)
+main()
 """
-    if len(sys.argv) == 0:
+    if len(sys.argv) == 1:
         print """
 Usage: asn_file_info xxx_asn.fits
 
 """
         sys.exit(1)
     else:
-        utils.asn_file_info(sys.argv[1])
+        utils.asn_file_info(sys.argv[1], verbose=1)
 ##### main
 
 if __name__ == "__main__":

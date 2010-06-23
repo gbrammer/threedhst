@@ -168,9 +168,6 @@ Test if coordinates (x,y) are inside polygon defined by (px, py)
     
 ##### inside_polygon
 
-##### Start a DS9 instance with pysao
-import pysao
-ds9 = pysao.ds9()
 def check_data_quality(flt_file):
     """
 check_data_quality(flt_file)
@@ -178,6 +175,9 @@ check_data_quality(flt_file)
 Display an image and check DQ extension (e.g. for satellite trails)
 
 """
+    ##### Start a DS9 instance with pysao
+    import pysao
+    ds9 = pysao.ds9()
     ##### Open FITS file
     fi = pyfits.open(flt_file)
     ### Display SCI extension [1]
