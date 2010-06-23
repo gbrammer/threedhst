@@ -226,3 +226,35 @@ Display an image and check DQ extension (e.g. for satellite trails)
     fp.close()
     return True
 ##### check_data_quality
+
+def asn_file_info(asn_file, verbose=0):
+    """
+asn_file_info(asn_file, verbose=0)
+
+Get header information from files defined in an ASN table
+
+"""
+    #asn_file = 'ib6o23020_asn.fits'
+    fp_asn = pyfits.open(asn_file)
+    asn_data = fp_asn[1].data
+    roots = asn_data.field('MEMNAME')[np.where(asn_data.field('MEMTYPE') == 'EXP-DTH')]
+    NFILES = roots.shape[0]
+    lines = ['# %s' %asn_file]
+    lines.append('# flt_file  filter  exptime  date_obs  time_obs pos_targ1 pos_targ2')
+    ##### Loop through flt files in ASN list
+    for i in range(NFILES):
+        flt_file = roots[i].lower()+'_flt.fits'
+        fp_flt = pyfits.open(flt_file)
+        ##### Get general information from extension 0
+        fp_header = fp_flt[0].header
+        line = '%s %6s %7.1f %s %s %7.2f %7.2f' %(flt_file,fp_header['FILTER'],fp_header['EXPTIME'],
+                                              fp_header['DATE-OBS'],fp_header['TIME-OBS'],
+                                              fp_header['POSTARG1'],fp_header['POSTARG2'])
+        lines.append(line)
+
+    #### Print to stdout
+    if verbose > 0:
+        for line in lines:
+            print line
+    
+##### asn_file_info
