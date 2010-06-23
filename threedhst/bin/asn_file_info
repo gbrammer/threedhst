@@ -1,0 +1,21 @@
+#!/usr/stsci/pyssg/Python-2.5.4/bin/python
+import os,sys
+from threedhst import utils
+
+def main(argv):
+    """
+main(argv)
+"""
+    if len(sys.argv) == 0:
+        print """
+Usage: asn_file_info xxx_asn.fits
+
+"""
+        sys.exit(1)
+    else:
+        utils.asn_file_info(sys.argv[1])
+##### main
+
+if __name__ == "__main__":
+    main()
+    

@@ -1,0 +1,38 @@
+#!/usr/stsci/pyssg/Python-2.5.4/bin/python
+import os,sys
+from threedhst import sexcat_regions
+
+#### Add command-line capability
+def runme_cmdline(argv):
+	"""
+Run sexcat_regions at the command line.
+
+Usage: sexcat_regions.py sex.cat [sex.reg 1]
+		
+The format keyword determines the output coordinate
+system to use:  1 - image x,y ; 2 - wcs ra,dec
+	"""
+	if len(argv) < 1:
+		print """
+Usage: sexcat_regions.py sex.cat [sex.reg 1]
+		
+The format keyword determines the output coordinate
+system to use:  1 - image x,y ; 2 - wcs ra,dec
+		""" 
+		sys.exit(1)
+	if len(argv) < 2:
+		out_reg = "sex.reg"
+	else:
+		out_reg = argv[1]
+	if len(argv) < 3:
+		format=1
+	else:
+		format=argv[2]
+		if format.isdigit() is False:
+			print "Format must be 1 or 2" 
+			sys.exit(1)	
+	#print "%s %s %s" %(argv[0],out_reg, format)
+	sexcat_regions(argv[0],out_reg,format=int(format))
+	
+if __name__ == "__main__":
+    runme_cmdline(sys.argv[1:])
