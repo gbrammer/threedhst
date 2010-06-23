@@ -244,6 +244,16 @@ Get header information from files defined in an ASN table
     ##### Loop through flt files in ASN list
     for i in range(NFILES):
         flt_file = roots[i].lower()+'_flt.fits'
+        try:
+            fptest = open(flt_file,'r')
+        except IOError:
+            try:
+                flt_file += '.gz'
+                fptest = open(flt_file,'r')
+            except IOError:
+                raise IOError('[Errno 2] No such file or directory: \'%s[.gz]\'' %flt_file.split('.gz')[0] )
+        fptest.close()
+        #print flt_file
         fp_flt = pyfits.open(flt_file)
         ##### Get general information from extension 0
         fp_header = fp_flt[0].header

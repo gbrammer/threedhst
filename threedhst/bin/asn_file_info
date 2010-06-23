@@ -13,7 +13,9 @@ Usage: asn_file_info xxx_asn.fits
 """
         sys.exit(1)
     else:
-        utils.asn_file_info(sys.argv[1], verbose=1)
+        NFILES=len(sys.argv)-1
+        for i in range(NFILES):
+            utils.asn_file_info(sys.argv[i+1], verbose=1)
 ##### main
 
 if __name__ == "__main__":
