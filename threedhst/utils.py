@@ -23,6 +23,7 @@ Read the contents of an ASN file.
 >>> print asn.field('MEMNAME')[0]
 'IB3714FUQ'
     
+    
     """
     hdulist = pyfits.open(asn_file)
     asn = hdulist[1].data
