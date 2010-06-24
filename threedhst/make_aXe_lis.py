@@ -1,3 +1,8 @@
+#   $URL$
+#   $Rev$
+#   $Author$
+#   $Date$
+
 import os
 from pyraf import iraf
 no = iraf.no

@@ -3,6 +3,11 @@
 
 Utilities for computing shifts and processing shiftfiles.
 """
+#   $URL$
+#   $Rev$
+#   $Author$
+#   $Date$
+
 import os
 import pyfits
 from pyraf import iraf

@@ -1,4 +1,10 @@
 #!/usr/stsci/pyssg/Python-2.5.4/bin/python
+
+#   $URL$
+#   $Rev$
+#   $Author$
+#   $Date$
+
 import os,sys
 from threedhst import utils
 

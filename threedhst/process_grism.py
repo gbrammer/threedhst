@@ -46,7 +46,12 @@ o Clean up intermediate files
 o Additional catalog/high level steps to prepare spectra for actual use.
 
 """
-    
+
+#   $URL$
+#   $Rev$
+#   $Author$
+#   $Date$
+
 import os
 import pyfits
 from pyraf import iraf
