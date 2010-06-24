@@ -4,6 +4,11 @@
 Utilities for reading/writing ASN and DS9/region files.
 
 """
+# $URL$
+# $Rev$
+# $Author$
+# $Date$
+
 import os,pyfits
 import numpy as np
 
