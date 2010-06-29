@@ -80,11 +80,12 @@ def wcs_polygon(fits_file, extension=1):
     """    
 X, Y = wcs_polygon(fits_file, extension=1)
     
-Calculate a DS9/region polygon from WCS header keywords
+Calculate a DS9/region polygon from WCS header keywords.  
+
+Will try to use pywcs.WCS.calcFootprint if pywcs is installed.  Otherwise
+will compute from header directly.
 
     """
-    from math import cos,pi
-    
     ##### Open the FITS file
     hdulist = pyfits.open(fits_file) 
     ##### Get the header
@@ -94,11 +95,26 @@ Calculate a DS9/region polygon from WCS header keywords
         print 'ERROR 3D-HST/wcs_polygon:\n'+\
               'Extension #%d out of range in %s' %(extension, fits_file)
         raise
-        
+    
+    #### Try to use pywcs if it is installed
+    pywcs_exists = True
+    try:
+        import pywcs
+    except:
+        pywcs_exists = False   
+    
+    if pywcs_exists:
+        wcs = pywcs.WCS(sci)
+        footprint = wcs.calcFootprint()
+        regX = footprint[:,0]    
+        regY = footprint[:,1]    
+        return regX, regY
+    
+    #### Do it by hand if no pywcs    
     NAXIS = [sci['NAXIS1'],sci['NAXIS2']]
     CRPIX = [sci['CRPIX1'],sci['CRPIX2']]
     CRVAL = [sci['CRVAL1'],sci['CRVAL2']]
-    cosDec = cos(CRVAL[1]/180*pi)
+    cosDec = np.cos(CRVAL[1]/180*np.pi)
     ##### Make region polygon from WCS keywords
     regX = CRVAL[0] + ( (np.array([0,NAXIS[0],NAXIS[0],0])-CRPIX[0])*sci['CD1_1'] + \
                         (np.array([0,0,NAXIS[1],NAXIS[1]])-CRPIX[1])*sci['CD1_2'] ) / cosDec
