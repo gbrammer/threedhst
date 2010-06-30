@@ -1,14 +1,17 @@
 """
-SExtractor class from astropysics.
+SExtractor class from astropysics, written by Erik Tollerud.
+http://packages.python.org/Astropysics/
 
 Modified by GBB to read the output from "sex -dd" and "sex -dp" from files, rather
-from a piped output because the "pparm" line dind't run for some reason.
+from a piped output because the "pparm" line didn't run for some reason.
 """
 
 import numpy as np
 
+#### This should probably go in utils.py
 def _get_package_data(dataname):
     """
+    (taken from astropysics.io)
     Use this function to load data files distributed with astropysics in the 
     astropysics/data directory
     
@@ -47,11 +50,12 @@ class SExtractor(object):
         
         try:
             pconf = Popen('sex -dd'.split(),executable='sex',stdout=PIPE,stderr=PIPE)
-            pparm = Popen('sex -dp'.split(),executable='sex',stdout=PIPE,stderr=PIPE)
+            #pparm = Popen('sex -dp'.split(),executable='sex',stdout=PIPE,stderr=PIPE)
             pconf.wait()
-            pparm.wait()
+            #pparm.wait()
             confstr = pconf.communicate()[0]
-            parmstr = pparm.communicate()[0]
+            #parmstr = pparm.communicate()[0]
+            parmstr = _get_package_data('sexdp')
         except OSError:
             raise OSError('Sextractor not found on system path')
         
@@ -172,6 +176,16 @@ class SExtractor(object):
         """    
         return [k for k in self._parorder if self.params[k]]
     
+    def aXeParams(self):
+        """
+        Set the columns needed for input to aXe
+        """
+        for k in self._parorder:
+            self.params[k] = False
+        useParams = _get_package_data('aXe.param').split('\n')[:-1]
+        for par in useParams:
+            self.params[k] = True
+        
     def _saveFiles(self,fnbase):
         import os
         
@@ -274,11 +288,11 @@ class SExtractor(object):
             return proc
         else:
             raise ValueError('unrecognized mode argument '+str(mode))
-# try:
-#     SExtractor._getSexDefaults()
-# except OSError:
-#     from warnings import warn
-#     warn('SExtractor not found on system - phot.SExtractor class will not function')
+try:
+    SExtractor._getSexDefaults()
+except OSError:
+    from warnings import warn
+    warn('SExtractor not found on system - phot.SExtractor class will not function')
     
 class SExtractorError(Exception):
     def __init__(self,*args):
