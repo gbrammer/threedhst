@@ -35,7 +35,13 @@ class SExtractor(object):
     
     output parameters are chosen by setting True/False values in the 
     params dictionary
-
+    
+    Workflow is something like
+    
+        s = sex.SExtractor([sexfile=''])
+        s.aXeParams()
+        s.sextractImage('image.fits')
+        
     """
     
     @staticmethod
@@ -126,23 +132,30 @@ class SExtractor(object):
         
         
     def __init__(self,sexfile=None,parfile=None):
+        from warnings import warn
         
         opts = dict(SExtractor._defaultopts)
         pars = dict([(k,False) for k in  SExtractor._parinfo])
-                    
+            
         if sexfile:
             #with open(sexfile) as f:
             f =  open(sexfile)
             for l in f:
                 commenti = l.find('#')
-                if l > -1:
+                if commenti > -1:
                     l = l[:commenti]
                 ls = l.split()
                 if len(ls) > 1:
                     k = ls[0].strip()
                     if k not in opts:
-                        raise ValueError('sexfile has invalid option %s'%k)
-                    opts[k] = ls[1].strip()
+                        # raise ValueError('sexfile has invalid option %s'%k)
+                        warn('sexfile \'%s\' has invalid option %s' %(sexfile,k))
+                    # opts[k] = ls[1].strip()
+                    if len(ls) > 2:
+                        #print ls
+                        opts[k] = ' '.join(ls[1:]) #.strip()
+                    else:
+                        opts[k] = ls[1].strip()
             self.name = sexfile.replace('.sex','')
         else:
             self.name = 'astropysics_auto'
@@ -184,7 +197,7 @@ class SExtractor(object):
             self.params[k] = False
         useParams = _get_package_data('aXe.param').split('\n')[:-1]
         for par in useParams:
-            self.params[k] = True
+            self.params[par] = True
         
     def _saveFiles(self,fnbase):
         import os
@@ -273,6 +286,8 @@ class SExtractor(object):
             # clstr = 'sex {0} -c {1}'.format(detimfn,self.name+'.sex')
             clstr = 'sex %s -c %s' %(detimfn,self.name+'.sex')
         proc = Popen(clstr.split(),executable='sex',stdout=PIPE,stderr=PIPE)
+        
+        print 'THREEDHST/sex: %s' %clstr
         
         if mode == 'waiterror' or mode =='wait':
             res = proc.wait()
