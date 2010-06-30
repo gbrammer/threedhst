@@ -49,7 +49,7 @@ def make_grism_shiftfile(asn_direct, asn_grism):
     
 class ShiftFile():
     """ShiftFile(infile)
-Based on aXe2html / sextractcat
+Based on aXe2html.sextractcat
 """
     def __init__(self, filename):
         linelist = self.opencat(filename)

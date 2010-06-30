@@ -2,8 +2,9 @@
 SExtractor class from astropysics, written by Erik Tollerud.
 http://packages.python.org/Astropysics/
 
-Modified by GBB to read the output from "sex -dd" and "sex -dp" from files, rather
-from a piped output because the "pparm" line didn't run for some reason.
+Modified by GBB to read the output from "sex -dd" and "sex -dp" from files, 
+rather than from a piped output because the "pparm" line didn't run for some 
+reason.
 """
 
 import numpy as np
@@ -56,12 +57,12 @@ class SExtractor(object):
         
         try:
             pconf = Popen('sex -dd'.split(),executable='sex',stdout=PIPE,stderr=PIPE)
-            #pparm = Popen('sex -dp'.split(),executable='sex',stdout=PIPE,stderr=PIPE)
             pconf.wait()
-            #pparm.wait()
             confstr = pconf.communicate()[0]
-            #parmstr = pparm.communicate()[0]
-            parmstr = _get_package_data('sexdp')
+            # pparm = Popen('sex -dp'.split(),executable='sex',stdout=PIPE,stderr=PIPE)
+            # pparm.wait()
+            # parmstr = pparm.communicate()[0]
+            parmstr = _get_package_data('sexdp') #gbb
         except OSError:
             raise OSError('Sextractor not found on system path')
         
@@ -139,7 +140,7 @@ class SExtractor(object):
             
         if sexfile:
             #with open(sexfile) as f:
-            f =  open(sexfile)
+            f =  open(sexfile) #gbb
             for l in f:
                 commenti = l.find('#')
                 if commenti > -1:
@@ -148,12 +149,12 @@ class SExtractor(object):
                 if len(ls) > 1:
                     k = ls[0].strip()
                     if k not in opts:
-                        # raise ValueError('sexfile has invalid option %s'%k)
-                        warn('sexfile \'%s\' has invalid option %s' %(sexfile,k))
+                        # raise ValueError('sexfile has invalid option %s'%k) 
+                        warn('sexfile \'%s\' has invalid option %s' %(sexfile,k)) #gbb
                     # opts[k] = ls[1].strip()
                     if len(ls) > 2:
                         #print ls
-                        opts[k] = ' '.join(ls[1:]) #.strip()
+                        opts[k] = ' '.join(ls[1:]) #.strip() #gbb
                     else:
                         opts[k] = ls[1].strip()
             self.name = sexfile.replace('.sex','')
@@ -191,7 +192,8 @@ class SExtractor(object):
     
     def aXeParams(self):
         """
-        Set the columns needed for input to aXe
+        Set the columns needed for input to aXe.
+        (gbb)
         """
         for k in self._parorder:
             self.params[k] = False
@@ -214,12 +216,12 @@ class SExtractor(object):
         
         # with open(fnbase+'.sex','w') as f:
         #     f.write(ostr)
-        f = open(fnbase+'.sex','w')
+        f = open(fnbase+'.sex','w') #gbb
         f.write(ostr)
             
         # with open(self.options['PARAMETERS_NAME'],'w') as f:
         #     f.write(pstr)
-        f = open(self.options['PARAMETERS_NAME'],'w')
+        f = open(self.options['PARAMETERS_NAME'],'w') #gbb
         f.write(pstr)
                 
     
