@@ -15,17 +15,17 @@ import numpy as np
 def find_fits_gz(fits_file, hard_break = True):
     """
 the_file = find_fits_gz(fits_file, hard_break = True)
-
+    
 With ``fits_file`` being some filename with an extension
 ``.fits`` (ib3713wvq_flt.fits), check to see if the file 
 itself or its gzipped counterpart (fits_file+'.gz')
 exists.  
-
+    
 If neither is found, 
     hard_break = True  : raise an IOError
     hard_break = False : return None
-
-"""
+    
+    """
     import os
     if os.path.exists(fits_file):
         return fits_file
@@ -36,13 +36,14 @@ If neither is found,
         raise IOError('File %s[.gz] not found in %s' %(fits_file, os.getcwd()))
     else:
         return None
-##### find_fits_gz
+
 
 class ASNFile(object):
-    """ASNFile()
-    
-Class for handling ASN fits files.
-
+    """
+ASNFile()
+        
+    Class for handling ASN fits files.
+        
     >>> asn = ASNFile(file='ib3701050_asn.fits')
     >>> asn.exposures
     ['ib3701ryq', 'ib3701sbq', 'ib3701sdq', 'ib3701sqq']
@@ -53,7 +54,7 @@ Class for handling ASN fits files.
     def _read_asn_file(self):
         """
 _read_asn_file(self)
-    
+        
     Read an ASN FITS file (self.file).
         """
         import numpy as np
@@ -82,13 +83,15 @@ _read_asn_file(self)
             self.product = None
         else:
             self.product = names[prod_idx[0]][0].upper()
-            
+    
+    
     def __init__(self, file=None):
         self.file = file
         self.exposures = []
         self.product = None
         if file:
             self._read_asn_file()
+    
     
     def writeToFile(self, out_file=None, clobber=True):
         """
@@ -116,10 +119,11 @@ writeToFile(self,out_file=None, clobber=True)
             self.out_fits = pyfits.HDUList([hdu,tbhdu])
             self.out_fits.writeto(out_file, clobber=clobber)
     
+    
     def showContents(self):
         """
 showContents()
-
+        
     >>> x = ASNFile(file='ib3702060_asn.fits')
     >>> x.showContents()
     1   ib3703uxq    EXP-DTH      yes
@@ -132,13 +136,16 @@ showContents()
             for i,exp in enumerate(self.exposures):
                 print '%5d   %s    EXP-DTH      yes' %(i+1,exp)
             print '%5d   %s    PROD-DTH     yes' %(i+2,self.product)
-            
+    
+    
+
+
 def asn_file_info(asn_file, verbose=1):
     """
 asn_file_info(asn_file, verbose=1)
-
+    
 Get header information from files defined in an ASN table.
-
+    
     >>> asn_file_info('ib3702060_asn.fits')
     # ib3702060_asn.fits
     # flt_file  filter  exptime  date_obs  time_obs pos_targ1 pos_targ2
@@ -146,8 +153,8 @@ Get header information from files defined in an ASN table.
     ib3702u8q_flt.fits.gz   G141  1302.9 2010-04-15 19:32:22    0.61    0.18
     ib3702ukq_flt.fits.gz   G141  1302.9 2010-04-15 20:37:55    0.27    0.67
     ib3702uoq_flt.fits.gz   G141  1402.9 2010-04-15 21:06:31   -0.34    0.48
-
-"""
+    
+    """
     #asn_file = 'ib6o23020_asn.fits'
     asn = ASNFile(asn_file)
     lines = ['# %s' %asn_file]
@@ -162,13 +169,13 @@ Get header information from files defined in an ASN table.
                                               fp_header['DATE-OBS'],fp_header['TIME-OBS'],
                                               fp_header['POSTARG1'],fp_header['POSTARG2'])
         lines.append(line)
-
+    
     #### Print to stdout
     if verbose > 0:
         for line in lines:
             print line
     
-##### asn_file_info
+
 
 def asn_region(asn_file):
     """
@@ -197,13 +204,14 @@ Create a DS9 region file for the exposures defined in an ASN file.
         RAcenters[i] = np.mean(regX)
         DECcenters[i] = np.mean(regY)
         fp.write(line+' # color=magenta\n')
-
+        
     ##### Text label with ASN filename
     fp.write('# text(%10.6f,%10.6f) text={%s} color=magenta\n' \
         %(np.mean(RAcenters),np.mean(DECcenters),asn_file.split('_asn.fits')[0]))
     fp.close()
     print "3D-HST / ASN_REGION: %s" %(output_file)
     
+
 ####### asn_region
 
 def wcs_polygon(fits_file, extension=1):
@@ -211,10 +219,10 @@ def wcs_polygon(fits_file, extension=1):
 X, Y = wcs_polygon(fits_file, extension=1)
     
 Calculate a DS9/region polygon from WCS header keywords.  
-
+    
 Will try to use pywcs.WCS.calcFootprint if pywcs is installed.  Otherwise
 will compute from header directly.
-
+    
     """
     ##### Open the FITS file
     hdulist = pyfits.open(fits_file) 
@@ -251,20 +259,19 @@ will compute from header directly.
     regY = CRVAL[1] + ( (np.array([0,NAXIS[0],NAXIS[0],0])-CRPIX[0])*sci['CD2_1'] + \
                         (np.array([0,0,NAXIS[1],NAXIS[1]])-CRPIX[1])*sci['CD2_2'] )
     return regX, regY
-    
-    #return line, CRVAL
+
 ####### wcs_polygon
     
 def region_mask(shape,px,py):
     """
 mask = region_mask(image.shape,px,py)
-
+    
 Make a mask image where pixels within the polygon defined by px_i, py_i
 are set to 1.  This is the same algorithm as in :ref:`point_in_polygon`
 but with array orders switched around to be much more efficient.
-
+    
 Note: something like this could be used to flag grism 0th order contaminants
-"""
+    """
     NX=shape[0]
     NY=shape[1]
     y,x = np.mgrid[1:NX+1,1:NY+1]
@@ -289,17 +296,18 @@ Note: something like this could be used to flag grism 0th order contaminants
     flag_idx = np.where(np.abs(theta) > np.pi)
     dq[flag_idx] = 1
     return dq
+
 ##### region_mask
 
 def point_in_polygon(x,y,px,py):
     """
 test = point_in_polygon(x,y,px,py)
-
+    
 Test if coordinates (x,y) are inside polygon defined by (px, py)
-
+    
 <http://www.dfanning.com/tips/point_in_polygon.html>, translated to Python
-
-"""    
+    
+    """    
     N = px.shape[0]
     ##### Close polygons
     tmp_px = np.append(px,px[0])
@@ -320,16 +328,15 @@ Test if coordinates (x,y) are inside polygon defined by (px, py)
         return True
     else:
         return False
-    
-##### inside_polygon
+
 
 def check_data_quality(flt_file):
     """
 check_data_quality(flt_file)
-
+    
 Display an image and check DQ extension (e.g. for satellite trails)
-
-"""
+    
+    """
     ##### Start a DS9 instance with pysao
     import pysao
     ds9 = pysao.ds9()
@@ -380,4 +387,5 @@ Display an image and check DQ extension (e.g. for satellite trails)
     fp.write(regions)
     fp.close()
     return True
+
 ##### check_data_quality

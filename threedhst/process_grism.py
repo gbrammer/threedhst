@@ -62,7 +62,7 @@ import threedhst
 def set_aXe_environment(grating='G141'):
     """
 set_aXe_environment(grating='G141')
-
+    
 Setup aXe environment variables:
     AXE_IMAGE_PATH   = ./DATA
     AXE_CONFIG_PATH  = ./CONF
@@ -70,7 +70,7 @@ Setup aXe environment variables:
     AXE_DRIZZLE_PATH = ./DRIZZLE_[GRATING]
     
 CONF should by symlinked from /research/HST/GRISM/CONF
-
+    
     """
     os.environ['AXE_IMAGE_PATH'] = './DATA/'
     print '--> variable AXE_IMAGE_PATH   set to "./DATA"'
@@ -84,15 +84,16 @@ CONF should by symlinked from /research/HST/GRISM/CONF
     os.environ['AXE_DRIZZLE_PATH'] = './DRIZZLE_'+grating.upper()+'/'
     print '--> variable AXE_DRIZZLE_PATH set to "./DRIZZLE_'+grating.upper()+'/"'
 
+
 def check_3dhst_environment(makeDirs=False):
     """
 check_3dhst_environment(makeDirs=False)
-
+    
 Check that all of the expected directories exist for 
 3D-HST data reduction.
-
+    
 If makeDirs is True, then mkdir any that isn't found in ./
-
+    
     """    
     directories = ['DATA','CAT','RAW','OUTPUT_G141','DRIZZLE_G141']
     for dir in directories:
@@ -102,10 +103,11 @@ If makeDirs is True, then mkdir any that isn't found in ./
             else:
                 raise IOError('Directory %s doesn\'t exist in %s.' %(dir,os.getcwd()))
 
+
 def process_grism(asn_grism, asn_direct):
     """
 process_grism(asn_grism, asn_direct)
-
+    
 Pipeline to process a set of grism/direct exposures.
     
     """
@@ -126,22 +128,9 @@ Pipeline to process a set of grism/direct exposures.
        output = '', final_scale = INDEF, final_pixfrac = 1.0)
        
     direct_mosaic = root_direct.upper()+'_drz.fits'
-    
-def runSExtractor(filename, sdict):
-    """
-runSExtractor(filename, sdict)
 
-Run SExtractor on an input image.
-    
-    """
-    # Define output parameters
-    SEXTRACTOR_OUTPUT = ["NUMBER","X_IMAGE","Y_IMAGE","X_WORLD","Y_WORLD", \
-                         "A_IMAGE","B_IMAGE","THETA_IMAGE","A_WORLD","B_WORLD",\
-                         "THETA_WORLD","MAG_AUTO","MAGERR_AUTO","FLUX_AUTO",\
-                         "FLUXERR_AUTO,FLUX_APER(1),FLUXERR_APER(1)"]
-   
-    
-                
+
+                    
 def multidrizzle_defaults():
     multidrizzle ( input = 'ib3714060_asn.fits', output = '', mdriztab = no, \
        refimage = '', runfile = '', workinplace = no, updatewcs = yes, \

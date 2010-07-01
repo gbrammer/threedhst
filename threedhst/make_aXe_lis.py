@@ -19,12 +19,13 @@ def make_prep_name(input_asn):
 	"""
 	return input_asn.split('_asn.fits')[0] + '_prep.lis'
 
+
 def make_aXe_lis(asn_grism, asn_direct):
 	"""
 	status = make_aXe_lis(asn_grism, asn_direct)
 	
 	Make "inlist" file for aXe routines, with format
-
+    
 		grismA_flt.fits directA_flt.1.cat directA_flt.fits 0.0
 		grismB_flt.fits directB_flt.1.cat directB_flt.fits 0.0
 		...
@@ -52,7 +53,7 @@ def make_aXe_lis(asn_grism, asn_direct):
 		print """
 3D-HST / make_aXe_lis: Number of grism exposures (%d) in %s is different from the
 3D-HST / make_aXe_lis: number of direct images (%d) in %s.
-		""" %(len(grism_files), asn_grism, len(direct_files), asn_direct)
+              """ %(len(grism_files), asn_grism, len(direct_files), asn_direct)
 		return False
 	NFILE = len(grism_files)
 	outfile = make_prep_name(asn_grism)
@@ -67,5 +68,5 @@ def make_aXe_lis(asn_grism, asn_direct):
 	fp.close()
 	print "3D-HST / make_aXe_lis: Created %s\n" %outfile
 	return True
-	
+
 	

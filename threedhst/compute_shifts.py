@@ -33,7 +33,8 @@ def compute_shifts(asn_direct):
        pad = no, fwhm = 7.0, ellip = 0.05, pa = 45.0, fitbox = 7, \
     )
     ### !!! Need to add steps to match WCS to astrometric references (ACS)
-    
+
+
 def make_grism_shiftfile(asn_direct, asn_grism):
     """make_grism_shiftfile(asn_direct, grism_direct)"""
     direct_root = asn_direct.split('_asn.fits')[0].lower()
@@ -48,21 +49,24 @@ def make_grism_shiftfile(asn_direct, asn_grism):
 
     
 class ShiftFile():
-    """ShiftFile(infile)
-Based on aXe2html.sextractcat
-"""
+    """
+    ShiftFile(infile)
+    
+    Based on aXe2html.sextractcat
+    """
     def __init__(self, filename):
         linelist = self.opencat(filename)
         self.headerlines = self.extractheader(linelist)
         rowlines    = self.extractrows(linelist)
         self.processrows(rowlines)
         self.nrows = len(rowlines)
-        
+    
+    
     def opencat(self, filename):
         """
         Input:
             filename - the name of the sextractor ascii catalog
-
+            
         Return:
                 linelist - a list wit all lines of the sextractor
                        catalog
@@ -74,6 +78,7 @@ Based on aXe2html.sextractcat
         listfile = open(filename,'r')
         linelist = listfile.readlines()
         return linelist
+    
     
     def extractheader(self, linelist):
         """
@@ -97,11 +102,12 @@ Based on aXe2html.sextractcat
                 headerlines.append(oneline)
         return headerlines
     
+    
     def extractrows(self, linelist):
         """
     Input:
         linelist - all lines of a sextractor catalog
-    
+        
     Return:
         rowlines - the content lines of a sextractor
                    catalog
@@ -112,7 +118,7 @@ Based on aXe2html.sextractcat
         '#' and are longer than one character. This allows for
         e.g. whitespaces as the last 'rows', which often remain 
         after editing an ascii-file
-    
+        
         """
         rowlines = []
         for index in range(len(linelist)):
@@ -121,10 +127,13 @@ Based on aXe2html.sextractcat
                 rowlines.append(oneline)        
         return rowlines
     
+    
     def processrows(self, rowlines):
-        """processrows(self, rowlines)
-        Read: image xshift yshift rotate scale from shiftfile.
+        """
+        processrows(self, rowlines)
         
+        Read: image xshift yshift rotate scale from shiftfile.
+            
         """
         nlines = len(rowlines)
         self.images = []
@@ -145,6 +154,7 @@ Based on aXe2html.sextractcat
             if len(line) > 4:
                 self.scale.append(float(line[4]))
     
+    
     def print_shiftfile(self, outfile):
         """print_shiftfile(outfile)"""
         fp = open(outfile,'w')
@@ -153,3 +163,6 @@ Based on aXe2html.sextractcat
             line = "%s %f %f %f %f\n" %(self.images[i], self.xshift[i], self.yshift[i], self.rotate[i], self.scale[i])
             fp.write(line)
         fp.close()
+    
+    
+
