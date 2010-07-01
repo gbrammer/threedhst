@@ -1,0 +1,28 @@
+#!/usr/stsci/pyssg/Python-2.5.4/bin/python
+
+#   $URL: file:///Users/gbrammer/SVN/threedhst/bin/asn_region $
+#   $Rev: 25 $
+#   $Author: gbrammer $
+#   $Date: 2010-07-01 00:45:36 -0400 (Thu, 01 Jul 2010) $
+
+import sys
+from threedhst import utils
+
+def main():
+    """
+main()
+"""
+    if len(sys.argv) == 1:
+        print """
+Usage: asn_file_info xxx_asn.fits
+
+"""
+        sys.exit(1)
+    else:
+        NFILES=len(sys.argv)-1
+        for i in range(NFILES):
+            utils.asn_region(sys.argv[i+1])
+##### main
+
+if __name__ == "__main__":
+    main()
