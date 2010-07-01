@@ -5,6 +5,8 @@ http://packages.python.org/Astropysics/
 Modified by GBB to read the output from "sex -dd" and "sex -dp" from files, 
 rather than from a piped output because the "pparm" line didn't run for some 
 reason.
+
+Also added similar SWarp class wrapper around SWarp.
 """
 
 import numpy as np
@@ -341,14 +343,12 @@ class SExtractor(object):
             raise ValueError('unrecognized mode argument '+str(mode))
 
 
-    
-
 class SError(Exception):
     def __init__(self,*args):
         super(SError,self).__init__(*args)
     
 
-    
+  
 class SWarp(object):
     """
     SWarp(object)
@@ -657,7 +657,9 @@ SWarp.swarpMatchImage: PIXEL_SCALE= %s
             return proc
         else:
             raise ValueError('unrecognized mode argument '+str(mode))
-
+            
+    
+    
     def swarpRecenter(self):
         """
         swarpRecenter(self)
@@ -691,11 +693,6 @@ SWarp.swarpMatchImage: PIXEL_SCALE= %s
         else:
             print 'THREEDHST/Swarp.recenter: No SWarp output found'
     
-    
-    
-    
-    
-
 
 
 # End

@@ -129,8 +129,7 @@ Pipeline to process a set of grism/direct exposures.
        
     direct_mosaic = root_direct.upper()+'_drz.fits'
 
-
-                    
+                   
 def multidrizzle_defaults():
     multidrizzle ( input = 'ib3714060_asn.fits', output = '', mdriztab = no, \
        refimage = '', runfile = '', workinplace = no, updatewcs = yes, \

@@ -212,7 +212,6 @@ Create a DS9 region file for the exposures defined in an ASN file.
     print "3D-HST / ASN_REGION: %s" %(output_file)
     
 
-####### asn_region
 
 def wcs_polygon(fits_file, extension=1):
     """    
@@ -260,7 +259,6 @@ will compute from header directly.
                         (np.array([0,0,NAXIS[1],NAXIS[1]])-CRPIX[1])*sci['CD2_2'] )
     return regX, regY
 
-####### wcs_polygon
     
 def region_mask(shape,px,py):
     """
@@ -297,7 +295,6 @@ Note: something like this could be used to flag grism 0th order contaminants
     dq[flag_idx] = 1
     return dq
 
-##### region_mask
 
 def point_in_polygon(x,y,px,py):
     """
@@ -388,4 +385,3 @@ Display an image and check DQ extension (e.g. for satellite trails)
     fp.close()
     return True
 
-##### check_data_quality
