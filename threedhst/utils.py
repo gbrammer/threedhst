@@ -12,22 +12,163 @@ Utilities for reading/writing ASN and DS9/region files.
 import os,pyfits
 import numpy as np
 
-def read_asn(asn_file):
+def find_fits_gz(fits_file, hard_break = True):
     """
-asn = read_asn(asn_file)
-    
-Read the contents of an ASN file.
-    
->>> print asn.names
-('MEMNAME', 'MEMTYPE', 'MEMPRSNT')
->>> print asn.field('MEMNAME')[0]
-'IB3714FUQ'
+the_file = find_fits_gz(fits_file, hard_break = True)
+
+With ``fits_file`` being some filename with an extension
+``.fits`` (ib3713wvq_flt.fits), check to see if the file 
+itself or its gzipped counterpart (fits_file+'.gz')
+exists.  
+
+If neither is found, 
+    hard_break = True  : raise an IOError
+    hard_break = False : return None
 
 """
-    hdulist = pyfits.open(asn_file)
-    asn = hdulist[1].data
-    return asn
-####### read_asn
+    import os
+    if os.path.exists(fits_file):
+        return fits_file
+    if os.path.exists(fits_file+'.gz'):
+        return fits_file+'.gz'
+    #### File not found.  Either raise an error or return None
+    if hard_break:
+        raise IOError('File %s[.gz] not found in %s' %(fits_file, os.getcwd()))
+    else:
+        return None
+##### find_fits_gz
+
+class ASNFile(object):
+    """ASNFile()
+    
+Class for handling ASN fits files.
+
+    >>> asn = ASNFile(file='ib3701050_asn.fits')
+    >>> asn.exposures
+    ['ib3701ryq', 'ib3701sbq', 'ib3701sdq', 'ib3701sqq']
+    >>> asn.product
+    'IB3701050'
+    >>> asn.
+     """
+    def _read_asn_file(self):
+        """
+_read_asn_file(self)
+    
+    Read an ASN FITS file (self.file).
+        """
+        import numpy as np
+        from warnings import warn
+        
+        self.in_fits = pyfits.open(self.file)
+        data = self.in_fits[1].data
+        self.header = self.in_fits[0].header
+        
+        names = data.field('MEMNAME')
+        types = data.field('MEMTYPE')
+        
+        ##### Exposures
+        exp_idx  = np.where(types == 'EXP-DTH')
+        if exp_idx[0].shape[0] == 0:
+            warn ('ASN file %s has no EXP-DTH items')
+        else:
+            self.exposures = []
+            for exp in names[exp_idx]:
+                self.exposures.append(exp.lower())
+        
+        ##### Products
+        prod_idx = np.where(types == 'PROD-DTH')
+        if prod_idx[0].shape[0] != 1:
+            warn ('ASN file %s has N != 1 PROD-DTH items' %self.file )
+            self.product = None
+        else:
+            self.product = names[prod_idx[0]][0].upper()
+            
+    def __init__(self, file=None):
+        self.file = file
+        self.exposures = []
+        self.product = None
+        if file:
+            self._read_asn_file()
+    
+    def writeToFile(self, out_file=None, clobber=True):
+        """
+writeToFile(self,out_file=None, clobber=True)
+        """
+        if not out_file:
+            print "USAGE:: writeToFile(self,out_file='output_asn.fits')"
+        else:
+            nexp  = self.exposures.__len__()
+            if self.product:
+                nprod = 1
+            else:
+                nprod = 0
+            nrows = nexp + nprod
+            #### Primary HDU
+            hdu = self.in_fits[0].copy()
+            #### BinTable HDU
+            tbhdu = pyfits.new_table(self.in_fits[1].columns, nrows=nrows)
+            for i in range(nexp):
+                tbhdu.data[i] = (self.exposures[i].upper(), 'EXP-DTH', True)
+            if nprod > 0:
+                tbhdu.data[i+1] = (self.product, 'PROD-DTH', True)
+            tbhdu.header = self.in_fits[1].header.copy()
+            #### Create HDUList and write it to output file
+            self.out_fits = pyfits.HDUList([hdu,tbhdu])
+            self.out_fits.writeto(out_file, clobber=clobber)
+    
+    def showContents(self):
+        """
+showContents()
+
+    >>> x = ASNFile(file='ib3702060_asn.fits')
+    >>> x.showContents()
+    1   ib3703uxq    EXP-DTH      yes
+    2   ib3703vaq    EXP-DTH      yes
+    3   ib3703vcq    EXP-DTH      yes
+    4   ib3703vsq    EXP-DTH      yes
+    5   IB3703050    PROD-DTH     yes
+        """
+        if self.exposures.__len__() > 0:
+            for i,exp in enumerate(self.exposures):
+                print '%5d   %s    EXP-DTH      yes' %(i+1,exp)
+            print '%5d   %s    PROD-DTH     yes' %(i+2,self.product)
+            
+def asn_file_info(asn_file, verbose=1):
+    """
+asn_file_info(asn_file, verbose=1)
+
+Get header information from files defined in an ASN table.
+
+    >>> asn_file_info('ib3702060_asn.fits')
+    # ib3702060_asn.fits
+    # flt_file  filter  exptime  date_obs  time_obs pos_targ1 pos_targ2
+    ib3702u4q_flt.fits.gz   G141  1302.9 2010-04-15 19:03:01    0.00    0.00
+    ib3702u8q_flt.fits.gz   G141  1302.9 2010-04-15 19:32:22    0.61    0.18
+    ib3702ukq_flt.fits.gz   G141  1302.9 2010-04-15 20:37:55    0.27    0.67
+    ib3702uoq_flt.fits.gz   G141  1402.9 2010-04-15 21:06:31   -0.34    0.48
+
+"""
+    #asn_file = 'ib6o23020_asn.fits'
+    asn = ASNFile(asn_file)
+    lines = ['# %s' %asn_file]
+    lines.append('# flt_file  filter  exptime  date_obs  time_obs pos_targ1 pos_targ2')
+    ##### Loop through flt files in ASN list
+    for exp in asn.exposures:
+        flt_file = find_fits_gz(exp.lower()+'_flt.fits')
+        fp_flt = pyfits.open(flt_file)
+        ##### Get general information from extension 0
+        fp_header = fp_flt[0].header
+        line = '%s %6s %7.1f %s %s %7.2f %7.2f' %(flt_file,fp_header['FILTER'],fp_header['EXPTIME'],
+                                              fp_header['DATE-OBS'],fp_header['TIME-OBS'],
+                                              fp_header['POSTARG1'],fp_header['POSTARG2'])
+        lines.append(line)
+
+    #### Print to stdout
+    if verbose > 0:
+        for line in lines:
+            print line
+    
+##### asn_file_info
 
 def asn_region(asn_file):
     """
@@ -41,29 +182,18 @@ Create a DS9 region file for the exposures defined in an ASN file.
     fp = open(output_file,'w')
     fp.write('fk5\n') ### WCS coordinates
     ##### Read ASN file
-    asn = read_asn(asn_file)
-    ##### Find exposures, which have MEMTYPE = EXP-DTH
-    expIDX = np.where(asn.field('MEMTYPE').find('EXP-DTH') == 0)[0]
-    NEXP = expIDX.shape[0]
-    RAcenters = np.arange(NEXP*1.)
-    DECcenters = np.arange(NEXP*1.)
-    for i in range(NEXP):
-        ###### Get FITS header and keywords from extension 1 (SCI)
-        flt_file = asn.field('MEMNAME')[expIDX[i]].lower()+'_flt.fits'
-        try:
-            fptest = open(flt_file,'r')
-        except IOError:
-            try:
-                flt_file += '.gz'
-                fptest = open(flt_file,'r')
-            except IOError:
-                raise IOError('[Errno 2] No such file or directory: \'%s[.gz]\'' %flt_file.split('.gz')[0] )
-        fptest.close()
+    asn = ASNFile(asn_file)
+    NEXP = len(asn.exposures)
+    RAcenters  = np.zeros(NEXP)
+    DECcenters = np.zeros(NEXP)
+    ##### Loop through exposures and get footprints
+    for i, exp_root in enumerate(asn.exposures):
+        flt_file = find_fits_gz(exp_root.lower()+'_flt.fits', hard_break = True)
         
         regX, regY = wcs_polygon(flt_file,extension=1)
         line = "polygon(%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f)" \
             %(regX[0],regY[0],regX[1],regY[1],regX[2],regY[2],regX[3],regY[3])
-        
+                    
         RAcenters[i] = np.mean(regX)
         DECcenters[i] = np.mean(regY)
         fp.write(line+' # color=magenta\n')
@@ -247,45 +377,3 @@ Display an image and check DQ extension (e.g. for satellite trails)
     fp.close()
     return True
 ##### check_data_quality
-
-def asn_file_info(asn_file, verbose=0):
-    """
-asn_file_info(asn_file, verbose=0)
-
-Get header information from files defined in an ASN table
-
-"""
-    #asn_file = 'ib6o23020_asn.fits'
-    fp_asn = pyfits.open(asn_file)
-    asn_data = fp_asn[1].data
-    roots = asn_data.field('MEMNAME')[np.where(asn_data.field('MEMTYPE') == 'EXP-DTH')]
-    NFILES = roots.shape[0]
-    lines = ['# %s' %asn_file]
-    lines.append('# flt_file  filter  exptime  date_obs  time_obs pos_targ1 pos_targ2')
-    ##### Loop through flt files in ASN list
-    for i in range(NFILES):
-        flt_file = roots[i].lower()+'_flt.fits'
-        try:
-            fptest = open(flt_file,'r')
-        except IOError:
-            try:
-                flt_file += '.gz'
-                fptest = open(flt_file,'r')
-            except IOError:
-                raise IOError('[Errno 2] No such file or directory: \'%s[.gz]\'' %flt_file.split('.gz')[0] )
-        fptest.close()
-        #print flt_file
-        fp_flt = pyfits.open(flt_file)
-        ##### Get general information from extension 0
-        fp_header = fp_flt[0].header
-        line = '%s %6s %7.1f %s %s %7.2f %7.2f' %(flt_file,fp_header['FILTER'],fp_header['EXPTIME'],
-                                              fp_header['DATE-OBS'],fp_header['TIME-OBS'],
-                                              fp_header['POSTARG1'],fp_header['POSTARG2'])
-        lines.append(line)
-
-    #### Print to stdout
-    if verbose > 0:
-        for line in lines:
-            print line
-    
-##### asn_file_info

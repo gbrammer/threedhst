@@ -59,9 +59,18 @@ no = iraf.no
 yes = iraf.yes
 import threedhst
    
-def set_aXe_environment(grating):
+def set_aXe_environment(grating='G141'):
     """
-set_aXe_environment(grating) - Setup aXe environment variables
+set_aXe_environment(grating='G141')
+
+Setup aXe environment variables:
+    AXE_IMAGE_PATH   = ./DATA
+    AXE_CONFIG_PATH  = ./CONF
+    AXE_OUTPUT_PATH  = ./OUTPUT_[GRATING]
+    AXE_DRIZZLE_PATH = ./DRIZZLE_[GRATING]
+    
+CONF should by symlinked from /research/HST/GRISM/CONF
+
     """
     os.environ['AXE_IMAGE_PATH'] = './DATA/'
     print '--> variable AXE_IMAGE_PATH   set to "./DATA"'
@@ -69,15 +78,35 @@ set_aXe_environment(grating) - Setup aXe environment variables
     os.environ['AXE_CONFIG_PATH'] = './CONF/'
     print '--> variable AXE_CONFIG_PATH  set to "./CONF/"'
      
-    os.environ['AXE_OUTPUT_PATH'] = './OUTPUT_'+grating+'/'
-    print '--> variable AXE_OUTPUT_PATH  set to "./OUTPUT_'+grating+'/"'
+    os.environ['AXE_OUTPUT_PATH'] = './OUTPUT_'+grating.upper()+'/'
+    print '--> variable AXE_OUTPUT_PATH  set to "./OUTPUT_'+grating.upper()+'/"'
     
-    os.environ['AXE_DRIZZLE_PATH'] = './DRIZZLE_'+grating+'/'
-    print '--> variable AXE_DRIZZLE_PATH set to "./DRIZZLE_'+grating+'/"'
+    os.environ['AXE_DRIZZLE_PATH'] = './DRIZZLE_'+grating.upper()+'/'
+    print '--> variable AXE_DRIZZLE_PATH set to "./DRIZZLE_'+grating.upper()+'/"'
+
+def check_3dhst_environment(makeDirs=False):
+    """
+check_3dhst_environment(makeDirs=False)
+
+Check that all of the expected directories exist for 
+3D-HST data reduction.
+
+If makeDirs is True, then mkdir any that isn't found in ./
+
+    """    
+    directories = ['DATA','CAT','RAW','OUTPUT_G141','DRIZZLE_G141']
+    for dir in directories:
+        if not os.path.exists(dir):
+            if makeDirs:
+                os.mkdir(dir)
+            else:
+                raise IOError('Directory %s doesn\'t exist in %s.' %(dir,os.getcwd()))
 
 def process_grism(asn_grism, asn_direct):
-    """process_grism(asn_grism, asn_direct)
-    Pipeline to process a set of grism/direct exposures.
+    """
+process_grism(asn_grism, asn_direct)
+
+Pipeline to process a set of grism/direct exposures.
     
     """
     root_grism = asn_grism.split('_asn.fits')[0]
@@ -87,6 +116,9 @@ def process_grism(asn_grism, asn_direct):
     
     #### Compute shifts
     threedhst.compute_shifts(asn_direct)
+    
+    #### Make a shiftfile for the GRISM ASN, with 
+    #### same shifts taken from the direct images
     threedhst.make_grism_shiftfile(asn_direct,asn_grism)
     #### First Multidrizzle run on DIRECT image for detection image
     iraf.unlearn('multidrizzle')
