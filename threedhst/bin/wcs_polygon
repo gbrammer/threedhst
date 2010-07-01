@@ -1,0 +1,56 @@
+#!/usr/stsci/pyssg/Python-2.5.4/bin/python
+
+#   $URL: file:///Users/gbrammer/SVN/threedhst/bin/asn_region $
+#   $Rev: 25 $
+#   $Author: gbrammer $
+#   $Date: 2010-07-01 00:45:36 -0400 (Thu, 01 Jul 2010) $
+
+import sys,os
+import numpy as np
+from threedhst import utils
+
+def main():
+    """
+main()
+"""
+    if len(sys.argv) == 1:
+        print """
+Usage: wcs_polygon image.fits
+
+Optionally provide a fits extension at the end of the file,
+like 
+
+wcs_polygon image.fits[1]
+
+        """
+        sys.exit(1)
+    else:
+        NFILES=len(sys.argv)-1
+        lines = ['fk5']
+        for i in range(NFILES):
+            input = sys.argv[i+1]
+            ext_start = input.find('[')
+            image_name = input
+            ext = 1
+            if ext_start > 0:
+                image_name = input[:ext_start]
+                ext = int(input[ext_start+1:-1])
+            
+            regX, regY = utils.wcs_polygon(image_name,extension=ext)
+            RAcenter = np.mean(regX)
+            DECcenter = np.mean(regY)
+            ##### Text label with filename
+            lines.append('# text(%10.6f,%10.6f) text={%s} color=cyan'
+                %(RAcenter,DECcenter,os.path.basename(image_name).split('.fits')[0]) )
+            ##### Image polygon
+            lines.append("polygon(%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f) # color=cyan" 
+               %(regX[0],regY[0],regX[1],regY[1],regX[2],regY[2],regX[3],regY[3]) )
+        
+        ##### Print region lines to STDOUT
+        for line in lines:
+            print line
+        print '\n'
+        
+##### main
+if __name__ == "__main__":
+    main()
