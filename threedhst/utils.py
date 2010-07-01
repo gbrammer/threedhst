@@ -260,7 +260,8 @@ def region_mask(shape,px,py):
 mask = region_mask(image.shape,px,py)
 
 Make a mask image where pixels within the polygon defined by px_i, py_i
-are set to 1.
+are set to 1.  This is the same algorithm as in :ref:`point_in_polygon`
+but with array orders switched around to be much more efficient.
 
 Note: something like this could be used to flag grism 0th order contaminants
 """
@@ -280,7 +281,9 @@ Note: something like this could be used to flag grism 0th order contaminants
         Y2 = tmp_py[i+1] - y
         dp = X1*X2 + Y1*Y2
         cp = X1*Y2 - Y1*X2
-        theta += np.arctan(cp/dp) - np.pi*((cp < 0) & (dp < 0)) + np.pi*((cp > 0) & (dp < 0))
+        #### Make arctan aware of the signs of x,y in arctan(x/y)
+        #theta += np.arctan(cp/dp) - np.pi*((cp < 0) & (dp < 0)) + np.pi*((cp > 0) & (dp < 0))
+        theta += np.arctan2(cp,dp) 
     ##### Set up mask
     dq = np.zeros((NX,NY),dtype=np.int)
     flag_idx = np.where(np.abs(theta) > np.pi)
@@ -294,7 +297,7 @@ test = point_in_polygon(x,y,px,py)
 
 Test if coordinates (x,y) are inside polygon defined by (px, py)
 
-[http://www.dfanning.com/tips/point_in_polygon.html, translated to Python]
+<http://www.dfanning.com/tips/point_in_polygon.html>, translated to Python
 
 """    
     N = px.shape[0]
@@ -311,7 +314,8 @@ Test if coordinates (x,y) are inside polygon defined by (px, py)
     Y2 = tmp_py[ip] - y
     dp = X1*X2 + Y1*Y2
     cp = X1*Y2 - Y1*X2
-    theta = np.arctan(cp/dp) - np.pi*((cp < 0) & (dp < 0)) + np.pi*((cp > 0) & (dp < 0))
+    # theta = np.arctan(cp/dp) - np.pi*((cp < 0) & (dp < 0)) + np.pi*((cp > 0) & (dp < 0))
+    theta = np.arctan2(cp,dp)
     if np.abs(np.sum(theta)) > np.pi:
         return True
     else:
