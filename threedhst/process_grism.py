@@ -116,7 +116,8 @@ Pipeline to process a set of grism/direct exposures.
     
     """
     import shutil
-    
+    import aXe2html.sexcat.sextractcat
+	
     asn_grism_file  = 'ib3701060_asn.fits'
     asn_direct_file = 'ib3701050_asn.fits'
     
@@ -183,16 +184,23 @@ Pipeline to process a set of grism/direct exposures.
     #### Run SExtractor on the direct image, with the WHT extension as a weight image
     se = threedhst.sex.SExtractor()
     se.aXeParams()
-    se.options['CATALOG_NAME']    = root_direct.upper()+'.cat'
+    se.options['CATALOG_NAME']    = root_direct.upper()+'_SCI.cat'
     se.options['CHECKIMAGE_NAME'] = root_direct.upper()+'_seg.fits'
     se.options['WEIGHT_TYPE']     = 'MAP_WEIGHT'
     se.options['WEIGHT_IMAGE']    = root_direct.upper()+'_WHT.fits'
     se.options['FILTER']    = 'Y'
+    
+    se.options['DETECT_THRESH']    = '3'   ## Default 1.5
+    se.options['ANALYSIS_THRESH']    = '3' ## Default 1.5
+    
     se.copyConvFile()
     se.overwrite = True
     status = se.sextractImage(root_direct.upper()+'_SCI.fits')
     #### Make region file for SExtracted catalog
-    
+    threedhst.sex.sexcatRegions(root_direct.upper()+'_SCI.cat', root_direct.upper()+'_SCI.reg', format=2)
+    #### Read catalog to keep around
+    sexCat = aXe2html.sexcat.sextractcat.SexCat(root_direct.upper()+'_SCI.cat')
+	
 def prep_name(input_asn):
     """
     make_prep_name(input_asn)

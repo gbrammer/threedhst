@@ -12,7 +12,6 @@ from the 3D-HST large program.
 #   $Date$
 
 import utils
-import sexcat_regions
-import make_aXe_lis
 import shifts
 import sex
+import process_grism

@@ -10,6 +10,7 @@ Also added similar SWarp class wrapper around SWarp.
 """
 
 import numpy as np
+import aXe2html.sexcat.sextractcat
 
 #### This should probably go in utils.py
 def _get_package_data(dataname):
@@ -360,83 +361,160 @@ class SError(Exception):
     
 
 def sexcatRegions(sexcat, regfile, format=1):
-	"""
+    """
 sexcat_regions(sexcat, regfile, format=1)
-	
+    
 Make DS9 region file from SExtractor catalog.  The coordinate system 
 is determined by the format argument, with
-	
+    
 format = 1
-	image coordinates x,y (X_IMAGE, Y_IMAGE)
+    image coordinates x,y (X_IMAGE, Y_IMAGE)
 format = 2
-	world coordinates ra,dec (X_WORLD, Y_WORLD)
-		
+    world coordinates ra,dec (X_WORLD, Y_WORLD)
+        
 If A, B, THETA columns are present, will make elliptical regions.
-	"""
-	import os,sys
-	import aXe2html.sexcat.sextractcat
+    """
+    import os,sys
+    import aXe2html.sexcat.sextractcat
     
     #sexcat = 'F140W_SCI.cat'
-	#regfile = 'test.reg'
-	#format = 1
-	if os.access(sexcat, os.R_OK) is False:
-		print "SExtractor catalog, %s, not found." %(sexcat)
-		return False
-	cat = aXe2html.sexcat.sextractcat.SexCat(sexcat)
-	## Force format=1 if out of range
-	if format < 1 or format > 2:
-		format = 1
-	if format == 1:
-		header = 'image'
-		ext = '_IMAGE'
-		asec = 1.
-		pp = ''
-		theta_sign = 1
-	else:
-		header = 'fk5'
-		ext = '_WORLD'
-		asec = 3600.
-		pp = '"'
-		theta_sign = -1
-	useEllipse = (cat.searchcol('A'+ext) > -1) and \
-				 (cat.searchcol('B'+ext) > -1) and \
-				 (cat.searchcol('THETA'+ext) > -1)
-	## X,Y columns
-	x_col = cat.columns[cat.searchcol('X'+ext)].entry
-	y_col = cat.columns[cat.searchcol('Y'+ext)].entry
-	## NUMBER column
-	num_col = cat.searchcol('NUMBER')
-	if num_col > -1:
-		num = cat.columns[num_col].entry
-	else:
-		num = srange(1,cat.nrows+1)
-	## Write output file
-	fp = open(regfile,'w')
-	if useEllipse:
-		#print "Ellipse"
-		fp.write(header+'\n')
-		a_col = cat.columns[cat.searchcol('A'+ext)].entry
-		b_col = cat.columns[cat.searchcol('B'+ext)].entry
-		theta_col = cat.columns[cat.searchcol('THETA'+ext)].entry
-		for i in range(cat.nrows):
-			line = "ellipse(%s, %s, %6.2f%s, %6.2f%s, %6.2f) # text={%s}\n" \
-				%(x_col[i], y_col[i], float(a_col[i])*asec, pp, \
-				  float(b_col[i])*asec, pp, float(theta_col[i])*theta_sign, \
-				  str(num[i]))
-			fp.write(line)
-	else:
-		#print "Circle"
-		fp.write(header+'\n')
-		for i in range(cat.nrows):
-			line = "circle(%s, %s, 1\") # text={%s}\n" \
-					   %(x_col[i],y_col[i],str(num[i]))
-			fp.write(line)
-	fp.close()
-	
-	print "3D-HST / make_region_file: %s." %regfile
+    #regfile = 'test.reg'
+    #format = 1
+    if os.access(sexcat, os.R_OK) is False:
+        print "SExtractor catalog, %s, not found." %(sexcat)
+        return False
+    cat = aXe2html.sexcat.sextractcat.SexCat(sexcat)
+    ## Force format=1 if out of range
+    if format < 1 or format > 2:
+        format = 1
+    if format == 1:
+        header = 'image'
+        ext = '_IMAGE'
+        asec = 1.
+        pp = ''
+        theta_sign = 1
+    else:
+        header = 'fk5'
+        ext = '_WORLD'
+        asec = 3600.
+        pp = '"'
+        theta_sign = -1
+    useEllipse = (cat.searchcol('A'+ext) > -1) and \
+                 (cat.searchcol('B'+ext) > -1) and \
+                 (cat.searchcol('THETA'+ext) > -1)
+    ## X,Y columns
+    x_col = cat.columns[cat.searchcol('X'+ext)].entry
+    y_col = cat.columns[cat.searchcol('Y'+ext)].entry
+    ## NUMBER column
+    num_col = cat.searchcol('NUMBER')
+    if num_col > -1:
+        num = cat.columns[num_col].entry
+    else:
+        num = srange(1,cat.nrows+1)
+    ## Write output file
+    fp = open(regfile,'w')
+    if useEllipse:
+        #print "Ellipse"
+        fp.write(header+'\n')
+        a_col = cat.columns[cat.searchcol('A'+ext)].entry
+        b_col = cat.columns[cat.searchcol('B'+ext)].entry
+        theta_col = cat.columns[cat.searchcol('THETA'+ext)].entry
+        for i in range(cat.nrows):
+            line = "ellipse(%s, %s, %6.2f%s, %6.2f%s, %6.2f) # text={%s}\n" \
+                %(x_col[i], y_col[i], float(a_col[i])*asec, pp, \
+                  float(b_col[i])*asec, pp, float(theta_col[i])*theta_sign, \
+                  str(num[i]))
+            fp.write(line)
+    else:
+        #print "Circle"
+        fp.write(header+'\n')
+        for i in range(cat.nrows):
+            line = "circle(%s, %s, 1\") # text={%s}\n" \
+                       %(x_col[i],y_col[i],str(num[i]))
+            fp.write(line)
+    fp.close()
+    
+    print "3D-HST / make_region_file: %s." %regfile
 
-
-
+class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
+    """
+    Extend aXe2html.sexcat.sextractcat.SexCat Class to include option to pop lines from 
+    the catalog.
+    """
+    def __init__(self, filename):
+        """
+        __init__(self, filename)
+        
+        Same as base __init__ but save ``filename`` object.
+        """
+        self.filename = filename
+        self.linelist    = self.opencat(filename)
+        self.headerlines = self.extractheader(self.linelist)
+        self.rowlines    = self.extractrows(self.linelist)
+        allheads    = self.makeheads(self.headerlines)
+        self.ncols  = len(allheads)
+        self.nrows  = self.makecols(allheads, self.rowlines)
+        success     = self.makeorder()
+        
+    def popItem(self, number):
+        """
+        popItem(self, number)
+        
+        Pop an item from a SExtractor catalog.
+        """
+        import numpy as np
+        
+        #### search for line with object NUMBER itself and pop it.  Return message if number not found
+        numbers = self.columns[self.searchcol('NUMBER')].entry
+        if str(number) not in numbers:
+            return False
+        
+        #idx = np.where(numbers == str(number).strip()) #+len(self.headerlines)
+        for idx, ni in enumerate(numbers):
+            if ni == str(number):
+                break             
+        lineOut = self.rowlines.pop(idx)
+        print lineOut
+        
+        allheads    = self.makeheads(self.headerlines)
+        self.ncols  = len(allheads)
+        self.nrows  = self.makecols(allheads, self.rowlines)
+        success     = self.makeorder()
+    
+    def writeToFile(self, outfile=None):
+        """
+        writeToFile(self, outfile=None)
+        
+        Write catalog lines to file.  Default overwrites the initial file (``self.filename``).
+        """
+        if not outfile:
+            outfile = self.filename
+        fp = open(outfile,'w')
+        fp.writelines(self.headerlines)
+        fp.writelines(self.rowlines)
+        fp.close()
+    
+    def change_MAG_AUTO_for_aXe(self, filter='F1392W'):
+        """
+        change_MAG_AUTO(self, filter='F1392W')
+        
+        Change the MAG_AUTO column in the catalog to be MAG_{filter} for aXe.
+        """
+        from warnings import warn
+        found_match = False
+        for i, line in enumerate(self.headerlines):
+            if ' MAG_AUTO ' in line:
+                found_match = True
+                break
+        
+        if found_match:
+            spl = line.split(' MAG_AUTO ')
+            self.headerlines[i] = spl[0]+' MAG_'+filter.upper()+' '+spl[1]
+            warn('change_MAG_AUTO_for_aXe: MAG_AUTO -> MAG_'+filter.upper())
+        else:
+            warn('change_MAG_AUTO_for_aXe: No MAG_AUTO column found')
+        
+    
 class SWarp(object):
     """
     SWarp(object)
@@ -758,8 +836,8 @@ SWarp.swarpMatchImage: PIXEL_SCALE= %s
         
         For best results, edit the ``degtosexal`` and ``degtosexde`` functions in
         ``swarp/src/fitswcs.c`` to print out 4 decimal places in the coordinates:
-    	    
-    	    sprintf(str,"%c%02d:%02d:%07.4f", sign, dd, dm, ds);
+            
+            sprintf(str,"%c%02d:%02d:%07.4f", sign, dd, dm, ds);
         
         The first swarp run tries to compute the center coordinates directly using the WCS
         information of the center pixel (NAXIS1/2, NAXIS2/2), but this doesn't match
