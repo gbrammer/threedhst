@@ -56,7 +56,8 @@ import os
 import pyfits
 import pyraf
 from pyraf import iraf
-from iraf import stsdas,dither
+from iraf import stsdas,dither,taxe20
+
 no = iraf.no
 yes = iraf.yes
 INDEF = iraf.INDEF
@@ -99,7 +100,7 @@ Check that all of the expected directories exist for
 If makeDirs is True, then mkdir any that isn't found in ./
     
     """    
-    directories = ['DATA','CAT','RAW','OUTPUT_G141','DRIZZLE_G141']
+    directories = ['DATA','RAW','OUTPUT_G141','DRIZZLE_G141']
     for dir in directories:
         if not os.path.exists(dir):
             if makeDirs:
@@ -108,7 +109,7 @@ If makeDirs is True, then mkdir any that isn't found in ./
                 raise IOError('Directory %s doesn\'t exist in %s.' %(dir,os.getcwd()))
 
 
-def process_grism(asn_grism_file, asn_direct_file):
+def reduction_script(): #asn_grism_file, asn_direct_file):
     """
 process_grism(asn_grism, asn_direct)
     
@@ -117,45 +118,61 @@ Pipeline to process a set of grism/direct exposures.
     """
     import shutil
     import aXe2html.sexcat.sextractcat
-	
-    asn_grism_file  = 'ib3701060_asn.fits'
-    asn_direct_file = 'ib3701050_asn.fits'
+    import glob
+    import pywcs
+    import numpy as np
+    
+    ##########################################
+    ####   Bookkeeping, set up DATA directory
+    ##########################################
     
     #### Check that we're in the home directory of a 3D-HST field
     check_3dhst_environment(makeDirs=False)
+
+    os.chdir('./DATA')
+    
+    asn_grism_file  = 'ib3721060_asn.fits'
+    asn_direct_file = 'ib3721050_asn.fits'
     
     #### ASN root names
     root_grism = asn_grism_file.split('_asn.fits')[0]
     root_direct = asn_direct_file.split('_asn.fits')[0]
     
-    #### Read ASN files
-    asn_grism  = threedhst.utils.ASNFile(file='RAW/'+asn_grism_file)
-    asn_direct = threedhst.utils.ASNFile(file='RAW/'+asn_direct_file)
-        
-    os.chdir('./DATA')
-    
     #### Copy ASN files from RAW
     shutil.copy('../RAW/'+asn_grism_file,'./')
     shutil.copy('../RAW/'+asn_direct_file,'./')
+
+    #### Read ASN files
+    asn_grism  = threedhst.utils.ASNFile(file=asn_grism_file)
+    asn_direct = threedhst.utils.ASNFile(file=asn_direct_file)
+    ### Force PROD-DTH to be the root of the input ASN file
+    asn_grism.product = root_grism
+    asn_direct.product = root_direct
+    asn_grism.writeToFile(asn_grism_file)
+    asn_direct.writeToFile(asn_direct_file)
+    
     #### Copy FLT files
-    explist = asn_grism.exposures
+    explist = []
+    explist.extend(asn_grism.exposures)
     explist.extend(asn_direct.exposures)
     for exp in explist:
         fits_file = threedhst.utils.find_fits_gz('../RAW/'+exp+'_flt.fits')
-        print fits_file
         fi = pyfits.open(fits_file)
         try:
             os.remove('./'+exp+'_flt.fits')
         except:
-            pass
-            
+            dummy = 1
+        print exp
         fi.writeto('./'+exp+'_flt.fits', clobber=True)
         
-    #### Compute shifts
+    #########################################
+    ####   Compute shifts
+    #########################################
+    
     try:
         os.remove(root_direct+'_tweak.fits')
     except:
-        pass
+        dummy = 1
         
     threedhst.shifts.compute_shifts(asn_direct_file)
     #### Check to make sure that every exposure in the ASN file
@@ -166,41 +183,178 @@ Pipeline to process a set of grism/direct exposures.
     #### same shifts taken from the direct images
     threedhst.shifts.make_grism_shiftfile(asn_direct_file,asn_grism_file)
     
+    #########################################
+    ####   Make detection image and generate a catalog
+    #########################################
+    dither
+    
     #### First Multidrizzle run on DIRECT images to create a detection image
     iraf.unlearn('multidrizzle')
-    dither.multidrizzle ( input = asn_direct_file, shiftfile = root_direct + '_shifts.txt', \
+    iraf.multidrizzle ( input = asn_direct_file, shiftfile = root_direct + '_shifts.txt', \
        output = '', final_scale = INDEF, final_pixfrac = 1.0)
     cleanMultidrizzleOutput()
     
-    direct_mosaic = root_direct.upper()+'_drz.fits'
+    direct_mosaic = root_direct+'_drz.fits'
     
     #### Get out SCI and WHT extensions of the Multidrizzle mosaic
-    im = pyfits.open(direct_mosaic)
-    SCI = im[1]
-    SCI.writeto(root_direct.upper()+'_SCI.fits')
-    WHT = im[2]
-    WHT.writeto(root_direct.upper()+'_WHT.fits')
-    
+    iraf.imcopy(input=direct_mosaic+'[1]',output=root_direct+'_SCI.fits')
+    iraf.imcopy(input=direct_mosaic+'[2]',output=root_direct+'_WHT.fits')
     #### Run SExtractor on the direct image, with the WHT extension as a weight image
     se = threedhst.sex.SExtractor()
     se.aXeParams()
-    se.options['CATALOG_NAME']    = root_direct.upper()+'_SCI.cat'
-    se.options['CHECKIMAGE_NAME'] = root_direct.upper()+'_seg.fits'
-    se.options['WEIGHT_TYPE']     = 'MAP_WEIGHT'
-    se.options['WEIGHT_IMAGE']    = root_direct.upper()+'_WHT.fits'
-    se.options['FILTER']    = 'Y'
-    
-    se.options['DETECT_THRESH']    = '3'   ## Default 1.5
-    se.options['ANALYSIS_THRESH']    = '3' ## Default 1.5
-    
     se.copyConvFile()
     se.overwrite = True
-    status = se.sextractImage(root_direct.upper()+'_SCI.fits')
-    #### Make region file for SExtracted catalog
-    threedhst.sex.sexcatRegions(root_direct.upper()+'_SCI.cat', root_direct.upper()+'_SCI.reg', format=2)
+    se.options['CATALOG_NAME']    = root_direct+'_drz.cat'
+    se.options['CHECKIMAGE_NAME'] = root_direct+'_seg.fits'
+    se.options['CHECKIMAGE_TYPE'] = 'SEGMENTATION'
+    se.options['WEIGHT_TYPE']     = 'MAP_WEIGHT'
+    se.options['WEIGHT_IMAGE']    = root_direct+'_WHT.fits'
+    se.options['FILTER']    = 'Y'
+    ## Detect thresholds
+    se.options['DETECT_THRESH']    = '10'   ## Default 1.5
+    se.options['ANALYSIS_THRESH']  = '10' ## Default 1.5
+    se.options['MAG_ZEROPOINT'] = '26.46'
+    
+    ## Run SExtractor
+    status = se.sextractImage(root_direct+'_SCI.fits')
+    
     #### Read catalog to keep around
-    sexCat = aXe2html.sexcat.sextractcat.SexCat(root_direct.upper()+'_SCI.cat')
-	
+    sexCat = threedhst.sex.mySexCat(root_direct+'_drz.cat')
+    #### Replace MAG_AUTO column name to MAG_F1392W
+    sexCat.change_MAG_AUTO_for_aXe(filter='F1392W')
+    sexCat.writeToFile()
+    #### Make region file for SExtracted catalog and the pointing itself
+    threedhst.sex.sexcatRegions(root_direct+'_drz.cat', root_direct+'_drz.reg', format=2)
+    threedhst.utils.asn_region(asn_direct_file)
+    
+    #### Make zeroth order region file
+    x_world = sexCat.columns[sexCat.searchcol('X_WORLD')].entry
+    y_world = sexCat.columns[sexCat.searchcol('Y_WORLD')].entry
+    a_col = sexCat.columns[sexCat.searchcol('A_WORLD')].entry
+    b_col = sexCat.columns[sexCat.searchcol('B_WORLD')].entry
+    theta_col = sexCat.columns[sexCat.searchcol('THETA_WORLD')].entry
+    asec = 3600.
+    pp = '"'
+    theta_sign = -1
+
+    flt = pyfits.open(asn_direct.exposures[0]+'_flt.fits')
+    wcs = pywcs.WCS(flt[1].header)
+    world_coord = []
+    for i in range(len(x_world)):
+        world_coord.append([np.float(x_world[i]),np.float(y_world[i])])
+    xy_coord = wcs.wcs_sky2pix(world_coord,0)
+    ## conf: XOFF_B -192.2400520   -0.0023144    0.0111089
+    for i in range(len(x_world)):
+        xy_coord[i][0] += -192.2400520 - 0.0023144*xy_coord[i][0] + 0.0111089*xy_coord[i][1]
+    world_coord = wcs.wcs_pix2sky(xy_coord,0)
+    fp = open(root_grism+'_zeroth.reg','w')
+    fp.write('fk5\n')
+    for i in range(len(x_world)):
+        line = "ellipse(%s, %s, %6.2f%s, %6.2f%s, %6.2f)\n" %(world_coord[i][0], world_coord[i][1], 
+              float(a_col[i])*asec, pp, \
+              float(b_col[i])*asec, pp, float(theta_col[i])*theta_sign)
+        fp.write(line)
+    fp.close()
+    
+    #########################################
+    ####   Run aXe scripts
+    #########################################
+    taxe20
+    #### initialize parameters
+    conf = Conf('WFC3.IR.G141.V1.0.conf')
+    conf.params['DRZROOT'] = root_direct
+    conf.writeto(root_direct+'.conf')
+    CONFIG = root_direct+'.conf'
+    #CONFIG = 'WFC3.IR.G141.V1.0.conf'
+    SKY = 'WFC3.IR.G141.sky.V1.0.fits'
+    set_aXe_environment(grating='G141')
+    
+    ## Make 'lis' file for input into aXe
+    status = make_aXe_lis(asn_grism_file, asn_direct_file)
+    shutil.move(prep_name(asn_grism_file),'..')
+    ## taxe20.tiolprep
+    flprMulti()
+    iraf.tiolprep(mdrizzle_ima=root_direct+'_drz.fits', input_cat=root_direct+'_drz.cat')
+    ## taxe20.taxeprep
+    os.chdir('../')
+    flprMulti()
+    iraf.taxeprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
+        backgr="YES", backims=SKY, mfwhm="2.0",norm="NO")
+    
+    #### Multidrizzle the grism images to flag cosmic rays
+    os.chdir('./DATA')
+    flprMulti()
+    iraf.multidrizzle ( input = asn_grism_file, shiftfile = root_grism + '_shifts.txt', \
+       output = '', final_scale = INDEF, final_pixfrac = 1.0, skysub = no)
+    cleanMultidrizzleOutput()
+    
+    #### Prepare fluxcube image
+    fp = open('zeropoints.lis','w')
+    fp.writelines([root_direct+'_drz.fits, 1392.3, 26.46\n',
+                   root_direct+'_drz.fits, 992.3, 26.46\n'])
+    fp.close()
+    flprMulti()
+    iraf.tfcubeprep (grism_image = root_grism+'_drz.fits', \
+       segm_image = root_direct+'_seg.fits', \
+       filter_info = 'zeropoints.lis', AB_zero = yes, dimension_info = '0,0,0,0')
+    
+    ####################       Main aXe run
+    os.chdir('../')
+    flprMulti()
+    #### taxecore
+    iraf.taxecore(inlist=prep_name(asn_grism_file), configs=CONFIG,
+        back="NO",extrfwhm=4.1, drzfwhm=4, backfwhm=4.1,
+        slitless_geom="YES", orient="YES", exclude="NO",lambda_mark=1392.0, 
+        cont_model="fluxcube", model_scale=3, lambda_psf=1392.0, inter_type="linear", 
+        np=10,interp=-1,smooth_lengt=1, smooth_fwhm=1.0,
+        spectr="NO", adj_sens="NO", weights="NO", sampling="drizzle")
+    
+    #### tdrzprep
+    flprMulti()
+    iraf.tdrzprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
+        opt_extr="YES", back="NO")
+        
+    #### taxedrizzle
+    flprMulti()
+    iraf.taxedrizzle(inlist=prep_name(asn_grism_file), configs=CONFIG, infwhm=4.1,
+        outfwhm=4, back="NO", makespc="YES", opt_extr="YES",adj_sens="YES")
+    
+    #### Make a multidrizzled contamination image
+    os.chdir('./DATA')
+    for expi in asn_grism.exposures:
+        ### copy ../OUTPUT_G141/CONT.fits into existing grism FLT files
+        flt = pyfits.open(expi+'_flt.fits','update')
+        cont = pyfits.open('../OUTPUT_G141/'+expi+'_flt_2.CONT.fits')
+        flt[1].data = cont[1].data.copy()
+        flt.flush()
+    asn_grism.product = None #root_grism+'CONT'
+    asn_grism.writeToFile(root_grism+'CONT_asn.fits')
+    flprMulti()
+    iraf.multidrizzle ( input = root_grism+'CONT_asn.fits', output = '', \
+       shiftfile = root_grism + '_shifts.txt', \
+       final_scale = INDEF, final_pixfrac = 1.0, skysub = no,
+       static=no, driz_separate=no,median=no, blot=no, driz_cr=no)
+    cleanMultidrizzleOutput()
+    
+    #### Clean up
+    rmfiles = glob.glob('*FLX.fits')
+    rmfiles.extend(glob.glob('*_flt.fits'))
+    rmfiles.extend(glob.glob('*flt_1.cat'))
+    rmfiles.extend(glob.glob(root_direct+'*[SW][CH]?.fits'))
+    rmfiles.extend(glob.glob('*coeffs1.dat'))
+    rmfiles.extend(glob.glob('threedhst_auto.*'))
+    rmfiles.extend(glob.glob('zeropoints.lis'))
+    rmfiles.extend(glob.glob('default.conv'))
+    for expi in asn_grism.exposures:
+        rmfiles.extend(glob.glob('../OUTPUT_G141/'+expi+'*'))
+         
+    if len(rmfiles) > 0:
+        for rmfile in rmfiles:
+            os.remove(rmfile)
+        
+    print 'threedhst: cleaned up and Done!\n'
+    
+
 def prep_name(input_asn):
     """
     make_prep_name(input_asn)
@@ -254,15 +408,27 @@ def cleanMultidrizzleOutput():
     Remove *single_[sci/wht].fits, *sci1_blt.fits, *flt*mask1.fits, *coeffs1.dat
     """
     import os,glob
-    files = glob.glob('*single_???.fits')
-    files.extend(glob.glob('*sci1_blt.fits'))
-    files.extend(glob.glob('*flt*mask1.fits'))
-    files.extend(glob.glob('*coeffs1.dat'))
-    files.extend(glob.glob('IB*.run'))
-    files.extend(glob.glob('IB*_med.fits'))
-    for file in files:
-        os.remove(file)
-        
+    rmfiles = glob.glob('*single_???.fits')
+    rmfiles.extend(glob.glob('*sci1_blt.fits'))
+    rmfiles.extend(glob.glob('*flt*mask1.fits'))
+    #files.extend(glob.glob('*coeffs1.dat'))
+    rmfiles.extend(glob.glob('ib*.run'))
+    rmfiles.extend(glob.glob('ib*_med.fits'))
+    if len(rmfiles) > 0:
+        for rmfile in rmfiles:
+            os.remove(rmfile)
+
+def flprMulti(n=3):
+    """
+    flprMulti(n=3)
+    
+    Run iraf.flpr() ``n`` times.
+    """
+    if n < 1:
+        n=1
+    for i in range(n):
+        iraf.flpr()
+
 def multidrizzle_defaults():
     multidrizzle ( input = 'ib3714060_asn.fits', output = '', mdriztab = no, \
        refimage = '', runfile = '', workinplace = no, updatewcs = yes, \
@@ -287,6 +453,71 @@ def multidrizzle_defaults():
        gain = INDEF, gnkeyword = INDEF, rdnoise = INDEF, rnkeyword = INDEF, exptime = INDEF, \
     )
     
+class Conf(object):
+    """
+    Conf(infile='WFC3.IR.G141.V1.0.conf')
+    
+    Read an aXe configuration file and easily change parameters.
+    
+    """            
+    def _getPath(self):
+        """
+        _getPath()
+        
+        Figure out if we're in the root directory or in DATA
+        """
+        import os
+        if os.getcwd().split('/')[-1] == 'DATA':
+            self.path = '../CONF/'
+        else:
+            self.path = './CONF/'
+        
+    def _processLines(self):
+        self.nlines = len(self.lines)
+        self.params = {}
+        self._pline = {}
+        for i,line in enumerate(self.lines):
+            if (line[0] is not '#') & (line.strip() is not  ''):
+                spl = line.split()
+                self.params[spl[0]] = ' '.join(spl[1:])
+                self._pline[spl[0]] = i
+        self.nkeys = self.params.keys().__len__()
+        
+    def _readLines(self):
+        """
+        _readlines()
+        """
+        self._getPath()
+        fp = open(self.path+self.infile,'r')
+        self.lines = fp.readlines()
+        fp.close()
+        
+    def __init__(self, infile='WFC3.IR.G141.V1.0.conf'):
+        self.infile = infile
+        self._getPath()
+        self._readLines()
+        self._processLines()
+        
+    def _assignPars(self):
+        """
+        _assignPars()
+        
+        Apply parameter values to self.lines
+        """
+        for key in self.params.keys():
+            self.lines[self._pline[key]] = key + ' ' + self.params[key]+'\n'
+    
+    def writeto(self, output='tmp.conf'):
+        """
+        writeto(output='tmp.conf')
+        """ 
+        self._getPath()
+        self._assignPars()
+        fp = open(self.path+output,'w')
+        fp.writelines(self.lines)
+        fp.close()
+               
+     
 
     
 

@@ -184,7 +184,7 @@ class SExtractor(object):
                         opts[k] = ls[1].strip()
             self.name = sexfile.replace('.sex','')
         else:
-            self.name = 'astropysics_auto'
+            self.name = 'threedhst_auto'
                         
                         
         pfile = opts['PARAMETERS_NAME'] if parfile is None else parfile
@@ -434,7 +434,7 @@ If A, B, THETA columns are present, will make elliptical regions.
             fp.write(line)
     fp.close()
     
-    print "3D-HST / make_region_file: %s." %regfile
+    print '3D-HST / make_region_file: %s.\n' %regfile
 
 class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
     """
@@ -510,9 +510,9 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         if found_match:
             spl = line.split(' MAG_AUTO ')
             self.headerlines[i] = spl[0]+' MAG_'+filter.upper()+' '+spl[1]
-            warn('change_MAG_AUTO_for_aXe: MAG_AUTO -> MAG_'+filter.upper())
+            warn('change_MAG_AUTO_for_aXe: MAG_AUTO -> MAG_'+filter.upper()+'\n')
         else:
-            warn('change_MAG_AUTO_for_aXe: No MAG_AUTO column found')
+            warn('change_MAG_AUTO_for_aXe: No MAG_AUTO column found\n')
         
     
 class SWarp(object):
@@ -639,7 +639,7 @@ class SWarp(object):
                         opts[k] = ls[1].strip()
             self.name = swarpfile.replace('.swarp','')
         else:
-            self.name = 'auto_default'
+            self.name = 'threedhst_auto'
                                 
         self.options = opts
         
@@ -760,9 +760,9 @@ class SWarp(object):
         
         if verbose:
             print """
-SWarp.swarpMatchImage: PIXEL_SCALE= %s
-                        IMAGE_SIZE= %s
-                            CENTER= %s""" %(self.options['PIXEL_SCALE'],self.options['IMAGE_SIZE'],self.options['CENTER'])
+SWarp.swarpMatchImage: PIXEL_SCALE=  %s
+                        IMAGE_SIZE=  %s
+                            CENTER= %s\n""" %(self.options['PIXEL_SCALE'],self.options['IMAGE_SIZE'],self.options['CENTER'])
     
     
     def swarpImage(self,inputImage,mode='waiterror'):
@@ -805,11 +805,11 @@ SWarp.swarpMatchImage: PIXEL_SCALE= %s
                 
         self._saveFiles(fnbase)
         clstr = 'swarp %s -c %s' %(inputImage,self.name+'.swarp')
-        proc = Popen(clstr.split(),executable='swarp',stdout=PIPE,stderr=PIPE)
         
-        print 'THREEDHST/SWarp.swarpImage: %s' %clstr
+        print 'THREEDHST/SWarp.swarpImage: %s\n' %clstr
         
         if mode == 'waiterror' or mode =='wait':
+            proc = Popen(clstr.split(),executable='swarp',stdout=PIPE,stderr=PIPE)
             res = proc.wait()
             sout,serr = proc.communicate()
             
@@ -821,6 +821,9 @@ SWarp.swarpMatchImage: PIXEL_SCALE= %s
             return res
         elif mode == 'proc':
             return proc
+        elif mode == 'direct':
+            proc = Popen(clstr.split()) #,executable='swarp') #,stdout=PIPE,stderr=PIPE)
+            res = proc.wait()
         else:
             raise ValueError('unrecognized mode argument '+str(mode))
             
@@ -853,11 +856,11 @@ SWarp.swarpMatchImage: PIXEL_SCALE= %s
             ra0 = coords[1] 
             de0 = coords[2]
             self.options['CENTER'] = ra0+', '+de0
-            print 'THREEDHST/Swarp.recenter: %s' %(self.options['CENTER'])
+            print 'THREEDHST/Swarp.recenter: %s\n' %(self.options['CENTER'])
             self.overwrite = True
             #self.swarpImage(self.swarpInputImage)
         else:
-            print 'THREEDHST/Swarp.recenter: No SWarp output found'
+            print 'THREEDHST/Swarp.recenter: No SWarp output found\n'
     
 
 

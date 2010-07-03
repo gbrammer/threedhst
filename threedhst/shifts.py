@@ -12,7 +12,7 @@ import os
 import pyfits
 import pyraf
 from pyraf import iraf
-from iraf import stsdas,dither
+#from iraf import stsdas,dither
 no = iraf.no
 yes = iraf.yes
 INDEF = iraf.INDEF
@@ -21,7 +21,10 @@ def compute_shifts(asn_direct):
     """compute_shifts(asn_direct)"""
     root = asn_direct.split('_asn.fits')[0].lower()
     ### Get shifts with tweakshifts
-    dither.tweakshifts ( input = asn_direct, shiftfile = '', reference = root+'_tweak.fits', \
+    iraf.flpr()
+    iraf.flpr()
+    iraf.flpr()
+    iraf.tweakshifts ( input = asn_direct, shiftfile = '', reference = root+'_tweak.fits', \
        output = root+'_shifts.txt', findmode = 'catalog', gencatalog = 'daofind', \
        sextractpars = '', undistort = yes, computesig = yes, idckey = 'idctab', \
        clean = yes, verbose = no, catfile = '', xcol = 1, ycol = 2, \
@@ -36,6 +39,34 @@ def compute_shifts(asn_direct):
        pad = no, fwhm = 7.0, ellip = 0.05, pa = 45.0, fitbox = 7, \
     )
     ### !!! Need to add steps to match WCS to astrometric references (e.g. ACS)
+
+def matchImagePixels(input=None,matchImage=None):
+    """
+    matchImagePixels(input=None,matchImage=None)
+    
+    SWarp input image to same size/scale as matchIMage.
+    Output is input_root+'.match.fits'
+    
+    """
+    from threedhst.sex import SWarp
+    
+    input = '/research/HST/GRISM/WEINER/ACS/h_nz_sect33_v2.0_drz_img.fits'
+    matchImage = 'IB3721050_SCI.fits'
+    
+    sw = SWarp()
+    sw._aXeDefaults()
+    sw.overwrite = True
+    ### Get first guess coordinates
+    sw.swarpMatchImage(matchImage)
+    status = sw.swarpImage(matchImage,mode='wait')
+    os.remove('coadd.fits')
+    os.remove('coadd.weight.fits')
+    
+    sw.swarpRecenter()
+    sw.options['IMAGEOUT_NAME'] = os.path.basename(input).split('.fits')[0]+'.match.fits'
+    sw.options['WEIGHTOUT_NAME'] = os.path.basename(input).split('.fits')[0]+'.match.weight.fits'
+    status = sw.swarpImage(input,mode='direct')
+    os.remove(os.path.basename(input).split('.fits')[0]+'.match.weight.fits')
 
 
 def make_grism_shiftfile(asn_direct, asn_grism):

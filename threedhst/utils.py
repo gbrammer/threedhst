@@ -209,7 +209,7 @@ Create a DS9 region file for the exposures defined in an ASN file.
     fp.write('# text(%10.6f,%10.6f) text={%s} color=magenta\n' \
         %(np.mean(RAcenters),np.mean(DECcenters),asn_file.split('_asn.fits')[0]))
     fp.close()
-    print "3D-HST / ASN_REGION: %s" %(output_file)
+    print '3D-HST / ASN_REGION: %s\n' %(output_file)
     
 
 
