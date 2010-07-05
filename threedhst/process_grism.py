@@ -109,7 +109,7 @@ If makeDirs is True, then mkdir any that isn't found in ./
                 raise IOError('Directory %s doesn\'t exist in %s.' %(dir,os.getcwd()))
 
 
-def reduction_script(): #asn_grism_file, asn_direct_file):
+def reduction_script(asn_grism_file=None, asn_direct_file=None):
     """
 process_grism(asn_grism, asn_direct)
     
@@ -131,8 +131,10 @@ Pipeline to process a set of grism/direct exposures.
 
     os.chdir('./DATA')
     
-    asn_grism_file  = 'ib3721060_asn.fits'
-    asn_direct_file = 'ib3721050_asn.fits'
+    if not asn_grism_file:
+        asn_grism_file  = 'ib3721060_asn.fits'
+    if not asn_direct_file:
+        asn_direct_file = 'ib3721050_asn.fits'
     
     #### ASN root names
     root_grism = asn_grism_file.split('_asn.fits')[0]
@@ -186,7 +188,7 @@ Pipeline to process a set of grism/direct exposures.
     #########################################
     ####   Make detection image and generate a catalog
     #########################################
-    dither
+    #dither
     
     #### First Multidrizzle run on DIRECT images to create a detection image
     iraf.unlearn('multidrizzle')
@@ -211,8 +213,8 @@ Pipeline to process a set of grism/direct exposures.
     se.options['WEIGHT_IMAGE']    = root_direct+'_WHT.fits'
     se.options['FILTER']    = 'Y'
     ## Detect thresholds
-    se.options['DETECT_THRESH']    = '10'   ## Default 1.5
-    se.options['ANALYSIS_THRESH']  = '10' ## Default 1.5
+    se.options['DETECT_THRESH']    = '5'   ## Default 1.5
+    se.options['ANALYSIS_THRESH']  = '5' ## Default 1.5
     se.options['MAG_ZEROPOINT'] = '26.46'
     
     ## Run SExtractor
@@ -259,10 +261,11 @@ Pipeline to process a set of grism/direct exposures.
     #########################################
     ####   Run aXe scripts
     #########################################
-    taxe20
+    #taxe20
     #### initialize parameters
     conf = Conf('WFC3.IR.G141.V1.0.conf')
     conf.params['DRZROOT'] = root_direct
+    conf.params['BEAMB'] = '-220 220'     ## Workaround to get 0th order contam. from fluxcube
     conf.writeto(root_direct+'.conf')
     CONFIG = root_direct+'.conf'
     #CONFIG = 'WFC3.IR.G141.V1.0.conf'
@@ -289,9 +292,11 @@ Pipeline to process a set of grism/direct exposures.
     cleanMultidrizzleOutput()
     
     #### Prepare fluxcube image
+    #### (Force flat spectrum in f_nu)
     fp = open('zeropoints.lis','w')
-    fp.writelines([root_direct+'_drz.fits, 1392.3, 26.46\n',
-                   root_direct+'_drz.fits, 992.3, 26.46\n'])
+    fp.writelines([root_direct+'_drz.fits, 1792.3, 26.46\n',
+                   root_direct+'_drz.fits, 1392.3, 26.46\n',
+                   root_direct+'_drz.fits, 792.3, 26.46\n'])
     fp.close()
     flprMulti()
     iraf.tfcubeprep (grism_image = root_grism+'_drz.fits', \
@@ -351,7 +356,15 @@ Pipeline to process a set of grism/direct exposures.
     if len(rmfiles) > 0:
         for rmfile in rmfiles:
             os.remove(rmfile)
-        
+    
+    #### Make output webpages with spectra thumbnails
+    SPC = threedhst.plotting.SPCFile(root_direct+'_2_opt.SPC.fits')
+    print '\nthreedhst.plotting.makeSpecImages: Creating spectra thumbnails...\n\n'
+    threedhst.plotting.makeSpecImages(SPC, path='../HTML/images/')
+    print '\nthreedhst.plotting.makeHTML: making webpage.\n'
+    threedhst.plotting.makeHTML(SPC, sexCat, output='../HTML/'+root_direct+'_index.html')
+    
+    #### Done!
     print 'threedhst: cleaned up and Done!\n'
     
 
@@ -516,9 +529,7 @@ class Conf(object):
         fp = open(self.path+output,'w')
         fp.writelines(self.lines)
         fp.close()
-               
-     
-
+    
     
 
     

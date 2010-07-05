@@ -511,6 +511,11 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
             spl = line.split(' MAG_AUTO ')
             self.headerlines[i] = spl[0]+' MAG_'+filter.upper()+' '+spl[1]
             warn('change_MAG_AUTO_for_aXe: MAG_AUTO -> MAG_'+filter.upper()+'\n')
+            allheads    = self.makeheads(self.headerlines)
+            self.ncols  = len(allheads)
+            self.nrows  = self.makecols(allheads, self.rowlines)
+            success     = self.makeorder()
+            
         else:
             warn('change_MAG_AUTO_for_aXe: No MAG_AUTO column found\n')
         
