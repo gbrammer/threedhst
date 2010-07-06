@@ -9,8 +9,8 @@ Download the full installation `stsci_iraf_intel_2.10.dmg` (as of June 2010) and
 The STScI Python packages seems to require `csh`, which is a bit of a pain since the Mac defaults to `bash`.  After the installation, test that things are installed with 
 
 {{{
-csh
-pyraf --ipython 
+$ csh
+% pyraf --ipython 
 }}}
 
 The `--ipython` flag isn't required, but provides a nice interface to python with lots of tab completion options to make things easy to figure out.
@@ -22,7 +22,7 @@ Go to some directory where you want to place the code, say $HOME.
 
 {{{  
 THREED_ROOT=$HOME 
-cd $HOME
+cd $THREED_ROOT
 }}}
 
 This directory needs to be in your PYTHONPATH to be able to find it from within PyRAF. 
