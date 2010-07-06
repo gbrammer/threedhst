@@ -4,6 +4,19 @@
 
 = Download and make changes =
 
+Go to some directory where you want to place the code, say $HOME.
+
+{{{  
+THREED_ROOT=$HOME 
+cd $HOME
+}}}
+
+This directory needs to be in your PYTHONPATH:
+
+{{{
+export PYTHONPATH="${PYTHONPATH}:$THREED_ROOT"
+}}}
+
 Checkout the code with Subversion (svn):
 
 {{{
