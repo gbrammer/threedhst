@@ -3,10 +3,10 @@
 
 Utilities for computing shifts and processing shiftfiles.
 """
-#   $URL $
-#   $Rev $
-#   $Author $
-#   $Date $
+# $URL$
+# $Rev$
+# $Author$
+# $Date$
 
 import os
 import pyfits

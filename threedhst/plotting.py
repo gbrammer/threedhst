@@ -4,10 +4,10 @@
 Utilities for plotting grism spectra.
 
 """
-# $URL $
-# $Rev $
-# $Author $
-# $Date $
+# $URL$
+# $Rev$
+# $Author$
+# $Date$
 
 import pyfits
 
