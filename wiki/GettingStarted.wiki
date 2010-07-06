@@ -1,0 +1,17 @@
+#summary Getting started with the threedhst package
+
+= Set up your Python environment = 
+
+= Download and make changes =
+
+Checkout the code with Subversion (svn):
+
+{{{
+svn checkout https://threedhst.googlecode.com/svn/ . --username YOUR_GOOGLE_USERNAME
+}}}
+
+It will ask for a password the first time you try to checkout the code.  This can be found at your code.google [http://code.google.com/hosting/settings settings page].  Note that this password is different from your normal google account password for security reasons (SVN caches the password in an unsecure place so you don't have to enter the password every time you checkout or commit the code).
+
+If you want to contribute to the development of the code, send an email to G. Brammer requesting "commit" privileges.
+
+ 
