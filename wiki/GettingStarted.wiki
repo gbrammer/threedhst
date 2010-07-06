@@ -2,7 +2,21 @@
 
 = Set up your Python environment = 
 
-= Download and make changes =
+The easiest way to get everything right is by downloading and installing STScI  Python from [http://www.stsci.edu/resources/software_hardware/pyraf/stsci_python/current/download here].
+
+Download the full installation `stsci_iraf_intel_2.10.dmg` (as of June 2010) and install from the package.
+
+The STScI Python packages seems to require `csh`, which is a bit of a pain since the Mac defaults to `bash`.  After the installation, test that things are installed with 
+
+{{{
+csh
+pyraf --ipython 
+}}}
+
+The `--ipython` flag isn't required, but provides a nice interface to python with lots of tab completion options to make things easy to figure out.
+
+
+= Download and install =
 
 Go to some directory where you want to place the code, say $HOME.
 
@@ -11,12 +25,19 @@ THREED_ROOT=$HOME
 cd $HOME
 }}}
 
-This directory needs to be in your PYTHONPATH to be able to find it from within PyRAF:
+This directory needs to be in your PYTHONPATH to be able to find it from within PyRAF. 
 
 {{{
 export PYTHONPATH="${PYTHONPATH}:$THREED_ROOT"
 }}}
-(You'll probably want to put that line in your `~/.bashrc` file.)
+
+ Included in the distribution are some wrappers around some of the functions that you can call from the command line.  They will live in $THREED_ROOT/threedhst/bin, so add that directory to your path.
+
+{{{
+export PATH="${PATH}:$THREED_ROOT/threedhst/bin"
+}}}
+
+(You'll probably want to put the ``export`` lines in your `~/.bashrc` file.)
 
 Now checkout the code with Subversion (svn):
 
