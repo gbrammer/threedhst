@@ -31,7 +31,7 @@ This directory needs to be in your PYTHONPATH to be able to find it from within 
 export PYTHONPATH="${PYTHONPATH}:$THREED_ROOT"
 }}}
 
-Included in the distribution are some wrappers around some of the functions that you can call from the command line.  They will live in $THREED_ROOT/threedhst/bin, so add that directory to your path.
+Included in the distribution are some wrappers around some of the functions that you can call from the command line.  They will live in `$THREED_ROOT/threedhst/bin`, so add that directory to your path.
 
 {{{
 export PATH="${PATH}:$THREED_ROOT/threedhst/bin"
