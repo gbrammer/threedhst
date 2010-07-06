@@ -359,10 +359,15 @@ Pipeline to process a set of grism/direct exposures.
     
     #### Make output webpages with spectra thumbnails
     SPC = threedhst.plotting.SPCFile(root_direct+'_2_opt.SPC.fits')
-    print '\nthreedhst.plotting.makeSpecImages: Creating spectra thumbnails...\n\n'
-    threedhst.plotting.makeSpecImages(SPC, path='../HTML/images/')
-    print '\nthreedhst.plotting.makeHTML: making webpage.\n'
-    threedhst.plotting.makeHTML(SPC, sexCat, output='../HTML/'+root_direct+'_index.html')
+    print '\nthreedhst.plotting.makeSpec1dImages: Creating 1D spectra thumbnails...\n\n'
+    threedhst.plotting.makeSpec1dImages(SPC, path='../HTML/images/')
+
+    print '\nthreedhst.plotting.makeSpec1dImages: Creating 2D spectra thumbnails...\n\n'
+    threedhst.plotting.makeSpec2dImages(SPC, path='../HTML/images/')
+    
+    out_web = '../HTML/'+root_direct+'_index.html'
+    print '\nthreedhst.plotting.makeHTML: making webpage: %s\n' %out_web
+    threedhst.plotting.makeHTML(SPC, sexCat, output=out_web)
     
     #### Done!
     print 'threedhst: cleaned up and Done!\n'
