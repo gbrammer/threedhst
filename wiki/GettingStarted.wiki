@@ -18,11 +18,10 @@ The `--ipython` flag isn't required, but provides a nice interface to python wit
 
 = Download and install =
 
-Go to some directory where you want to place the code, say $HOME.
+Pick some root directory where you want to place the code, say $HOME.
 
 {{{  
-THREED_ROOT=$HOME 
-cd $THREED_ROOT
+export THREED_ROOT=$HOME 
 }}}
 
 This directory needs to be in your PYTHONPATH to be able to find it from within PyRAF. 
@@ -37,11 +36,12 @@ Included in the distribution are some wrappers around some of the functions that
 export PATH="${PATH}:$THREED_ROOT/threedhst/bin"
 }}}
 
-(You'll probably want to put the ``export`` lines in your `~/.bashrc` file.)
+(You'll probably want to put all of the ``export`` lines in your `~/.bashrc` file so they're loaded each time you start a new terminal.)
 
 Now checkout the code with Subversion (svn):
 
 {{{
+cd $THREED_ROOT
 svn checkout https://threedhst.googlecode.com/svn/ . --username YOUR_GOOGLE_USERNAME
 }}}
 
