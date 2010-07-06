@@ -8,6 +8,10 @@ reason.
 
 Also added similar SWarp class wrapper around SWarp.
 """
+#   $URL $
+#   $Rev $
+#   $Author $
+#   $Date $
 
 import numpy as np
 import aXe2html.sexcat.sextractcat
