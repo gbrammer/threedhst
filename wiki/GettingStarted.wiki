@@ -16,8 +16,9 @@ This directory needs to be in your PYTHONPATH to be able to find it from within 
 {{{
 export PYTHONPATH="${PYTHONPATH}:$THREED_ROOT"
 }}}
+(You'll probably want to put that line in your `~/.bashrc` file.)
 
-Checkout the code with Subversion (svn):
+Now checkout the code with Subversion (svn):
 
 {{{
 svn checkout https://threedhst.googlecode.com/svn/ . --username YOUR_GOOGLE_USERNAME
