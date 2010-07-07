@@ -15,6 +15,19 @@ $ csh
 
 The `--ipython` flag isn't required, but provides a nice interface to python with lots of tab completion options to make things easy to figure out.
 
+Download aXe2html from [http://www.stecf.org/software/slitless_software/axe/installation.php].  aXe2html doesn't seem to work with the exact Python configuration as installed by STScI Python, but can be compiled as follows:
+
+{{{
+tar xzvf aXe2html-1.1.tar.gz
+cd aXe2html-1.1
+
+perl -pi -e "s/import Image/from PIL import Image/" setup.py
+perl -pi -e "s/import Image, ImageDraw/from PIL import Image, ImageDraw/" ./aXe2html/irafims/irafimtools.py
+perl -pi -e "s/import Image, os, string, math/from PIL import Image\nimport string, os,math/" ./aXe2html/spectra/outdata.py
+perl -pi -e "s/import Image/from PIL import Image/" ./aXe2html/spectra/plot_spc.py
+perl -pi -e "s/import Image, os, string, math/from PIL import Image\nimport string, os,math/" ./aXe2html/spectra/plotspectra.py
+}}}
+
 
 = Download and install =
 
