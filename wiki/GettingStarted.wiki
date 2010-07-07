@@ -88,4 +88,13 @@ export iref="${PWD}/IREF/"  # This could go in `~/.bashrc`
 csh
 pyraf --ipython
 }}}
+
+Now, within PYRAF:
+
+{{{
+import threedhst
+direct = 'ib6o23020_asn.fits'
+grism = 'ib6o23010_asn.fits'
+threedhst.process_grism.reduction_script(asn_grism_file=grism, asn_direct_file=direct)
+}}}
  
