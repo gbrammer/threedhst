@@ -84,7 +84,7 @@ tar xvfz threedhst-CONF.tar.gz
 #### Extract the example GOODS-ERS files to ./RAW
 tar xvfz threedhst-ERS-G141.tar.gz
 
-export iref="${PWD}/IREF/"  # This could go in `~/.bashrc`
+export iref="${PWD}/IREF/"  # This could go in `~/.bashrc` to avoid having to type it every time
 csh
 pyraf --ipython
 }}}
