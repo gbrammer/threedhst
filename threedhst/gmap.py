@@ -1,6 +1,10 @@
 """
 Convert Multidrizzle drz.fits (North up) to Google Maps tiles
 """
+# $URL$
+# $Rev$
+# $Author$
+# $Date$
 
 import os
 import numpy as np
