@@ -68,6 +68,7 @@ It will ask for a password the first time you try to checkout the code.  This ca
 If you want to contribute to the development of the code, send an email to G. Brammer requesting "commit" privileges.  If you don't have a Google account or if you don't have or want the ability to commit changes to the code, you can check out a read-only version with:
 
 {{{
+cd $THREED_ROOT
 svn checkout http://threedhst.googlecode.com/svn/ .
 }}}
 
