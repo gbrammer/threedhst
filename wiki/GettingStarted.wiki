@@ -83,7 +83,7 @@ svn checkout http://threedhst.googlecode.com/svn/ .
 
 = Example = 
 
-Download the 4 threedhst-*tar.gz files from the [Downloads] tab.
+Download the 4 threedhst-*tar.gz files from the Downloads tab.
 
 {{{
 #### Make example directory
