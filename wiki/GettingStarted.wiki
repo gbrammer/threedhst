@@ -15,7 +15,7 @@ $ csh
 
 The `--ipython` flag isn't required, but provides a nice interface to python with lots of tab completion options to make things easy to figure out.
 
-Download aXe2html from [http://www.stecf.org/software/slitless_software/axe/installation.php].  aXe2html doesn't seem to work with the exact Python configuration as installed by STScI Python, but can be compiled as follows:
+Download aXe2html from [http://www.stecf.org/software/slitless_software/axe/installation.php].  aXe2html doesn't seem to work with the exact Python configuration as installed by STScI Python, but can be fixed as follows:
 
 {{{
 tar xzvf aXe2html-1.1.tar.gz
@@ -26,8 +26,12 @@ perl -pi -e "s/import Image, ImageDraw/from PIL import Image, ImageDraw/" ./aXe2
 perl -pi -e "s/import Image, os, string, math/from PIL import Image\nimport string, os,math/" ./aXe2html/spectra/outdata.py
 perl -pi -e "s/import Image/from PIL import Image/" ./aXe2html/spectra/plot_spc.py
 perl -pi -e "s/import Image, os, string, math/from PIL import Image\nimport string, os,math/" ./aXe2html/spectra/plotspectra.py
+
+cd ..   # make sure you install with the STScI Python
+ln -s ${PWD}/aXe2html-1.1/aXe2html .
 }}}
 
+This last step makes aXe2html available to Python, but doesn't compile and install its command-line programs.
 
 = Download and install =
 
@@ -61,5 +65,9 @@ svn checkout https://threedhst.googlecode.com/svn/ . --username YOUR_GOOGLE_USER
 It will ask for a password the first time you try to checkout the code.  This can be found at your code.google [https://code.google.com/hosting/settings settings page].  Note that this password is different from your normal google account password for security reasons (SVN caches the password in an unsecure place so you don't have to enter the password every time you checkout or commit the code).
 
 If you want to contribute to the development of the code, send an email to G. Brammer requesting "commit" privileges.
+
+= Example = 
+
+Download the 4 threedhst-*tar.gz files from the [Downloads] tab.
 
  
