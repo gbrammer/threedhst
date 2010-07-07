@@ -55,7 +55,7 @@ import os
 import pyfits
 import pyraf
 from pyraf import iraf
-from iraf import stsdas,dither,slitless,axe
+from iraf import stsdas,dither,slitless,axe 
 
 no = iraf.no
 yes = iraf.yes
