@@ -16,16 +16,14 @@ $ csh
 % pyraf
 }}}
 
-I would recommend using the [IPython http://ipython.scipy.org/moin/] command line environment for Python and PYRAF.  
+I would recommend using the [http://ipython.scipy.org/moin/ IPython] command line environment for Python and PYRAF.  
 {{{
 $ csh
 % ipython   ### answer prompts to set up ipython.  Ctrl-d to exit
 % pyraf --ipython
 }}}
 
-The `--ipython` flag isn't required, but provides a nice interface to python with lots of tab completion options to make things easy to figure out.
-
-Download aXe2html from [http://www.stecf.org/software/slitless_software/axe/installation.php].  aXe2html doesn't seem to work with the exact Python configuration as installed by STScI Python, but can be fixed as follows:
+Next, download *aXe2html* from [http://www.stecf.org/software/slitless_software/axe/installation.php].  aXe2html doesn't seem to work with the exact Python configuration as installed by STScI Python, but can be fixed as follows:
 
 {{{
 cd $THREED_ROOT   # See below
