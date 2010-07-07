@@ -63,6 +63,13 @@ cd $THREED_ROOT
 svn checkout https://threedhst.googlecode.com/svn/ . --username YOUR_GOOGLE_USERNAME
 }}}
 
+If you don't have a Google account or if you don't have `commit` privileges, you can check out a read-only version of the code:
+
+{{{
+svn checkout http://threedhst.googlecode.com/svn/ .
+}}}
+
+
 It will ask for a password the first time you try to checkout the code.  This can be found at your code.google [https://code.google.com/hosting/settings settings page].  Note that this password is different from your normal google account password for security reasons (SVN caches the password in an unsecure place so you don't have to enter the password every time you checkout or commit the code).
 
 If you want to contribute to the development of the code, send an email to G. Brammer requesting "commit" privileges.
