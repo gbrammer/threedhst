@@ -107,8 +107,16 @@ Now, within PYRAF:
 
 {{{
 import threedhst
+
+#### Set SExtractor detection threshold to 10-sigma to make the test catalog small.
+#### To see the other options currently defined, use threedhst.showOptions()
+threedhst.options['DETECT_THRESH'] = 10
+
+#### Set the filenames for the ERS G141 observations (in ./RAW)
 direct = 'ib6o23020_asn.fits'
 grism = 'ib6o23010_asn.fits'
+
+#### Run the pipeline
 threedhst.process_grism.reduction_script(asn_grism_file=grism, asn_direct_file=direct)
 }}}
  
