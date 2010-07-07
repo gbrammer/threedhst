@@ -18,7 +18,8 @@ The `--ipython` flag isn't required, but provides a nice interface to python wit
 Download aXe2html from [http://www.stecf.org/software/slitless_software/axe/installation.php].  aXe2html doesn't seem to work with the exact Python configuration as installed by STScI Python, but can be fixed as follows:
 
 {{{
-tar xzvf aXe2html-1.1.tar.gz
+cd $THREED_ROOT   # See below
+tar xzvf ~/Downloads/aXe2html-1.1.tar.gz
 cd aXe2html-1.1
 
 perl -pi -e "s/import Image/from PIL import Image/" setup.py
@@ -70,4 +71,21 @@ If you want to contribute to the development of the code, send an email to G. Br
 
 Download the 4 threedhst-*tar.gz files from the [Downloads] tab.
 
+{{{
+#### Make example directory
+cd $THREED_ROOT
+mkdir ERS
+cd ERS
+mv ~/Downloads/threedhst-*.tar.gz . ## assuming they're in ~/Downloads
+#### Make directory structure
+tar xvfz threedhst-directories.tar.gz
+tar xvfz threedhst-IREF.tar.gz
+tar xvfz threedhst-CONF.tar.gz
+#### Extract the example GOODS-ERS files to ./RAW
+tar xvfz threedhst-ERS-G141.tar.gz
+
+export iref="${PWD}/IREF/"  # This could go in `~/.bashrc`
+csh
+pyraf --ipython
+}}}
  
