@@ -6,11 +6,21 @@ The easiest way to get everything right is by downloading and installing STScI  
 
 Download the full installation `stsci_iraf_intel_2.10.dmg` (as of June 2010) and install from the package.
 
-The STScI Python packages seems to require `csh`, which is a bit of a pain since the Mac defaults to `bash`.  After the installation, test that things are installed with 
+The STScI Python packages seems to require `csh`, which is a bit of a pain since the Mac defaults to `bash`.  After the installation, generate a `login.cl` file in `${HOME}/iraf`.
 
 {{{
 $ csh
-% pyraf --ipython 
+% cd ~
+% mkdir iraf
+% mkiraf       #generate login.cl, answer other prompts
+% pyraf
+}}}
+
+I would recommend using the [IPython http://ipython.scipy.org/moin/] command line environment for Python and PYRAF.  
+{{{
+$ csh
+% ipython   ### answer prompts to set up ipython.  Ctrl-d to exit
+% pyraf --ipython
 }}}
 
 The `--ipython` flag isn't required, but provides a nice interface to python with lots of tab completion options to make things easy to figure out.
