@@ -107,16 +107,12 @@ If makeDirs is True, then mkdir any that isn't found in ./
                 os.mkdir(dir)
             else:
                 raise IOError('Directory %s doesn\'t exist in %s.' %(dir,os.getcwd()))
-
-                if not os.path.exists('CONF/'+threedhst.options['BACKGROUND_FILE'])
     
     if not os.path.exists('CONF/'+threedhst.options['CONFIG_FILE']):
-        raise IOError('options[\'CONFIG_FILE\'] doesn\'t exist: %s', 
-                      %('CONF/'+threedhst.options['CONFIG_FILE']))
+        raise IOError("options['CONFIG_FILE'] doesn't exist: CONF/"+threedhst.options['CONFIG_FILE'])
     
     if not os.path.exists('CONF/'+threedhst.options['BACKGROUND_FILE']):
-        raise IOError('options[\'BACKGROUND_FILE\'] file doesn\'t exist: %s', 
-                      %('CONF/'+threedhst.options['BACKGROUND_FILE']))
+        raise IOError("options['BACKGROUND_FILE'] doesn't exist: CONF/"+threedhst.options['BACKGROUND_FILE'])
                       
 
 def reduction_script(asn_grism_file=None, asn_direct_file=None):
