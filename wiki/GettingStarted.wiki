@@ -34,7 +34,7 @@ ln -s ${PWD}/aXe2html-1.1/aXe2html .
 
 This last step makes aXe2html available to Python, but doesn't compile and install its command-line programs.
 
-= Download and install =
+= Download and install `threedhst`=
 
 Pick some root directory where you want to place the code, say $HOME.
 
