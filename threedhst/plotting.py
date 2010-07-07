@@ -17,6 +17,8 @@ import matplotlib.pyplot as pyplot
 import matplotlib.ticker as ticker
 import pylab
 
+import threedhst
+
 def defaultPlotParameters():
     """
     defaultPlotParameters()
@@ -111,7 +113,7 @@ def makeThumbs(SPCFile, mySexCat, path='./HTML/'):
         idstr = '%04d' %id
         print noNewLine+'plotting.makeThumbs: %s_%s_thumb.png' %(root, idstr)
         plotThumb(id, mySexCat, in_image=dat, size= 20, scale =0.128,
-                  outfile=path+root+'_'+idstr+'_thumb.png',close_window=True)
+                  outfile=path+'/'+root+'_'+idstr+'_thumb.png',close_window=True)
 
 def plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png', close_window=False):
     """
@@ -153,7 +155,7 @@ def plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png', close_window=F
     ax.set_yticklabels([])
     ax.set_xticks((np.arange(np.ceil(lmin/1000.)*1000,np.ceil(lmax/1000.)*1000,1000)-head['CRVAL1'])/head['CDELT1']+head['CRPIX1'])
     ax.set_xticklabels([])
-    pyplot.ylabel('G141')
+    pyplot.ylabel(threedhst.options['GRISM_NAME'])
     
     ax = fig.add_subplot(312)
     ax.imshow(0-mef['MOD'].data, interpolation=interp,aspect=asp,vmin=vmin,vmax=vmax)
@@ -195,7 +197,7 @@ def makeSpec2dImages(SPCFile, path='./HTML/'):
     for id in SPCFile._ext_map:
         idstr = '%04d' %id
         print noNewLine+'plotting.makeSpecImages: %s_%s_2D.png' %(root, idstr)
-        plot2Dspec(SPCFile, id, outfile=path+root+'_'+idstr+'_2D.png',close_window=True)
+        plot2Dspec(SPCFile, id, outfile=path+'/'+root+'_'+idstr+'_2D.png',close_window=True)
 
 def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png', close_window=False):
     """
@@ -259,7 +261,7 @@ def makeSpec1dImages(SPCFile, path='./HTML/'):
     for id in SPCFile._ext_map:
         idstr = '%04d' %id
         print noNewLine+'plotting.makeSpec1dImages: %s_%s_1D.png' %(root, idstr)
-        plot1Dspec(SPCFile, id, outfile=path+root+'_'+idstr+'_1D.png',close_window=True)
+        plot1Dspec(SPCFile, id, outfile=path+'/'+root+'_'+idstr+'_1D.png',close_window=True)
     
 def makeHTML(SPCFile, mySexCat, output='./HTML/index.html', title=None):
     """

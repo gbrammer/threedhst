@@ -55,7 +55,7 @@ import os
 import pyfits
 import pyraf
 from pyraf import iraf
-from iraf import stsdas,dither,taxe20
+from iraf import stsdas,dither,slitless,axe
 
 no = iraf.no
 yes = iraf.yes
@@ -99,7 +99,8 @@ Check that all of the expected directories exist for
 If makeDirs is True, then mkdir any that isn't found in ./
     
     """    
-    directories = ['DATA','RAW','OUTPUT_G141','DRIZZLE_G141']
+    directories = ['DATA','RAW','OUTPUT_'+threedhst.options['GRISM_NAME'],
+                   'DRIZZLE_'+threedhst.options['GRISM_NAME'],'CONF']
     for dir in directories:
         if not os.path.exists(dir):
             if makeDirs:
@@ -107,6 +108,16 @@ If makeDirs is True, then mkdir any that isn't found in ./
             else:
                 raise IOError('Directory %s doesn\'t exist in %s.' %(dir,os.getcwd()))
 
+                if not os.path.exists('CONF/'+threedhst.options['BACKGROUND_FILE'])
+    
+    if not os.path.exists('CONF/'+threedhst.options['CONFIG_FILE']):
+        raise IOError('options[\'CONFIG_FILE\'] doesn\'t exist: %s', 
+                      %('CONF/'+threedhst.options['CONFIG_FILE']))
+    
+    if not os.path.exists('CONF/'+threedhst.options['BACKGROUND_FILE']):
+        raise IOError('options[\'BACKGROUND_FILE\'] file doesn\'t exist: %s', 
+                      %('CONF/'+threedhst.options['BACKGROUND_FILE']))
+                      
 
 def reduction_script(asn_grism_file=None, asn_direct_file=None):
     """
@@ -212,9 +223,9 @@ Pipeline to process a set of grism/direct exposures.
     se.options['WEIGHT_IMAGE']    = root_direct+'_WHT.fits'
     se.options['FILTER']    = 'Y'
     ## Detect thresholds
-    se.options['DETECT_THRESH']    = '5'   ## Default 1.5
-    se.options['ANALYSIS_THRESH']  = '5' ## Default 1.5
-    se.options['MAG_ZEROPOINT'] = '26.46'
+    se.options['DETECT_THRESH']    = str(threedhst.options['DETECT_THRESH'])   ## Default 1.5
+    se.options['ANALYSIS_THRESH']  = str(threedhst.options['ANALYSIS_THRESH']) ## Default 1.5
+    se.options['MAG_ZEROPOINT'] = str(threedhst.options['MAG_ZEROPOINT'])
     
     ## Run SExtractor
     status = se.sextractImage(root_direct+'_SCI.fits')
@@ -262,25 +273,26 @@ Pipeline to process a set of grism/direct exposures.
     #########################################
     #taxe20
     #### initialize parameters
-    conf = Conf('WFC3.IR.G141.V1.0.conf')
+    conf = Conf(threedhst.options['CONFIG_FILE'])
     conf.params['DRZROOT'] = root_direct
     conf.params['BEAMB'] = '-220 220'     ## Workaround to get 0th order contam. from fluxcube
     conf.writeto(root_direct+'.conf')
     CONFIG = root_direct+'.conf'
     #CONFIG = 'WFC3.IR.G141.V1.0.conf'
-    SKY = 'WFC3.IR.G141.sky.V1.0.fits'
-    set_aXe_environment(grating='G141')
+    SKY = threedhst.options['SKY_BACKGROUND']
+    
+    set_aXe_environment(grating=threedhst.options['GRISM_NAME'])
     
     ## Make 'lis' file for input into aXe
     status = make_aXe_lis(asn_grism_file, asn_direct_file)
     shutil.move(prep_name(asn_grism_file),'..')
     ## taxe20.tiolprep
     flprMulti()
-    iraf.tiolprep(mdrizzle_ima=root_direct+'_drz.fits', input_cat=root_direct+'_drz.cat')
+    iraf.iolprep(mdrizzle_ima=root_direct+'_drz.fits', input_cat=root_direct+'_drz.cat')
     ## taxe20.taxeprep
     os.chdir('../')
     flprMulti()
-    iraf.taxeprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
+    iraf.axeprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
         backgr="YES", backims=SKY, mfwhm="2.0",norm="NO")
     
     #### Multidrizzle the grism images to flag cosmic rays
@@ -298,7 +310,7 @@ Pipeline to process a set of grism/direct exposures.
                    root_direct+'_drz.fits, 792.3, 26.46\n'])
     fp.close()
     flprMulti()
-    iraf.tfcubeprep (grism_image = root_grism+'_drz.fits', \
+    iraf.fcubeprep (grism_image = root_grism+'_drz.fits', \
        segm_image = root_direct+'_seg.fits', \
        filter_info = 'zeropoints.lis', AB_zero = yes, dimension_info = '0,0,0,0')
     
@@ -306,7 +318,7 @@ Pipeline to process a set of grism/direct exposures.
     os.chdir('../')
     flprMulti()
     #### taxecore
-    iraf.taxecore(inlist=prep_name(asn_grism_file), configs=CONFIG,
+    iraf.axecore(inlist=prep_name(asn_grism_file), configs=CONFIG,
         back="NO",extrfwhm=4.1, drzfwhm=4, backfwhm=4.1,
         slitless_geom="YES", orient="YES", exclude="NO",lambda_mark=1392.0, 
         cont_model="fluxcube", model_scale=3, lambda_psf=1392.0, inter_type="linear", 
@@ -315,12 +327,12 @@ Pipeline to process a set of grism/direct exposures.
     
     #### tdrzprep
     flprMulti()
-    iraf.tdrzprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
+    iraf.drzprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
         opt_extr="YES", back="NO")
         
     #### taxedrizzle
     flprMulti()
-    iraf.taxedrizzle(inlist=prep_name(asn_grism_file), configs=CONFIG, infwhm=4.1,
+    iraf.axedrizzle(inlist=prep_name(asn_grism_file), configs=CONFIG, infwhm=4.1,
         outfwhm=4, back="NO", makespc="YES", opt_extr="YES",adj_sens="YES")
     
     #### Make a multidrizzled contamination image
@@ -358,6 +370,9 @@ Pipeline to process a set of grism/direct exposures.
     
     #### Make output webpages with spectra thumbnails
     SPC = threedhst.plotting.SPCFile(root_direct+'_2_opt.SPC.fits')
+    print '\nthreedhst.plotting.makeThumbs: Creating direct image thumbnails...\n\n'
+    threedhst.plotting.makeThumbs(SPC, sexCat, path='../HTML/images/')
+
     print '\nthreedhst.plotting.makeSpec1dImages: Creating 1D spectra thumbnails...\n\n'
     threedhst.plotting.makeSpec1dImages(SPC, path='../HTML/images/')
 

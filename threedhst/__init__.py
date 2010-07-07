@@ -27,7 +27,8 @@ def defaultOptions():
     To see the defaults, run
     
     >>> threedhst.defaultOptions()
-    >>> """
+    >>> threedhst.showOptions()
+    """
     #### Delete all keywords and reset
     for key in options.keys():
         pop = options.popitem()
@@ -35,10 +36,16 @@ def defaultOptions():
     options['DETECT_THRESH'] = 5.     ## Default 1.5
     options['ANALYSIS_THRESH']  = 5.  ## Default 1.5
     options['GRISM_NAME'] = 'G141'
+    options['MAG_ZEROPOINT'] = 26.46
+    options['CONFIG_FILE'] = 'WFC3.IR.G141.V1.0.conf'
+    options['SKY_BACKGROUND'] = 'WFC3.IR.G141.sky.V1.0.fits'
+    
+    options['THIS_RUN'] = 0     ## Default 1.5
+    options['DETECT_THRESH'] = 0     ## Default 1.5
     
 defaultOptions()
 
-def printOptions():
+def showOptions():
     """
     printOptions()
     
