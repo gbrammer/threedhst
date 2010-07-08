@@ -75,7 +75,9 @@ def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128,
     vmax = 0.003*flux
     
     defaultPlotParameters()
-
+    
+    pyplot.gray()
+    
     fig = pyplot.figure(figsize=[3,3],dpi=100)
     fig.subplots_adjust(wspace=0.2,hspace=0.02,left=0.02,bottom=0.02,right=0.98,top=0.98)
     ax = fig.add_subplot(111)
