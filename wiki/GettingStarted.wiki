@@ -63,7 +63,7 @@ Included in the distribution are some wrappers around some of the functions that
 export PATH="${PATH}:$THREED_ROOT/threedhst/bin"
 }}}
 
-(You'll probably want to put all of the ``export`` lines in your `~/.bashrc` file so they're loaded each time you start a new terminal.)
+(You'll probably want to put all of the `export` lines in your `~/.bashrc` file so they're loaded each time you start a new terminal.)
 
 Now checkout the code with Subversion (svn):
 
