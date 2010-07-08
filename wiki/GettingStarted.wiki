@@ -37,7 +37,7 @@ perl -pi -e "s/import Image, os, string, math/from PIL import Image\nimport stri
 perl -pi -e "s/import Image/from PIL import Image/" ./aXe2html/spectra/plot_spc.py
 perl -pi -e "s/import Image, os, string, math/from PIL import Image\nimport string, os,math/" ./aXe2html/spectra/plotspectra.py
 
-cd ..   # make sure you install with the STScI Python
+cd ..  
 ln -s ${PWD}/aXe2html-1.1/aXe2html .
 }}}
 
