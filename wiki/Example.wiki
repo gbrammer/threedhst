@@ -2,7 +2,7 @@
 
 = GOODS-ERS G141 Example = 
 
-Download the 4 threedhst-*tar.gz files from the Downloads tab.
+Download the four threedhst-tar.gz files from the Downloads tab.
 
 {{{
 #### Make example directory
@@ -10,14 +10,17 @@ cd $THREED_ROOT
 mkdir ERS
 cd ERS
 mv ~/Downloads/threedhst-*.tar.gz . ## assuming they're in ~/Downloads
+
 #### Make directory structure
 tar xvfz threedhst-directories.tar.gz
 tar xvfz threedhst-IREF.tar.gz
 tar xvfz threedhst-CONF.tar.gz
+
 #### Extract the example GOODS-ERS files to ./RAW
 tar xvfz threedhst-ERS-G141.tar.gz
 
 export iref="${PWD}/IREF/"  # This could go in `~/.bashrc` to avoid having to type it every time
+
 csh
 pyraf --ipython
 }}}
