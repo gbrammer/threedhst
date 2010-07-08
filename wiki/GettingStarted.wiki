@@ -139,7 +139,7 @@ The pipeline is essentially a wrapper around the aXe routines, producing a catal
 
     ib6o23020*_asn.pointing.reg* - a DS9 region file with polygons for all of the exposures in the ASN list
 
-    ib6o23020*_drz.cat - SExtractor catalog for the next file
+    ib6o23020*_drz.cat* - SExtractor catalog for the next file
 
     ib6o23020*_drz.fits* - Multidrizzled mosaic of the direct images
 
