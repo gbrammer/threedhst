@@ -1,8 +1,9 @@
 """
 Convert Multidrizzle drz.fits (North up) to Google Maps tiles
 """
+
+__version__ = "$Rev$"
 # $URL$
-# $Rev$
 # $Author$
 # $Date$
 

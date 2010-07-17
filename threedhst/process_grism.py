@@ -46,8 +46,9 @@ o Clean up intermediate files
 o Additional catalog/high level steps to prepare spectra for actual use.
 
 """
+
+__version__ = "$Rev$"
 # $URL$
-# $Rev$
 # $Author$
 # $Date$
 

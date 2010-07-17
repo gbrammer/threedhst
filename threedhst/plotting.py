@@ -4,8 +4,9 @@
 Utilities for plotting grism spectra.
 
 """
+
+__version__ = "$Rev$"
 # $URL$
-# $Rev$
 # $Author$
 # $Date$
 

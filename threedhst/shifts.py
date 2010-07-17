@@ -3,8 +3,9 @@
 
 Utilities for computing shifts and processing shiftfiles.
 """
+
+__version__ = "$Rev$"
 # $URL$
-# $Rev$
 # $Author$
 # $Date$
 

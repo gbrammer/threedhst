@@ -4,8 +4,9 @@
 Utilities for reading/writing ASN and DS9/region files.
 
 """
+
+__version__ = "$Rev$"
 # $URL$
-# $Rev$
 # $Author$
 # $Date$
 

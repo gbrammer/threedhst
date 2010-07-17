@@ -8,8 +8,9 @@ reason.
 
 Also added similar SWarp class wrapper around SWarp.
 """
+
+__version__ = "$Rev$"
 # $URL$
-# $Rev$
 # $Author$
 # $Date$
 
