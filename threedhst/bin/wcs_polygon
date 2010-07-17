@@ -2,8 +2,8 @@
 
 __version__ = "$Rev$"
 #   $URL$
-#   $Author: gbrammer $
-#   $Date: 2010-07-01 00:45:36 -0400 (Thu, 01 Jul 2010) $
+#   $Author$
+#   $Date$
 
 import sys,os
 import numpy as np
