@@ -25,9 +25,11 @@ def compute_shifts(asn_direct):
     iraf.flpr()
     iraf.flpr()
     iraf.flpr()
-    iraf.tweakshifts ( input = asn_direct, shiftfile = '', reference = root+'_tweak.fits', \
-       output = root+'_shifts.txt', findmode = 'catalog', gencatalog = 'daofind', \
-       sextractpars = '', undistort = yes, computesig = yes, idckey = 'idctab', \
+    iraf.tweakshifts(input=asn_direct, shiftfile='',
+                     reference=root+'_tweak.fits',
+                     output = root+'_shifts.txt', findmode = 'catalog',
+                     gencatalog = 'daofind', sextractpars = '', 
+                     undistort = yes, computesig = yes, idckey = 'idctab', \
        clean = yes, verbose = no, catfile = '', xcol = 1, ycol = 2, \
        fluxcol = 3, fluxmax = INDEF, fluxmin = INDEF, fluxunits = 'counts', \
        nbright = INDEF, refcat = '', refxcol = 1, refycol = 2, rfluxcol = 3, \
@@ -64,8 +66,11 @@ def matchImagePixels(input=None,matchImage=None):
     os.remove('coadd.weight.fits')
     
     sw.swarpRecenter()
-    sw.options['IMAGEOUT_NAME'] = os.path.basename(input).split('.fits')[0]+'.match.fits'
-    sw.options['WEIGHTOUT_NAME'] = os.path.basename(input).split('.fits')[0]+'.match.weight.fits'
+    
+    sw.options['IMAGEOUT_NAME'] = \ 
+        os.path.basename(input).split('.fits')[0]+'.match.fits'
+    sw.options['WEIGHTOUT_NAME'] = \
+        os.path.basename(input).split('.fits')[0]+'.match.weight.fits'
     status = sw.swarpImage(input,mode='direct')
     os.remove(os.path.basename(input).split('.fits')[0]+'.match.weight.fits')
 
@@ -90,7 +95,8 @@ def checkShiftfile(asn_direct):
     """
     checkShiftfile(asn_direct)
     
-    Make sure that there is a line in the shiftfile for each exposure in the ASN table
+    Make sure that there is a line in the shiftfile for each exposure 
+    in the ASN table.
     """
     from threedhst.utils import ASNFile
     asn = ASNFile(asn_direct)
@@ -213,7 +219,8 @@ class ShiftFile():
         fp = open(outfile,'w')
         fp.writelines(self.headerlines)
         for i in range(self.nrows):
-            line = '%-20s %8.4f %8.4f %8.3f %8.3f\n' %(self.images[i], self.xshift[i], self.yshift[i], self.rotate[i], self.scale[i])
+            line = '%-20s %8.4f %8.4f %8.3f %8.3f\n' %(self.images[i],
+                self.xshift[i], self.yshift[i], self.rotate[i], self.scale[i])
             fp.write(line)
         fp.close()
     

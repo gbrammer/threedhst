@@ -19,11 +19,11 @@ MAP_KEY = 'ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb' \
 
 class Point():
     """
-    Stores a simple (x,y) point.  It is used for storing x/y pixels.
+Stores a simple (x,y) point.  It is used for storing x/y pixels.
     
-    Attributes:
-        x: An int for a x value.
-        y: An int for a y value.
+Attributes:
+    x: An int for a x value.
+    y: An int for a y value.
         
     http://code.google.com/p/google-ajax-examples/source/browse/trunk/nonjslocalsearch/localSearch.py
     
@@ -42,13 +42,16 @@ class Point():
             return (other.x == self.x and other.y == self.y)
 
 class MercatorProjection():
-  """Calculates map zoom levels based on bounds or map points.
+  """
+MercatorProjection
 
-  This class contains functions that are required for calculating the zoom  
-  level for a point or a group of points on a static map.  Usually the Maps API 
-  does the zoom for you when you specify a point, but not on static maps.
+Calculates map zoom levels based on bounds or map points.
 
-  Attributes:
+This class contains functions that are required for calculating the zoom  
+level for a point or a group of points on a static map.  Usually the Maps API 
+does the zoom for you when you specify a point, but not on static maps.
+
+Attributes:
     pixels_per_lon_degree: A list for the number of pixels per longitude 
       degree for each zoom.
     pixels_per_lon_radian: A list for the number of pixels per longitude

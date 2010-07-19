@@ -34,7 +34,8 @@ If neither is found,
         return fits_file+'.gz'
     #### File not found.  Either raise an error or return None
     if hard_break:
-        raise IOError('File %s[.gz] not found in %s' %(fits_file, os.getcwd()))
+        raise IOError('File %s[.gz] not found in %s' 
+                              %(fits_file, os.getcwd()))
     else:
         return None
 
@@ -71,7 +72,7 @@ _read_asn_file(self)
         ##### Exposures
         exp_idx  = np.where(types == 'EXP-DTH')
         if exp_idx[0].shape[0] == 0:
-            warn ('ASN file %s has no EXP-DTH items')
+            warn('ASN file %s has no EXP-DTH items')
         else:
             self.exposures = []
             for exp in names[exp_idx]:
@@ -80,7 +81,7 @@ _read_asn_file(self)
         ##### Products
         prod_idx = np.where(types == 'PROD-DTH')
         if prod_idx[0].shape[0] != 1:
-            warn ('ASN file %s has N != 1 PROD-DTH items' %self.file )
+            warn('ASN file %s has N != 1 PROD-DTH items' %self.file )
             self.product = None
         else:
             self.product = names[prod_idx[0]][0].upper()
@@ -99,7 +100,7 @@ _read_asn_file(self)
 writeToFile(self,out_file=None, clobber=True)
         """
         if not out_file:
-            print "USAGE:: writeToFile(self,out_file='output_asn.fits')"
+            print "USAGE:: writeToFile(out_file='output_asn.fits')"
         else:
             nexp  = self.exposures.__len__()
             if self.product:
@@ -120,7 +121,6 @@ writeToFile(self,out_file=None, clobber=True)
             self.out_fits = pyfits.HDUList([hdu,tbhdu])
             self.out_fits.writeto(out_file, clobber=clobber)
     
-    
     def showContents(self):
         """
 showContents()
@@ -138,6 +138,19 @@ showContents()
                 print '%5d   %s    EXP-DTH      yes' %(i+1,exp)
             print '%5d   %s    PROD-DTH     yes' %(i+2,self.product)
     
+    def append(self, new):
+        """
+append(self, new)
+        
+    `new` must be an instance of ASNFile.
+        
+    `new.exposures` are added to the `self.exposures` list.
+        """
+        from warnings import warn
+        if not isinstance(new,self.__class__):
+            warn("argument is not an instance of ASNFile()")
+        else:
+            self.exposures.extend(new.exposures)
     
 
 
@@ -145,7 +158,7 @@ def asn_file_info(asn_file, verbose=1):
     """
 asn_file_info(asn_file, verbose=1)
     
-Get header information from files defined in an ASN table.
+    Get header information from files defined in an ASN table.
     
     >>> asn_file_info('ib3702060_asn.fits')
     # ib3702060_asn.fits
@@ -159,16 +172,18 @@ Get header information from files defined in an ASN table.
     #asn_file = 'ib6o23020_asn.fits'
     asn = ASNFile(asn_file)
     lines = ['# %s' %asn_file]
-    lines.append('# flt_file  filter  exptime  date_obs  time_obs pos_targ1 pos_targ2')
+    lines.append(
+       '# flt_file  filter  exptime  date_obs  time_obs pos_targ1 pos_targ2')
     ##### Loop through flt files in ASN list
     for exp in asn.exposures:
         flt_file = find_fits_gz(exp.lower()+'_flt.fits')
         fp_flt = pyfits.open(flt_file)
         ##### Get general information from extension 0
         fp_header = fp_flt[0].header
-        line = '%s %6s %7.1f %s %s %7.2f %7.2f' %(flt_file,fp_header['FILTER'],fp_header['EXPTIME'],
-                                              fp_header['DATE-OBS'],fp_header['TIME-OBS'],
-                                              fp_header['POSTARG1'],fp_header['POSTARG2'])
+        line = '%s %6s %7.1f %s %s %7.2f %7.2f' %(
+                      flt_file,fp_header['FILTER'],fp_header['EXPTIME'],    
+                      fp_header['DATE-OBS'],fp_header['TIME-OBS'],
+                      fp_header['POSTARG1'],fp_header['POSTARG2'])
         lines.append(line)
     
     #### Print to stdout
@@ -208,7 +223,8 @@ Create a DS9 region file for the exposures defined in an ASN file.
         
     ##### Text label with ASN filename
     fp.write('# text(%10.6f,%10.6f) text={%s} color=magenta\n' \
-        %(np.mean(RAcenters),np.mean(DECcenters),asn_file.split('_asn.fits')[0]))
+        %(np.mean(RAcenters),np.mean(DECcenters),
+          asn_file.split('_asn.fits')[0]))
     fp.close()
     print '3D-HST / ASN_REGION: %s\n' %(output_file)
     
@@ -254,10 +270,14 @@ will compute from header directly.
     CRVAL = [sci['CRVAL1'],sci['CRVAL2']]
     cosDec = np.cos(CRVAL[1]/180*np.pi)
     ##### Make region polygon from WCS keywords
-    regX = CRVAL[0] + ( (np.array([0,NAXIS[0],NAXIS[0],0])-CRPIX[0])*sci['CD1_1'] + \
-                        (np.array([0,0,NAXIS[1],NAXIS[1]])-CRPIX[1])*sci['CD1_2'] ) / cosDec
-    regY = CRVAL[1] + ( (np.array([0,NAXIS[0],NAXIS[0],0])-CRPIX[0])*sci['CD2_1'] + \
-                        (np.array([0,0,NAXIS[1],NAXIS[1]])-CRPIX[1])*sci['CD2_2'] )
+    regX = CRVAL[0] + \
+            ((np.array([0,NAXIS[0],NAXIS[0],0])-CRPIX[0])*sci['CD1_1'] +                        
+             (np.array([0,0,NAXIS[1],NAXIS[1]])-CRPIX[1])*sci['CD1_2']) / cosDec
+    
+    regY = CRVAL[1] + \
+            ((np.array([0,NAXIS[0],NAXIS[0],0])-CRPIX[0])*sci['CD2_1'] +         
+             (np.array([0,0,NAXIS[1],NAXIS[1]])-CRPIX[1])*sci['CD2_2'])
+             
     return regX, regY
 
     
@@ -287,8 +307,6 @@ Note: something like this could be used to flag grism 0th order contaminants
         Y2 = tmp_py[i+1] - y
         dp = X1*X2 + Y1*Y2
         cp = X1*Y2 - Y1*X2
-        #### Make arctan aware of the signs of x,y in arctan(x/y)
-        #theta += np.arctan(cp/dp) - np.pi*((cp < 0) & (dp < 0)) + np.pi*((cp > 0) & (dp < 0))
         theta += np.arctan2(cp,dp) 
     ##### Set up mask
     dq = np.zeros((NX,NY),dtype=np.int)
@@ -320,7 +338,6 @@ Test if coordinates (x,y) are inside polygon defined by (px, py)
     Y2 = tmp_py[ip] - y
     dp = X1*X2 + Y1*Y2
     cp = X1*Y2 - Y1*X2
-    # theta = np.arctan(cp/dp) - np.pi*((cp < 0) & (dp < 0)) + np.pi*((cp > 0) & (dp < 0))
     theta = np.arctan2(cp,dp)
     if np.abs(np.sum(theta)) > np.pi:
         return True
@@ -370,7 +387,9 @@ Display an image and check DQ extension (e.g. for satellite trails)
     for region in regions.split('\n'):
         if region.strip().startswith('polygon'):
             #region = 'polygon(375.05333,642.2,465.18667,642.2,751.36,709.8,393.08,326.73333,210.56,461.93333,465.18667,552.06667,375.05333,552.06667,221.82667,509.25333)'
-            spl = np.float_(np.array(region[region.find('(')+1:region.find(')')].split(',')))
+            spl = np.float_(np.array(
+                     region[region.find('(')+1:region.find(')')].split(',')
+                     ))
             px = spl[0::2]
             py = spl[1::2]
             dq += region_mask(fi[1].data.shape,px,py)

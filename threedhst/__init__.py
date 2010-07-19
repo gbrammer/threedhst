@@ -21,7 +21,7 @@ options = {}
 
 def defaultOptions():
     """
-    defaultOptions()
+defaultOptions()
     
     Set THREEDHST default options.
     

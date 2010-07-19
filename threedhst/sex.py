@@ -72,10 +72,12 @@ class SExtractor(object):
         parorder = []
         
         try:
-            pconf = Popen('sex -dd'.split(),executable='sex',stdout=PIPE,stderr=PIPE)
+            pconf = Popen('sex -dd'.split(),
+                          executable='sex',stdout=PIPE,stderr=PIPE)
             pconf.wait()
             confstr = pconf.communicate()[0]
-            # pparm = Popen('sex -dp'.split(),executable='sex',stdout=PIPE,stderr=PIPE)
+            # pparm = Popen('sex -dp'.split(),
+            #               executable='sex',stdout=PIPE,stderr=PIPE)
             # pparm.wait()
             # parmstr = pparm.communicate()[0]
             parmstr = _get_package_data('sexdp') #gbb
@@ -114,7 +116,10 @@ class SExtractor(object):
             ls = l.split()
             if len(ls) > 1:
                 k = ls[0].strip().replace('#','')
-                unit = ls[-1].replace('[','').replace(']','') if '[' in ls[-1] else None
+                if '[' in ls[-1]:
+                    unit = ls[-1].replace('[','').replace(']','')                 
+                else:
+                    None
                 info = ' '.join(ls[1:(-1 if unit else None)])
                 parinfo[k] = (info,unit if unit else '')
                 parorder.append(k)
@@ -180,7 +185,8 @@ class SExtractor(object):
                     k = ls[0].strip()
                     if k not in opts:
                         # raise ValueError('sexfile has invalid option %s'%k) 
-                        warn('sexfile \'%s\' has invalid option %s' %(sexfile,k)) #gbb
+                        warn('sexfile \'%s\' has invalid option %s'
+                             %(sexfile,k)) #gbb
                     # opts[k] = ls[1].strip()
                     if len(ls) > 2:
                         #print ls
@@ -199,11 +205,13 @@ class SExtractor(object):
                 if not (l.strip().startswith('#') or l.strip()==''):
                     k = l.split()[0].strip()
                     if k not in pars:
-                        raise ValueError('param file has invalid parameter %s'%k)
+                        raise ValueError('param file has invalid parameter %s' 
+                                         %k)
                     pars[k] = True
         if not np.any(pars.values()):
             #if no outputs provided, use defaults (from v 2.8.6)
-            defs286 =['NUMBER','FLUX_ISO', 'FLUXERR_ISO', 'FLUX_AUTO', 'FLUXERR_AUTO', 'X_IMAGE', 'Y_IMAGE', 'FLAGS']
+            defs286 =['NUMBER','FLUX_ISO', 'FLUXERR_ISO', 'FLUX_AUTO',
+                      'FLUXERR_AUTO', 'X_IMAGE', 'Y_IMAGE', 'FLAGS']
             for p in defs286:
                 if p in pars:
                     pars[p] = True
@@ -283,7 +291,6 @@ class SExtractor(object):
         for p in self._parorder:
             if self.params[p]:
                 pstr.append(fmt %(p,self._parinfo[p]))        
-        # pstr = [p+'\t # '+str(SExtractor._parinfo[p]) for p in self._parorder if self.params[p]]
         pstr = '\n'.join(pstr)
         return pstr
     
@@ -335,8 +342,8 @@ class SExtractor(object):
                 
         self._saveFiles(fnbase)
         if analysisImage:
-            #clstr = 'sex {0} {1} -c {2}'.format(detectionImage,analysisImage,self.name+'.sex')
-            clstr = 'sex %s %s -c %s' %(detectionImage,analysisImage,self.name+'.sex')
+            clstr = 'sex %s %s -c %s' %(detectionImage,
+                     analysisImage,self.name+'.sex')
         else:
             # clstr = 'sex {0} -c {1}'.format(detectionImage,self.name+'.sex')
             clstr = 'sex %s -c %s' %(detectionImage,self.name+'.sex')
@@ -369,15 +376,15 @@ def sexcatRegions(sexcat, regfile, format=1):
     """
 sexcat_regions(sexcat, regfile, format=1)
     
-Make DS9 region file from SExtractor catalog.  The coordinate system 
-is determined by the format argument, with
+    Make DS9 region file from SExtractor catalog.  The coordinate system 
+    is determined by the format argument, with
     
-format = 1
-    image coordinates x,y (X_IMAGE, Y_IMAGE)
-format = 2
-    world coordinates ra,dec (X_WORLD, Y_WORLD)
+    format = 1
+        image coordinates x,y (X_IMAGE, Y_IMAGE)
+    format = 2
+        world coordinates ra,dec (X_WORLD, Y_WORLD)
         
-If A, B, THETA columns are present, will make elliptical regions.
+    If A, B, THETA columns are present, will make elliptical regions.
     """
     import os,sys
     import aXe2html.sexcat.sextractcat
@@ -443,8 +450,8 @@ If A, B, THETA columns are present, will make elliptical regions.
 
 class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
     """
-    Extend aXe2html.sexcat.sextractcat.SexCat Class to include option to pop lines from 
-    the catalog.
+    Extend aXe2html.sexcat.sextractcat.SexCat Class to include option to 
+    pop lines from the catalog.
     """
     def __init__(self, filename):
         """
@@ -469,7 +476,8 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         """
         import numpy as np
         
-        #### search for line with object NUMBER itself and pop it.  Return message if number not found
+        #### search for line with object NUMBER itself and pop it. 
+        #### Return message if number not found
         numbers = self.columns[self.searchcol('NUMBER')].entry
         if str(number) not in numbers:
             return False
@@ -490,7 +498,8 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         """
         writeToFile(self, outfile=None)
         
-        Write catalog lines to file.  Default overwrites the initial file (``self.filename``).
+        Write catalog lines to file.  Default overwrites the initial file 
+        (``self.filename``).
         """
         if not outfile:
             outfile = self.filename
@@ -515,7 +524,8 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         if found_match:
             spl = line.split(' MAG_AUTO ')
             self.headerlines[i] = spl[0]+' MAG_'+filter.upper()+' '+spl[1]
-            warn('change_MAG_AUTO_for_aXe: MAG_AUTO -> MAG_'+filter.upper()+'\n')
+            warn('change_MAG_AUTO_for_aXe: MAG_AUTO -> MAG_'+\
+                 filter.upper()+'\n')
             allheads    = self.makeheads(self.headerlines)
             self.ncols  = len(allheads)
             self.nrows  = self.makecols(allheads, self.rowlines)
@@ -527,28 +537,27 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
     
 class SWarp(object):
     """
-    SWarp(object)
+    SWarp()
     
     This is a class to wrap around SWARP, modeled after the 
-    SExtractor class
+    SExtractor class.
     
     A workflow might be something like:
     
     >>> sw = threedhst.sex.SWarp()
-        >>> sw._aXeDefaults()
+    >>> sw._aXeDefaults()
     
-        >>> sw.swarpMatchImage('IB3714050_drz.fits')  # get reference image parameters from IB3714050_drz.fits
-        SWarp.swarpMatchImage: PIXEL_SCALE= 0.128250047918
-                                IMAGE_SIZE= 1426,1380
-                                    CENTER=  12:36:44.98,  62:08:36.93
+    >>> sw.swarpMatchImage('IB3714050_drz.fits')  # get reference image parameters from IB3714050_drz.fits
+    SWarp.swarpMatchImage: PIXEL_SCALE= 0.128250047918
+                            IMAGE_SIZE= 1426,1380
+                                CENTER=  12:36:44.98,  62:08:36.93
         
-        >>> sw.swarpImage('IB3714050_drz.fits[1]')    # swarp the reference image to istelf
-        THREEDHST/swarp: swarp IB3714050_drz.fits[1] -c auto_default.swarp
+    >>> sw.swarpImage('IB3714050_drz.fits[1]')    # swarp the reference image to istelf
+    THREEDHST/swarp: swarp IB3714050_drz.fits[1] -c auto_default.swarp
         
-        >>> sw.swarpRecenter()                        # Refine center position from SWarp's own output
-        >>> sw.swarpImage('xxx.fits')                 # SWarp xxx.fits to same pixels as ref image 
+    >>> sw.swarpRecenter()                        # Refine center position from SWarp's own output
+    >>> sw.swarpImage('xxx.fits')                 # SWarp xxx.fits to same pixels as ref image 
     """
-    #@staticmethod
     def _getSwarpDefaults(self):
         from subprocess import Popen,PIPE
         
@@ -557,7 +566,8 @@ class SWarp(object):
         optorder = []
         
         try:
-            pconf = Popen('swarp -dd'.split(),executable='swarp',stdout=PIPE,stderr=PIPE)
+            pconf = Popen('swarp -dd'.split(),
+                          executable='swarp',stdout=PIPE,stderr=PIPE)
             pconf.wait()
             confstr = pconf.communicate()[0]
         except OSError:
@@ -640,7 +650,8 @@ class SWarp(object):
                     k = ls[0].strip()
                     if k not in opts:
                         # raise ValueError('swarpfile has invalid option %s'%k) 
-                        warn('swarpfile \'%s\' has invalid option %s' %(swarpfile,k)) #gbb
+                        warn('swarpfile \'%s\' has invalid option %s'
+                             %(swarpfile,k)) #gbb
                     # opts[k] = ls[1].strip()
                     if len(ls) > 2:
                         #print ls
@@ -742,8 +753,8 @@ class SWarp(object):
         """
         swarpMatchImage(self, matchImage, extension=1, verbose=True)
         
-        Get WCS image from matchImage[extension] and set swarp parameters so that 
-        the output image will have the same size/position.
+        Get WCS image from matchImage[extension] and set swarp parameters
+        so that the output image will have the same size/position.
         """
         import pyfits, pywcs
         from pyraf import iraf
@@ -772,7 +783,8 @@ class SWarp(object):
             print """
 SWarp.swarpMatchImage: PIXEL_SCALE=  %s
                         IMAGE_SIZE=  %s
-                            CENTER= %s\n""" %(self.options['PIXEL_SCALE'],self.options['IMAGE_SIZE'],self.options['CENTER'])
+                            CENTER= %s\n""" %(self.options['PIXEL_SCALE'],
+                            self.options['IMAGE_SIZE'],self.options['CENTER'])
     
     
     def swarpImage(self,inputImage,mode='waiterror'):
@@ -819,7 +831,8 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
         print 'THREEDHST/SWarp.swarpImage: %s\n' %clstr
         
         if mode == 'waiterror' or mode =='wait':
-            proc = Popen(clstr.split(),executable='swarp',stdout=PIPE,stderr=PIPE)
+            proc = Popen(clstr.split(),
+                         executable='swarp',stdout=PIPE,stderr=PIPE)
             res = proc.wait()
             sout,serr = proc.communicate()
             
@@ -832,7 +845,7 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
         elif mode == 'proc':
             return proc
         elif mode == 'direct':
-            proc = Popen(clstr.split()) #,executable='swarp') #,stdout=PIPE,stderr=PIPE)
+            proc = Popen(clstr.split()) #,executable='swarp' #,stdout=PIPE,stderr=PIPE)
             res = proc.wait()
         else:
             raise ValueError('unrecognized mode argument '+str(mode))
@@ -843,18 +856,19 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
         """
         swarpRecenter(self)
         
-        Rerun swarp getting the exact center coordinates from the previous SWarp run.
-        This is required to get the pixels in the input and output images to
-        coincide exactly.
+        Rerun swarp getting the exact center coordinates from the previous 
+        SWarp run.  This is required to get the pixels in the input and output
+        images to coincide exactly.
         
-        For best results, edit the ``degtosexal`` and ``degtosexde`` functions in
-        ``swarp/src/fitswcs.c`` to print out 4 decimal places in the coordinates:
+        For best results, edit the ``degtosexal`` and ``degtosexde`` 
+        functions in ``swarp/src/fitswcs.c`` to print out 4 decimal places 
+        in the coordinates:
             
             sprintf(str,"%c%02d:%02d:%07.4f", sign, dd, dm, ds);
         
-        The first swarp run tries to compute the center coordinates directly using the WCS
-        information of the center pixel (NAXIS1/2, NAXIS2/2), but this doesn't match
-        swarp's internal WCS computation close enough.
+        The first swarp run tries to compute the center coordinates directly
+        using the WCS information of the center pixel (NAXIS1/2, NAXIS2/2), 
+        but this doesn't match swarp's internal WCS computation close enough.
         
         """
         if self.lasterr:

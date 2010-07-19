@@ -45,19 +45,23 @@ def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128,
     
     obj_str = str(object_number)
     idx = -1
-    for i, number in enumerate(mySexCat.columns[mySexCat.searchcol('NUMBER')].entry):
+    for i, number in enumerate(
+      mySexCat.columns[mySexCat.searchcol('NUMBER')].entry):
         if number == obj_str:
             idx = i
             break
     
     if idx < 0:
-        print 'Object \'%s\' not found in SExtractor catalog, %s.\n' %(obj_str, mySexCat.filename)
+        print 'Object \'%s\' not found in SExtractor catalog, %s.\n' %(obj_str,
+                             mySexCat.filename)
         return False
     
     ##### Figure out why X,Y are swapped in mySexCat.
     ##### Maybe the orientation of in_image is rotated w.r.t catalog?
-    x0 = np.round(np.float(mySexCat.columns[mySexCat.searchcol('X_IMAGE')].entry[idx]))
-    y0 = np.round(np.float(mySexCat.columns[mySexCat.searchcol('Y_IMAGE')].entry[idx]))
+    x0 = \
+ np.round(np.float(mySexCat.columns[mySexCat.searchcol('X_IMAGE')].entry[idx]))
+    y0 = \
+ np.round(np.float(mySexCat.columns[mySexCat.searchcol('Y_IMAGE')].entry[idx]))
     sub = in_image[y0-size:y0+size, x0-size:x0+size]
         
     interp = 'nearest'
@@ -71,7 +75,8 @@ def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128,
         vmin = -0.5*0.8
         vmax = 0.1*0.8
     
-    flux = np.round(np.float(mySexCat.columns[mySexCat.searchcol('FLUX_AUTO')].entry[idx]))
+    flux = \
+np.round(np.float(mySexCat.columns[mySexCat.searchcol('FLUX_AUTO')].entry[idx]))
     vmin = -0.03*flux
     vmax = 0.003*flux
     
@@ -80,7 +85,8 @@ def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128,
     pyplot.gray()
     
     fig = pyplot.figure(figsize=[3,3],dpi=100)
-    fig.subplots_adjust(wspace=0.2,hspace=0.02,left=0.02,bottom=0.02,right=0.98,top=0.98)
+    fig.subplots_adjust(wspace=0.2,hspace=0.02,left=0.02,
+                        bottom=0.02,right=0.98,top=0.98)
     ax = fig.add_subplot(111)
     ax.imshow(0-sub, interpolation=interp,aspect=asp,vmin=vmin,vmax=vmax)    
     
@@ -116,16 +122,20 @@ def makeThumbs(SPCFile, mySexCat, path='./HTML/'):
         idstr = '%04d' %id
         print noNewLine+'plotting.makeThumbs: %s_%s_thumb.png' %(root, idstr)
         plotThumb(id, mySexCat, in_image=dat, size= 20, scale =0.128,
-                  outfile=path+'/'+root+'_'+idstr+'_thumb.png',close_window=True)
+                  outfile=path+'/'+root+'_'+idstr+'_thumb.png',
+                  close_window=True)
 
-def plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png', close_window=False):
+def plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
+               close_window=False):
     """
-    plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png', close_window=False)
+    plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png', 
+               close_window=False)
     """
     import os
     root = os.path.basename(SPCFile.filename).split('_2')[0]
     
-    mef = pyfits.open('../DRIZZLE_G141/'+root+'_mef_ID'+str(object_number)+'.fits')
+    mef = pyfits.open('../DRIZZLE_G141/'+root+'_mef_ID'+
+                      str(object_number)+'.fits')
     
     head = mef['SCI'].header
     lmin = 10800
@@ -135,7 +145,8 @@ def plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png', close_window=F
     
     defaultPlotParameters()
     fig = pyplot.figure(figsize=[6,4],dpi=100)
-    fig.subplots_adjust(wspace=0.2,hspace=0.02,left=0.06,bottom=0.13,right=0.98,top=0.98)
+    fig.subplots_adjust(wspace=0.2,hspace=0.02,left=0.06,
+                        bottom=0.13,right=0.98,top=0.98)
         
     interp = 'nearest'
     asp = 'auto'
@@ -153,27 +164,37 @@ def plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png', close_window=F
         vmax = 0.1*0.8
         
     ax = fig.add_subplot(311)
-    ax.imshow(0-mef['SCI'].data, interpolation=interp,aspect=asp,vmin=vmin,vmax=vmax)    
+    ax.imshow(0-mef['SCI'].data, interpolation=interp,aspect=asp,
+              vmin=vmin,vmax=vmax)    
     ax.set_xlim(xmin,xmax)
     ax.set_yticklabels([])
-    ax.set_xticks((np.arange(np.ceil(lmin/1000.)*1000,np.ceil(lmax/1000.)*1000,1000)-head['CRVAL1'])/head['CDELT1']+head['CRPIX1'])
+    ax.set_xticks((np.arange(np.ceil(lmin/1000.)*1000,
+       np.ceil(lmax/1000.)*1000,1000)-head['CRVAL1'])/head['CDELT1']
+       +head['CRPIX1'])
     ax.set_xticklabels([])
     pyplot.ylabel(threedhst.options['GRISM_NAME'])
     
     ax = fig.add_subplot(312)
-    ax.imshow(0-mef['MOD'].data, interpolation=interp,aspect=asp,vmin=vmin,vmax=vmax)
+    ax.imshow(0-mef['MOD'].data, interpolation=interp, aspect=asp,
+              vmin=vmin,vmax=vmax)
     ax.set_xlim(xmin,xmax)
     ax.set_yticklabels([])
-    ax.set_xticks((np.arange(np.ceil(lmin/1000.)*1000,np.ceil(lmax/1000.)*1000,1000)-head['CRVAL1'])/head['CDELT1']+head['CRPIX1'])
+    ax.set_xticks((np.arange(np.ceil(lmin/1000.)*1000,
+        np.ceil(lmax/1000.)*1000,1000)-head['CRVAL1'])/head['CDELT1']
+        +head['CRPIX1'])
     ax.set_xticklabels([])
     pyplot.ylabel('Model')
 
     ax = fig.add_subplot(313)
-    ax.imshow(0-mef['CON'].data, interpolation=interp,aspect=asp,vmin=vmin,vmax=vmax)
+    ax.imshow(0-mef['CON'].data, interpolation=interp, aspect=asp,
+              vmin=vmin,vmax=vmax)
     ax.set_xlim(xmin,xmax)
     ax.set_yticklabels([])
-    ax.set_xticks((np.arange(np.ceil(lmin/1000.)*1000,np.ceil(lmax/1000.)*1000,1000)-head['CRVAL1'])/head['CDELT1']+head['CRPIX1'])
-    ax.set_xticklabels(np.arange(np.ceil(lmin/1000.)*1000,np.ceil(lmax/1000.)*1000,1000)/1.e4)
+    ax.set_xticks((np.arange(np.ceil(lmin/1000.)*1000,
+        np.ceil(lmax/1000.)*1000,1000)-head['CRVAL1'])/head['CDELT1']
+        +head['CRPIX1'])
+    ax.set_xticklabels(np.arange(np.ceil(lmin/1000.)*1000,
+        np.ceil(lmax/1000.)*1000,1000)/1.e4)
     pyplot.ylabel('Cont.')
     
     pyplot.xlabel(r'$\lambda$ [$\mu$m]')
@@ -200,11 +221,14 @@ def makeSpec2dImages(SPCFile, path='./HTML/'):
     for id in SPCFile._ext_map:
         idstr = '%04d' %id
         print noNewLine+'plotting.makeSpecImages: %s_%s_2D.png' %(root, idstr)
-        plot2Dspec(SPCFile, id, outfile=path+'/'+root+'_'+idstr+'_2D.png',close_window=True)
+        plot2Dspec(SPCFile, id, outfile=path+'/'+root+'_'+idstr+'_2D.png',
+                   close_window=True)
 
-def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png', close_window=False):
+def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
+               close_window=False):
     """
-    plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png', close_window=False)
+    plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png', 
+               close_window=False)
     """
     import os
     #import threedhst.plotting as pl
@@ -237,7 +261,8 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png', close_window=Fal
     xmax = 16800
     ax.set_xlim(xmin,xmax)
     sub = np.where((lam > xmin) & (lam < xmax))[0]
-    ax.set_ylim(-0.05*np.max((flux-0*contam)[sub]),1.1*np.max((flux-0*contam)[sub]))
+    ax.set_ylim(-0.05*np.max((flux-0*contam)[sub]),
+                1.1*np.max((flux-0*contam)[sub]))
     
     ### Labels
     root = os.path.basename(SPCFile.filename).split('_2')[0]
@@ -264,7 +289,8 @@ def makeSpec1dImages(SPCFile, path='./HTML/'):
     for id in SPCFile._ext_map:
         idstr = '%04d' %id
         print noNewLine+'plotting.makeSpec1dImages: %s_%s_1D.png' %(root, idstr)
-        plot1Dspec(SPCFile, id, outfile=path+'/'+root+'_'+idstr+'_1D.png',close_window=True)
+        plot1Dspec(SPCFile, id, outfile=path+'/'+root+'_'+idstr+'_1D.png',
+                   close_window=True)
     
 def makeHTML(SPCFile, mySexCat, output='./HTML/index.html', title=None):
     """
@@ -328,7 +354,8 @@ def makeHTML(SPCFile, mySexCat, output='./HTML/index.html', title=None):
     """)
         
     for id in SPCFile._ext_map:
-        for idx,num in enumerate(mySexCat.columns[mySexCat.searchcol('NUMBER')].entry):
+        for idx,num in enumerate(
+          mySexCat.columns[mySexCat.searchcol('NUMBER')].entry):
             if num == str(id):
                 break
         
@@ -386,16 +413,19 @@ class SPCFile(object):
     
     def _mapFitsExtensions(self):
         """
-        _mapFitsExtensions()
+_mapFitsExtensions()
         
-        Figure out which object corresponds to which extension in the SPC.fits file
+    Figure out which object corresponds to which extension in the SPC.fits file
         """
         for i in range(self.N_ext):
-            self._ext_map[i] = np.int(self.fits[i+1].header['EXTNAME'].split('BEAM_')[1][:-1])
+            self._ext_map[i] = np.int(
+               self.fits[i+1].header['EXTNAME'].split('BEAM_')[1][:-1])
             
-    def __init__(self, filename='ib3721050_2_opt.SPC.fits', axe_drizzle_dir='DRIZZLE_G141'):
+    def __init__(self, filename='ib3721050_2_opt.SPC.fits',
+                 axe_drizzle_dir='DRIZZLE_G141'):
         """
-        __init__(filename='ib3721050_2_opt.SPC.fits', axe_drizzle_dir='DRIZZLE_G141')
+__init__(filename='ib3721050_2_opt.SPC.fits',
+         axe_drizzle_dir='DRIZZLE_G141')
         """
         self.filename = filename
         self.axe_drizzle_dir = axe_drizzle_dir
