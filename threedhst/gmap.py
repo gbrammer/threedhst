@@ -17,7 +17,7 @@ MAP_SIZE = [TILE_SIZE,TILE_SIZE]
 MAP_KEY = 'ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb' \
     '_rzgcy5bqzSaTV8cyi2Bgsx3g'
 
-def makeGMapTiles(fitsimage):
+def makeGMapTiles(fitsimage=None):
     """
     This almost works.  Output coords don't seem to quite line up.
     """
@@ -32,25 +32,32 @@ def makeGMapTiles(fitsimage):
     fi = pyfits.open(fitsimage)
     head = fi[1].header
     data = fi[1].data
+    #data = np.fliplr(fi[1].data)
     xsize = data.shape[1]
     ysize = data.shape[0]
     
     ### Image corners in Lat/Lon
     wcs = pywcs.WCS(head)
-    llSW = radec2latlon(wcs.wcs_pix2sky([[wcs.naxis1,1]],1)[0])
-    llNW = radec2latlon(wcs.wcs_pix2sky([[wcs.naxis1,wcs.naxis2]],1)[0])
-    llSE = radec2latlon(wcs.wcs_pix2sky([[1,1]],1)[0])
-    llNE = radec2latlon(wcs.wcs_pix2sky([[1,wcs.naxis2]],1)[0])
+    llSE = radec2latlon(wcs.wcs_pix2sky([[wcs.naxis1,1]],1)[0])
+    llNE = radec2latlon(wcs.wcs_pix2sky([[wcs.naxis1,wcs.naxis2]],1)[0])
+    llSW = radec2latlon(wcs.wcs_pix2sky([[1,1]],1)[0])
+    llNW = radec2latlon(wcs.wcs_pix2sky([[1,wcs.naxis2]],1)[0])
     llCenter = (llSW+llNE)/2.
+    print llNE,llSW
+    print llCenter
     
-    llSW[1] += 90-llCenter[1]
-    llSE[1] += 90-llCenter[1]
-    llNW[1] += 90-llCenter[1]
-    llNE[1] += 90-llCenter[1]
-    llCenter[1] += 90-llCenter[1]
+    lng_offset = 90
+    
+    makeMapHTML(llSW,llNE,lng_offset=lng_offset)
+    
+    llSW[1] += lng_offset-llCenter[1]
+    llSE[1] += lng_offset-llCenter[1]
+    llNW[1] += lng_offset-llCenter[1]
+    llNE[1] += lng_offset-llCenter[1]
+    llCenter[1] += lng_offset-llCenter[1]
     
     ### Get Google Map pixel/tile coordinates
-    m = gmap.MercatorProjection()
+    m = MercatorProjection()
     bounds = [llSW,llNE]
     view_size = [wcs.naxis1,wcs.naxis2]
     zoomLevel = m.CalculateBoundsZoomLevel(bounds, view_size)
@@ -64,12 +71,23 @@ def makeGMapTiles(fitsimage):
     ### Padding to make the output image size
     ### multiples of TILE_SIZE
     padL = (pixSW.tilex-np.floor(pixSW.tilex))*TILE_SIZE
-    padB = (pixNE.tiley-np.floor(pixNE.tiley))*TILE_SIZE
     padR = (np.ceil(pixNE.tilex)-pixNE.tilex)*TILE_SIZE
-    padT = (np.ceil(pixSW.tiley)-pixSW.tiley)*TILE_SIZE
+    print padL,padR
+    
+    #padR = (pixNE.tilex-np.floor(pixNE.tilex))*TILE_SIZE
+    #padL = (np.ceil(pixSW.tilex)-pixSW.tilex)*TILE_SIZE
+    #print padL,padR
+    
+    ### Need to shift the image padding for the
+    ### coords to come out right.  The expression 
+    ### below works empirically for my test case, but not sure why.
+    dd = (padL-padR)/2; padR+=dd; padL-=dd
+    
+    padT = (pixNE.tiley-np.floor(pixNE.tiley))*TILE_SIZE
+    padB = (np.ceil(pixSW.tiley)-pixSW.tiley)*TILE_SIZE
     
     dx = pixNE.x-pixSW.x
-    dy = np.abs(pixNE.y-pixSW.y)
+    dy = pixSW.y-pixNE.y
     
     pixPerDeg = xsize/(llNE[1]-llSW[1])
     pixRatio = m.pixels_per_lon_degree[zoomLevel]/pixPerDeg
@@ -83,11 +101,13 @@ def makeGMapTiles(fitsimage):
     full_image = np.zeros((fully,fullx))    
     full_image[padB:-padT, padL:-padR] = data_copy
     
+    print pixRatio, dx/xsize, fullx/256., fully/256.
+    
     NX = (padL+padR+dx)*1./TILE_SIZE
     NY = (padT+padB+dy)*1./TILE_SIZE
     
     tileX0 = int(pixSW.tilex)
-    tileY0 = int(pixNW.tiley)
+    tileY0 = int(pixNE.tiley)
     
     for i in range(NX):
         for j in range(NY):
@@ -95,13 +115,129 @@ def makeGMapTiles(fitsimage):
             sub = full_image[fully-(j+1)*TILE_SIZE:fully-j*TILE_SIZE,
                              i*TILE_SIZE:(i+1)*TILE_SIZE]
             subim = data2image(sub)
-            outfile = '/Users/gbrammer/Sites/map/ASTR/%d_%d_%d.jpg' %(tileX0+i,
+            path = '/Users/gbrammer/Sites/map/ASTR/'
+            outfile = path+'direct_%d_%d_%d.jpg' %(tileX0+i,
                             tileY0+j,zoomLevel)
             subim.save(outfile)
-            print outfile
+            #print outfile
             
     return None
     
+def makeMapHTML(llSW, llNE, lng_offset=90):
+    """
+makeHTML(llSW, llNE, lng_offset=90)
+
+    Make webpage container for holding the Google map.
+    """
+    
+    center = (llSW+llNE)/2.
+    
+    web = """
+    <html> 
+    <head> 
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8"/> 
+        <title>Google Maps</title> 
+        <script src="http://maps.google.com/maps?file=api&amp;v=3&amp;key=ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb_rzgcy5bqzSaTV8cyi2Bgsx3g" type="text/javascript"></script> 
+
+        <script type="text/javascript"> 
+    function initialize() {
+        
+        if (GBrowserIsCompatible()) {
+
+          var map = new GMap2(document.getElementById("map"));
+          map.addControl(new GScaleControl());
+          // map.addControl(new GSmallMapControl());
+          // map.addControl(new GMapTypeControl());
+          var copyright = new GCopyright(1,
+               new GLatLngBounds(new GLatLng(%f,%f),
+                                 new GLatLng(%f,%f)),
+                                 14, "3D-HST");
+          var copyrightCollection = new GCopyrightCollection('Map Data:');
+          copyrightCollection.addCopyright(copyright);
+
+          CustomGetTileUrl=function(a,b){
+              return "direct_"+a.x+"_"+a.y+"_"+b+".jpg"
+          }
+          var tilelayers = [new GTileLayer(copyrightCollection,14,14)];
+          tilelayers[0].getTileUrl = CustomGetTileUrl;
+          var custommap = new GMapType(tilelayers, 
+                 new GMercatorProjection(15), "FITS");
+          map.addMapType(custommap);
+          map.setCenter(new GLatLng(%f,  %f), 14, custommap);
+        }
+    }
+    function addObjectMarker(map,x,y,id) {
+         var myIcon = new GIcon(G_DEFAULT_ICON);
+         myIcon.iconSize = new GSize(40, 40);
+         myIcon.iconAnchor = new GPoint(19.5, 19.5);
+
+         myIcon.image = "circle.php?id="+id;
+         markerOptions = { icon:myIcon };
+         var point = new GLatLng(x,y);
+         var marker = new GMarker(point, markerOptions)
+         GEvent.addListener(marker, "click", function() {
+             marker.openInfoWindowHtml("Marker <b>100</b>");
+         });
+         map.addOverlay(marker);
+    }     
+        </script>
+        </head> 
+      <body onload="initialize()" onunload="GUnload()"> 
+        <div id="map" style="width: 300px; height: 300px"></div> 
+      </body> 
+    </html>
+    """ %(llSW[0],llSW[1]-center[1]+lng_offset,
+                  llNE[0],llNE[1]-center[1]+lng_offset,
+                  center[0],lng_offset)
+    
+    outfile = '/Users/gbrammer/Sites/map/ASTR/map.html'
+    fp = open(outfile,'w')
+    fp.write(web)
+    fp.close()
+    print outfile
+    
+def makeCirclePNG(outfile=None):
+    """
+makeCirclePNG(outfile=None)
+    
+    Simple icon for overlay on Google Map.  Optionally includes
+    an object label on top of a circle.
+    
+    Example:
+    >>> makeCirclePNG(outfile='~/Sites/circle.php')
+    
+    Then point to 'http://localhost/~[user]/circle.php?id=100' in a web browser 
+    (with web sharing and PHP enabled, if viewing locally)
+    """
+    
+    PHPstring = """<?php
+    $string = $_GET['id'];
+    // Create a blank image.
+    $image = imagecreatetruecolor(40, 40);
+    // Make the background transparent
+    $black = imagecolorallocate($im, 0, 0, 0);
+    imagecolortransparent($image, $black);
+    // Choose a color for the ellipse.
+    $green = imagecolorallocate($image, 0, 255, 0);
+    // Draw the ellipse.
+    imageellipse($image, 19.5, 19.5, 10, 10, $green);
+    // Add the ID number
+    $px     = (imagesx($image) - 4.5 * strlen($string)) / 2;
+    imagestring($image, 0, $px, 1.5, $string, $green);
+    // Output the image.
+    header("Content-type: image/png");
+    imagepng($image);
+    ?>
+    """
+    
+    if outfile:
+        fp = open(outfile,'w')
+        fp.write(PHPstring)
+        fp.close()
+    else:
+        print PHPstring
+
+
 def data2image(data,zmin=-0.1,zmax=0.5):
     """
 data2image(data,zmin=-0.1,zmax=0.5)
@@ -137,8 +273,8 @@ radec2latlon(radec)
     """
     import numpy as np
     #latlon = np.zeros(2.)
-    #latlon = np.array([radec[1],360.-radec[0]])
-    latlon = np.array([radec[1],radec[0]])
+    latlon = np.array([radec[1],360.-radec[0]])
+    #latlon = np.array([radec[1],radec[0]])
     return latlon
     
 def addPoly(radec,l0=0.):
