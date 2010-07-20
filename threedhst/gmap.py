@@ -11,12 +11,84 @@ import os
 import numpy as np
 
 # Specifies the size of the map (in pixels).
-MAP_SIZE = [256,256]
-    
+MAP_SIZE = [256,256]    
 # This is the Maps API key for running on localhost:8080
 MAP_KEY = 'ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb' \
     '_rzgcy5bqzSaTV8cyi2Bgsx3g'
 
+def makeGMapTiles(fitsimage):
+    import pyfits
+    import pywcs
+    import fitsimage
+    
+    fitsimage = 'ib3721050_drz.fits'
+    
+    ### Read the FITS file
+    fi = pyfits.open(fitsimage)
+    head = fi[1].header
+    data = fi[1].data
+    
+    ### Image corners in Lat/Lon
+    wcs = pywcs.WCS(head)
+    llSW = radec2latlon(wcs.wcs_pix2sky([[1,1]],1)[0])
+    llNW = radec2latlon(wcs.wcs_pix2sky([[wcs.naxis1,1]],1)[0])
+    llSE = radec2latlon(wcs.wcs_pix2sky([[1,wcs.naxis2]],1)[0])
+    llNE = radec2latlon(wcs.wcs_pix2sky([[wcs.naxis1,wcs.naxis2]],1)[0])
+    
+    ### Get Google Map pixel/tile coordinates
+    m = gmap.MercatorProjection()
+    bounds = [llSW,llNE]
+    view_size = [wcs.naxis1,wcs.naxis2]
+    zoomLevel = m.CalculateBoundsZoomLevel(bounds, view_size)
+    pixCenter = m.FromLatLngToPixel((llSW+llNE)/2.,zoomLevel)
+    tilex = pixCenter.x/256
+    tiley = pixCenter.y/256
+    
+    pixSW = m.FromLatLngToPixel(llSW,zoomLevel)
+    pixSE = m.FromLatLngToPixel(llSE,zoomLevel)
+    pixNW = m.FromLatLngToPixel(llNW,zoomLevel)
+    pixNE = m.FromLatLngToPixel(llNE,zoomLevel)
+    
+    image.save('/tmp/junk.png')
+    
+    return None
+    
+def data2image(data,zmin=-0.1,zmax=0.5):
+    """
+data2image(data,zmin=-0.1,zmax=0.5)
+    
+    Take a 2D data array and send it to a PIL Image 
+    object after (linear) z-scaling.
+    
+    Parts taken from the `fitsimage` class in wcs2kml.
+    
+    """ 
+    from PIL import Image
+    # array sizes
+    xsize = data.shape[1]
+    ysize = data.shape[0]
+    # copy of data
+    fits_data = data*1.
+    scaled_data = (fits_data - zmin) * (255.0 / (zmax - zmin)) + 0.5
+    # convert to 8 bit unsigned int
+    scaled_data = scaled_data.astype("B")
+    # create the image
+    image = Image.frombuffer("L", (xsize, ysize), scaled_data, "raw", "L", 0, 0)
+    return image
+    
+def radec2latlon(radec):
+    """
+radec2latlon(radec)
+    
+    Convert R.A./Dec to Lat./Lon.
+    
+    """
+    import numpy as np
+    latlon = np.zeros(2.)
+    latlon[0] = radec[1]
+    latlon[1] = 360-radec[0]
+    return latlon
+    
 class Point():
     """
 Stores a simple (x,y) point.  It is used for storing x/y pixels.
@@ -25,13 +97,15 @@ Attributes:
     x: An int for a x value.
     y: An int for a y value.
         
-    http://code.google.com/p/google-ajax-examples/source/browse/trunk/nonjslocalsearch/localSearch.py
+http://code.google.com/p/google-ajax-examples/source/browse/trunk/nonjslocalsearch/localSearch.py
     
     """
     def __init__(self, x, y):
         self.x = x
         self.y = y
-    
+        self.tilex = x/256.
+        self.tiley = y/256.
+        
     def ToString(self):
         return '(%s, %s)' % (self.x, self.y)
     
@@ -61,7 +135,7 @@ Attributes:
     pixels: Number of pixels per zoom.
     zoom_levels: A list of numbers representing each zoom level to test.
     
-    http://code.google.com/p/google-ajax-examples/source/browse/trunk/nonjslocalsearch/localSearch.py
+http://code.google.com/p/google-ajax-examples/source/browse/trunk/nonjslocalsearch/localSearch.py
     
   """
   def __init__(self, zoom_levels=18):

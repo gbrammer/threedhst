@@ -67,12 +67,12 @@ def matchImagePixels(input=None,matchImage=None):
     
     sw.swarpRecenter()
     
-    sw.options['IMAGEOUT_NAME'] = \ 
-        os.path.basename(input).split('.fits')[0]+'.match.fits'
-    sw.options['WEIGHTOUT_NAME'] = \
-        os.path.basename(input).split('.fits')[0]+'.match.weight.fits'
+    base = os.path.basename(input).split('.fits')[0]
+    
+    sw.options['IMAGEOUT_NAME'] = base+'.match.fits'
+    sw.options['WEIGHTOUT_NAME'] = base+'.match.weight.fits'
     status = sw.swarpImage(input,mode='direct')
-    os.remove(os.path.basename(input).split('.fits')[0]+'.match.weight.fits')
+    os.remove(base+'.match.weight.fits')
 
 
 def make_grism_shiftfile(asn_direct, asn_grism):
