@@ -11,15 +11,20 @@ import os
 import numpy as np
 
 # Specifies the size of the map (in pixels).
-MAP_SIZE = [256,256]    
+TILE_SIZE = 256
+MAP_SIZE = [TILE_SIZE,TILE_SIZE]    
 # This is the Maps API key for running on localhost:8080
 MAP_KEY = 'ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb' \
     '_rzgcy5bqzSaTV8cyi2Bgsx3g'
 
 def makeGMapTiles(fitsimage):
+    """
+    This almost works.  Output coords don't seem to quite line up.
+    """
     import pyfits
     import pywcs
     import fitsimage
+    import numpy as np
     
     fitsimage = 'ib3721050_drz.fits'
     
@@ -27,30 +32,74 @@ def makeGMapTiles(fitsimage):
     fi = pyfits.open(fitsimage)
     head = fi[1].header
     data = fi[1].data
+    xsize = data.shape[1]
+    ysize = data.shape[0]
     
     ### Image corners in Lat/Lon
     wcs = pywcs.WCS(head)
-    llSW = radec2latlon(wcs.wcs_pix2sky([[1,1]],1)[0])
-    llNW = radec2latlon(wcs.wcs_pix2sky([[wcs.naxis1,1]],1)[0])
-    llSE = radec2latlon(wcs.wcs_pix2sky([[1,wcs.naxis2]],1)[0])
-    llNE = radec2latlon(wcs.wcs_pix2sky([[wcs.naxis1,wcs.naxis2]],1)[0])
+    llSW = radec2latlon(wcs.wcs_pix2sky([[wcs.naxis1,1]],1)[0])
+    llNW = radec2latlon(wcs.wcs_pix2sky([[wcs.naxis1,wcs.naxis2]],1)[0])
+    llSE = radec2latlon(wcs.wcs_pix2sky([[1,1]],1)[0])
+    llNE = radec2latlon(wcs.wcs_pix2sky([[1,wcs.naxis2]],1)[0])
+    llCenter = (llSW+llNE)/2.
+    
+    llSW[1] += 90-llCenter[1]
+    llSE[1] += 90-llCenter[1]
+    llNW[1] += 90-llCenter[1]
+    llNE[1] += 90-llCenter[1]
+    llCenter[1] += 90-llCenter[1]
     
     ### Get Google Map pixel/tile coordinates
     m = gmap.MercatorProjection()
     bounds = [llSW,llNE]
     view_size = [wcs.naxis1,wcs.naxis2]
     zoomLevel = m.CalculateBoundsZoomLevel(bounds, view_size)
-    pixCenter = m.FromLatLngToPixel((llSW+llNE)/2.,zoomLevel)
-    tilex = pixCenter.x/256
-    tiley = pixCenter.y/256
     
     pixSW = m.FromLatLngToPixel(llSW,zoomLevel)
     pixSE = m.FromLatLngToPixel(llSE,zoomLevel)
     pixNW = m.FromLatLngToPixel(llNW,zoomLevel)
     pixNE = m.FromLatLngToPixel(llNE,zoomLevel)
+    pixCenter = m.FromLatLngToPixel(llCenter,zoomLevel)
     
-    image.save('/tmp/junk.png')
+    ### Padding to make the output image size
+    ### multiples of TILE_SIZE
+    padL = (pixSW.tilex-np.floor(pixSW.tilex))*TILE_SIZE
+    padB = (pixNE.tiley-np.floor(pixNE.tiley))*TILE_SIZE
+    padR = (np.ceil(pixNE.tilex)-pixNE.tilex)*TILE_SIZE
+    padT = (np.ceil(pixSW.tiley)-pixSW.tiley)*TILE_SIZE
     
+    dx = pixNE.x-pixSW.x
+    dy = np.abs(pixNE.y-pixSW.y)
+    
+    pixPerDeg = xsize/(llNE[1]-llSW[1])
+    pixRatio = m.pixels_per_lon_degree[zoomLevel]/pixPerDeg
+    
+    data_copy = congrid(data,(dy,dx))
+    
+    #data_copy.resize((int(ysize*pixRatio),int(xsize*pixRatio)))
+    #data_copy.resize((dy,dx))
+    fullx = padL+padR+dx
+    fully = padT+padB+dy
+    full_image = np.zeros((fully,fullx))    
+    full_image[padB:-padT, padL:-padR] = data_copy
+    
+    NX = (padL+padR+dx)*1./TILE_SIZE
+    NY = (padT+padB+dy)*1./TILE_SIZE
+    
+    tileX0 = int(pixSW.tilex)
+    tileY0 = int(pixNW.tiley)
+    
+    for i in range(NX):
+        for j in range(NY):
+            #i,j = 0,0
+            sub = full_image[fully-(j+1)*TILE_SIZE:fully-j*TILE_SIZE,
+                             i*TILE_SIZE:(i+1)*TILE_SIZE]
+            subim = data2image(sub)
+            outfile = '/Users/gbrammer/Sites/map/ASTR/%d_%d_%d.jpg' %(tileX0+i,
+                            tileY0+j,zoomLevel)
+            subim.save(outfile)
+            print outfile
+            
     return None
     
 def data2image(data,zmin=-0.1,zmax=0.5):
@@ -64,11 +113,14 @@ data2image(data,zmin=-0.1,zmax=0.5)
     
     """ 
     from PIL import Image
+    import numpy as np
     # array sizes
     xsize = data.shape[1]
     ysize = data.shape[0]
     # copy of data
     fits_data = data*1.
+    fits_data = np.where(fits_data > zmin, fits_data, zmin)
+    fits_data = np.where(fits_data < zmax, fits_data, zmax)
     scaled_data = (fits_data - zmin) * (255.0 / (zmax - zmin)) + 0.5
     # convert to 8 bit unsigned int
     scaled_data = scaled_data.astype("B")
@@ -84,10 +136,28 @@ radec2latlon(radec)
     
     """
     import numpy as np
-    latlon = np.zeros(2.)
-    latlon[0] = radec[1]
-    latlon[1] = 360-radec[0]
+    #latlon = np.zeros(2.)
+    #latlon = np.array([radec[1],360.-radec[0]])
+    latlon = np.array([radec[1],radec[0]])
     return latlon
+    
+def addPoly(radec,l0=0.):
+    radec = np.array([189.2233,62.256869])
+    l0 = 189.22169688
+    ll = radec2latlon(radec)
+    str = """
+    var lat0 = %f;
+    var lon0 = %f;
+    var latOffset = 0.001;
+    var lonOffset = 0.001;
+    var polygon = new GPolygon([
+      new GLatLng(lat0, lon0 - lonOffset),
+      new GLatLng(lat0 + latOffset, lon0),
+      new GLatLng(lat0, lon0 + lonOffset),
+      new GLatLng(lat0 - latOffset, lon0),
+      new GLatLng(lat0, lon0 - lonOffset)
+    ], "#f33f00", 5, 1, "#ff0000", 0.2);
+    map.addOverlay(polygon);""" %(ll[0],ll[1]-l0+90)
     
 class Point():
     """
@@ -103,8 +173,8 @@ http://code.google.com/p/google-ajax-examples/source/browse/trunk/nonjslocalsear
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.tilex = x/256.
-        self.tiley = y/256.
+        self.tilex = x*1./TILE_SIZE
+        self.tiley = y*1./TILE_SIZE
         
     def ToString(self):
         return '(%s, %s)' % (self.x, self.y)
@@ -143,7 +213,7 @@ http://code.google.com/p/google-ajax-examples/source/browse/trunk/nonjslocalsear
     self.pixels_per_lon_radian = []
     self.pixel_origo = []
     self.pixel_range = []
-    self.pixels = 256
+    self.pixels = TILE_SIZE
     zoom_levels = range(0, zoom_levels)
     for z in zoom_levels:
       origin = self.pixels / 2
@@ -240,3 +310,109 @@ def DegreesToRadians(deg):
     http://code.google.com/p/google-ajax-examples/source/browse/trunk/nonjslocalsearch/localSearch.py
     """
     return deg * (np.pi / 180)
+
+def congrid(a, newdims, method='linear', centre=False, minusone=False):
+    '''Arbitrary resampling of source array to new dimension sizes.
+    Currently only supports maintaining the same number of dimensions.
+    To use 1-D arrays, first promote them to shape (x,1).
+    
+    Uses the same parameters and creates the same co-ordinate lookup points
+    as IDL''s congrid routine, which apparently originally came from a VAX/VMS
+    routine of the same name.
+
+    method:
+    neighbour - closest value from original data
+    nearest and linear - uses n x 1-D interpolations using
+                         scipy.interpolate.interp1d
+    (see Numerical Recipes for validity of use of n 1-D interpolations)
+    spline - uses ndimage.map_coordinates
+
+    centre:
+    True - interpolation points are at the centres of the bins
+    False - points are at the front edge of the bin
+
+    minusone:
+    For example- inarray.shape = (i,j) & new dimensions = (x,y)
+    False - inarray is resampled by factors of (i/x) * (j/y)
+    True - inarray is resampled by(i-1)/(x-1) * (j-1)/(y-1)
+    This prevents extrapolation one element beyond bounds of input array.
+    '''
+    import numpy as n
+    import scipy.interpolate
+    import scipy.ndimage
+    
+    if not a.dtype in [n.float64, n.float32]:
+        a = n.cast[float](a)
+
+    m1 = n.cast[int](minusone)
+    ofs = n.cast[int](centre) * 0.5
+    old = n.array( a.shape )
+    ndims = len( a.shape )
+    if len( newdims ) != ndims:
+        print "[congrid] dimensions error. " \
+              "This routine currently only support " \
+              "rebinning to the same number of dimensions."
+        return None
+    newdims = n.asarray( newdims, dtype=float )
+    dimlist = []
+
+    if method == 'neighbour':
+        for i in range( ndims ):
+            base = n.indices(newdims)[i]
+            dimlist.append( (old[i] - m1) / (newdims[i] - m1) \
+                            * (base + ofs) - ofs )
+        cd = n.array( dimlist ).round().astype(int)
+        newa = a[list( cd )]
+        return newa
+
+    elif method in ['nearest','linear']:
+        # calculate new dims
+        for i in range( ndims ):
+            base = n.arange( newdims[i] )
+            dimlist.append( (old[i] - m1) / (newdims[i] - m1) \
+                            * (base + ofs) - ofs )
+        # specify old dims
+        olddims = [n.arange(i, dtype = n.float) for i in list( a.shape )]
+
+        # first interpolation - for ndims = any
+        mint = scipy.interpolate.interp1d( olddims[-1], a, kind=method )
+        newa = mint( dimlist[-1] )
+
+        trorder = [ndims - 1] + range( ndims - 1 )
+        for i in range( ndims - 2, -1, -1 ):
+            newa = newa.transpose( trorder )
+
+            mint = scipy.interpolate.interp1d( olddims[i], newa, kind=method )
+            newa = mint( dimlist[i] )
+
+        if ndims > 1:
+            # need one more transpose to return to original dimensions
+            newa = newa.transpose( trorder )
+
+        return newa
+    elif method in ['spline']:
+        oslices = [ slice(0,j) for j in old ]
+        oldcoords = n.ogrid[oslices]
+        nslices = [ slice(0,j) for j in list(newdims) ]
+        newcoords = n.mgrid[nslices]
+
+        newcoords_dims = range(n.rank(newcoords))
+        #make first index last
+        newcoords_dims.append(newcoords_dims.pop(0))
+        newcoords_tr = newcoords.transpose(newcoords_dims)
+        # makes a view that affects newcoords
+
+        newcoords_tr += ofs
+
+        deltas = (n.asarray(old) - m1) / (newdims - m1)
+        newcoords_tr *= deltas
+
+        newcoords_tr -= ofs
+
+        newa = scipy.ndimage.map_coordinates(a, newcoords)
+        return newa
+    else:
+        print "Congrid error: Unrecognized interpolation type.\n", \
+              "Currently only \'neighbour\', \'nearest\',\'linear\',", \
+              "and \'spline\' are supported."
+        return None
