@@ -119,7 +119,7 @@ class SExtractor(object):
                 if '[' in ls[-1]:
                     unit = ls[-1].replace('[','').replace(']','')                 
                 else:
-                    None
+                    unit = None
                 info = ' '.join(ls[1:(-1 if unit else None)])
                 parinfo[k] = (info,unit if unit else '')
                 parorder.append(k)

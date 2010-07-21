@@ -308,7 +308,8 @@ def makeHTML(SPCFile, mySexCat, output='./HTML/index.html', title=None):
     <script type="text/javascript" src="scripts/jquery.tablesorter.min.js"></script> 
     <link rel="stylesheet" href="scripts/style.css" type="text/css" id="" media="print, projection, screen" /> 
     <title>%s</title>
-    <script type="text/javascript" id="js">$(document).ready(function() {
+    <script type="text/javascript" id="js">
+    $(document).ready(function() {
         $.tablesorter.defaults.sortList = [[0,0]]; 
     	$("table").tablesorter({
     		// pass the headers argument and assing a object
@@ -328,9 +329,18 @@ def makeHTML(SPCFile, mySexCat, output='./HTML/index.html', title=None):
     			},
     		}
     	});
+    	
+    	// Set the div heights with jQuery
+    	$("#content").height($(window).height()-60);
+    	$("#direct").height($(window).height()-60);	
     });</script>    
     </head>
     <body>
+    
+    <div class="fixedDiv" id="Direct"><a id="relative-selector" href="#i100" >Test</a></div>
+    
+    <div id="container" style="height:100%%">
+        
     """ %title]
     
     lines.append("""
@@ -338,6 +348,9 @@ def makeHTML(SPCFile, mySexCat, output='./HTML/index.html', title=None):
     """ %(title))
     
     lines.append("""
+    
+    <div id="content" style="width:840px;height:100%%;overflow:auto">
+    
     <table id="myTable" cellspacing="1" class="tablesorter"> 
     <thead> 
     <tr> 
@@ -366,7 +379,7 @@ def makeHTML(SPCFile, mySexCat, output='./HTML/index.html', title=None):
         img = '%s_%04d' %(root,id)
         lines.append("""
         <tr> 
-            <td>%d</td>
+            <td id="i%d">%d</td>
             <td>%13.6f</td> 
             <td>%13.6f</td> 
             <td>%6.2f</td> 
@@ -374,10 +387,13 @@ def makeHTML(SPCFile, mySexCat, output='./HTML/index.html', title=None):
             <td><a href='images/%s_1D.png'><img src='images/%s_1D.png' width=200px></a></td> 
             <td><a href='images/%s_2D.png'><img src='images/%s_2D.png' width=200px></a></td> 
         </tr> 
-        """ %(id,np.float(ra),np.float(dec),np.float(mag),img,img,img,img,img,img))
+        """ %(id,id,np.float(ra),np.float(dec),np.float(mag),
+              img,img,img,img,img,img))
     
     lines.append("""
     </tbody>
+    </div> <!-- content -->
+    </div> <!-- container -->
     </body>
     </html>""")
     

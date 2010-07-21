@@ -17,7 +17,7 @@ MAP_SIZE = [TILE_SIZE,TILE_SIZE]
 MAP_KEY = 'ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb' \
     '_rzgcy5bqzSaTV8cyi2Bgsx3g'
 
-def makeGMapTiles(fitsimage=None):
+def makeGMapTiles(fitsimage=None,outPath=None):
     """
     This almost works.  Output coords don't seem to quite line up.
     """
@@ -26,7 +26,10 @@ def makeGMapTiles(fitsimage=None):
     import fitsimage
     import numpy as np
     
-    fitsimage = 'ib3721050_drz.fits'
+    if not fitsimage:
+        fitsimage = 'ib3721050_drz.fits'
+    if not outPath:
+        outPath = '/Users/gbrammer/Sites/map/ASTR/'
     
     ### Read the FITS file
     fi = pyfits.open(fitsimage)
@@ -48,7 +51,13 @@ def makeGMapTiles(fitsimage=None):
     
     lng_offset = 90
     
-    makeMapHTML(llSW,llNE,lng_offset=lng_offset)
+    params = {}
+    params['LNG_OFFSET'] = lng_offset
+    params['LLNE'] = llNE
+    params['LLSW'] = llSW
+    params['LLCENTER'] = llCenter
+    
+    #makeMapHTML(llSW,llNE,lng_offset=lng_offset)
     
     llSW[1] += lng_offset-llCenter[1]
     llSE[1] += lng_offset-llCenter[1]
@@ -108,20 +117,19 @@ def makeGMapTiles(fitsimage=None):
     
     tileX0 = int(pixSW.tilex)
     tileY0 = int(pixNE.tiley)
-    
+        
     for i in range(NX):
         for j in range(NY):
             #i,j = 0,0
             sub = full_image[fully-(j+1)*TILE_SIZE:fully-j*TILE_SIZE,
                              i*TILE_SIZE:(i+1)*TILE_SIZE]
             subim = data2image(sub)
-            path = '/Users/gbrammer/Sites/map/ASTR/'
-            outfile = path+'direct_%d_%d_%d.jpg' %(tileX0+i,
+            outfile = outPath+'direct_%d_%d_%d.jpg' %(tileX0+i,
                             tileY0+j,zoomLevel)
             subim.save(outfile)
             #print outfile
             
-    return None
+    return params
     
 def makeMapHTML(llSW, llNE, lng_offset=90):
     """
@@ -132,54 +140,96 @@ makeHTML(llSW, llNE, lng_offset=90)
     
     center = (llSW+llNE)/2.
     
-    web = """
-    <html> 
+    web = """<html> 
     <head> 
         <meta http-equiv="content-type" content="text/html; charset=UTF-8"/> 
         <title>Google Maps</title> 
         <script src="http://maps.google.com/maps?file=api&amp;v=3&amp;key=ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb_rzgcy5bqzSaTV8cyi2Bgsx3g" type="text/javascript"></script> 
 
         <script type="text/javascript"> 
-    function initialize() {
-        
-        if (GBrowserIsCompatible()) {
 
-          var map = new GMap2(document.getElementById("map"));
-          map.addControl(new GScaleControl());
-          // map.addControl(new GSmallMapControl());
-          // map.addControl(new GMapTypeControl());
-          var copyright = new GCopyright(1,
-               new GLatLngBounds(new GLatLng(%f,%f),
-                                 new GLatLng(%f,%f)),
-                                 14, "3D-HST");
-          var copyrightCollection = new GCopyrightCollection('Map Data:');
-          copyrightCollection.addCopyright(copyright);
+function initialize() {        
+    if (GBrowserIsCompatible()) {
+        var map = new GMap2(document.getElementById("map"));
+        map.addControl(new GScaleControl());
+        // map.addControl(new GSmallMapControl());
+        // map.addControl(new GMapTypeControl());
+        var copyright = new GCopyright(1,
+             new GLatLngBounds(new GLatLng(%f,%f),
+                               new GLatLng(%f,%f)),
+                               14, "3D-HST");
+        var copyrightCollection = new GCopyrightCollection('Map Data:');
+        copyrightCollection.addCopyright(copyright);
 
-          CustomGetTileUrl=function(a,b){
-              return "direct_"+a.x+"_"+a.y+"_"+b+".jpg"
-          }
-          var tilelayers = [new GTileLayer(copyrightCollection,14,14)];
-          tilelayers[0].getTileUrl = CustomGetTileUrl;
-          var custommap = new GMapType(tilelayers, 
-                 new GMercatorProjection(15), "FITS");
-          map.addMapType(custommap);
-          map.setCenter(new GLatLng(%f,  %f), 14, custommap);
+        CustomGetTileUrl=function(a,b){
+            return "direct_"+a.x+"_"+a.y+"_"+b+".jpg"
         }
+        var tilelayers = [new GTileLayer(copyrightCollection,14,14)];
+        tilelayers[0].getTileUrl = CustomGetTileUrl;
+        var custommap = new GMapType(tilelayers, 
+               new GMercatorProjection(15), "FITS");
+        map.addMapType(custommap);
+        map.setCenter(new GLatLng(%f,  %f), 14, custommap);
+          
+        plotXmlObjects(map);
     }
-    function addObjectMarker(map,x,y,id) {
-         var myIcon = new GIcon(G_DEFAULT_ICON);
-         myIcon.iconSize = new GSize(40, 40);
-         myIcon.iconAnchor = new GPoint(19.5, 19.5);
+}
 
-         myIcon.image = "circle.php?id="+id;
-         markerOptions = { icon:myIcon };
-         var point = new GLatLng(x,y);
-         var marker = new GMarker(point, markerOptions)
-         GEvent.addListener(marker, "click", function() {
-             marker.openInfoWindowHtml("Marker <b>100</b>");
-         });
-         map.addOverlay(marker);
-    }     
+// Globals
+var myIcon = new GIcon();
+myIcon.iconSize = new GSize(40, 40);
+myIcon.iconAnchor = new GPoint(19.5, 19.5);
+var lats = [];
+var lngs = [];
+var ids = [];
+var nObject = 0;
+
+// Read objects from XML file and plot regions
+function plotXmlObjects(map, centerLng, offset) {
+    GDownloadUrl("cat.xml", function(data) {
+        var xml = GXml.parse(data);
+        var markers = xml.documentElement.getElementsByTagName("marker");
+        nObject = markers.length;
+        
+        for (var i = 0; i < markers.length; i++) {
+            // Read from XML
+            var id = markers[i].getAttribute("id");
+            var ra = markers[i].getAttribute("ra");
+            var dec = markers[i].getAttribute("dec");
+            var lat = dec;
+            var lng = (360-ra)-centerLng+offset;
+            lats.push(lat);
+            lngs.push(lng);
+            ids.push(id);
+            
+            // The marker
+            myIcon.image = "circle.php?id="+id;
+            markerOptions = { icon:myIcon, title:id};
+            var point = new GLatLng(lat,lng);
+            var marker = new GMarker(point, markerOptions);
+            
+            // The only thing passed to the listener is LatLng(), 
+            // so need to find which object is closest to the clicked marker.
+            GEvent.addListener(marker, "click", function(self) {
+                //alert(self.lat()+' '+nObject+' '+lats[0]);
+                var matchID = 0;
+                var lat = self.lat();
+                var lng = self.lng();
+                for (var j=0;j<nObject;j++) {
+                    var dj = (lats[j]-lat)*(lats[j]-lat)+
+                             (lngs[j]-lng)*(lngs[j]-lng) ;
+                    if (dj == 0) {
+                        matchID = ids[j];
+                        break;
+                    }
+                }
+                //alert(matchID);
+                window.location = '#i'+matchID;
+            });
+            map.addOverlay(marker);            
+        }
+    });
+}
         </script>
         </head> 
       <body onload="initialize()" onunload="GUnload()"> 
@@ -188,7 +238,8 @@ makeHTML(llSW, llNE, lng_offset=90)
     </html>
     """ %(llSW[0],llSW[1]-center[1]+lng_offset,
                   llNE[0],llNE[1]-center[1]+lng_offset,
-                  center[0],lng_offset)
+                  center[0],lng_offset,
+                  center[1],lng_offset)
     
     outfile = '/Users/gbrammer/Sites/map/ASTR/map.html'
     fp = open(outfile,'w')
@@ -277,24 +328,36 @@ radec2latlon(radec)
     #latlon = np.array([radec[1],radec[0]])
     return latlon
     
-def addPoly(radec,l0=0.):
-    radec = np.array([189.2233,62.256869])
-    l0 = 189.22169688
-    ll = radec2latlon(radec)
-    str = """
-    var lat0 = %f;
-    var lon0 = %f;
-    var latOffset = 0.001;
-    var lonOffset = 0.001;
-    var polygon = new GPolygon([
-      new GLatLng(lat0, lon0 - lonOffset),
-      new GLatLng(lat0 + latOffset, lon0),
-      new GLatLng(lat0, lon0 + lonOffset),
-      new GLatLng(lat0 - latOffset, lon0),
-      new GLatLng(lat0, lon0 - lonOffset)
-    ], "#f33f00", 5, 1, "#ff0000", 0.2);
-    map.addOverlay(polygon);""" %(ll[0],ll[1]-l0+90)
+def makeCatXML(catFile=None,xmlFile=None):
+    """
+makeCatXML(catFile=None,xmlFile=None)
     
+    Make XML file suitable for reading into a Google map from 
+    a SExtractor catalog
+    """
+    import threedhst
+    catFile='ib3721050_drz.cat'
+    if not catFile:
+        print 'makeCatXML: no `catFile` specified'
+        return None
+    ### Read the catalog and get id, ra, and dec columns
+    cat = threedhst.sex.mySexCat(catFile)
+    colID = cat.columns[cat.searchcol('NUMBER')].entry
+    colRA = cat.columns[cat.searchcol('X_WORLD')].entry
+    colDEC = cat.columns[cat.searchcol('Y_WORLD')].entry
+    ### Make XML string
+    xmlString = '<markers>'
+    for i in range(cat.nrows):
+        xmlString+='<marker id="%s" ra="%s" dec="%s" />' %(colID[i],
+                      colRA[i],colDEC[i])
+    xmlString+='</markers>'
+    ### Print to output file
+    if xmlFile:
+        fp = open(xmlFile,'w')
+        fp.write(xmlString)
+        fp.close()
+    
+
 class Point():
     """
 Stores a simple (x,y) point.  It is used for storing x/y pixels.
