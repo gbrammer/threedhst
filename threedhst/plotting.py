@@ -313,7 +313,9 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     <script type="text/javascript" src="scripts/jquery-1.4.2.min.js"></script> 
 
     <script type="text/javascript" src="scripts/jquery.tablesorter.min.js"></script> 
-    
+
+    <!--  www.astro.yale.edu/brammer/ ABQIAAAAzSrfHr_4F2D2YfSuYQD2ZBSRvJBsXGI3t4UH99Pp8ZgdgIZDpRQ9Pmiw1tbadMh-1wRrE07VYIPVOg -->
+
     <script src="http://maps.google.com/maps?file=api&amp;v=3&amp;key=ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb_rzgcy5bqzSaTV8cyi2Bgsx3g" type="text/javascript"></script> 
     """]
     
