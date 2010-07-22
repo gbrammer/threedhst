@@ -413,20 +413,20 @@ Pipeline to process a set of grism/direct exposures.
     except:
         pass
     
-    threedhst.gmap.makeCatXML(catFile=root_direct+'_drz.fits',
+    threedhst.gmap.makeCatXML(catFile=root_direct+'_drz.cat',
                               xmlFile='../HTML/cat.xml')
     threedhst.gmap.makeCirclePNG(outfile='../HTML/circle.php')                          
-    mapParams = threedhst.gmap.makeGMapTiles(fitsfile=root_direct+'_drz.fits',
+    mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile=root_direct+'_drz.fits',
                                              outPath='../HTML/tiles/',
                                              tileroot='direct')
     
-    mapParams = threedhst.gmap.makeGMapTiles(fitsfile=root_grism+'_drz.fits',
+    mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile=root_grism+'_drz.fits',
                                              outPath='../HTML/tiles/',
                                              tileroot='grism')
     
     out_web = '../HTML/'+root_direct+'_index.html'
     print '\nthreedhst.plotting.makeHTML: making webpage: %s\n' %out_web
-    threedhst.plotting.makeHTML(SPC, sexCat, mapParams, output=out_web)
+    threedhst.plotting.makeHTML(SPC, sexCat, mapParamsD, output=out_web)
     
     #### Done!
     print 'threedhst: cleaned up and Done!\n'

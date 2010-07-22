@@ -72,6 +72,7 @@ def makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct'):
     bounds = [llSW,llNE]
     view_size = [wcs.naxis1,wcs.naxis2]
     zoomLevel = m.CalculateBoundsZoomLevel(bounds, view_size)
+    params['ZOOMLEVEL'] = zoomLevel
     
     pixSW = m.FromLatLngToPixel(llSW,zoomLevel)
     pixSE = m.FromLatLngToPixel(llSE,zoomLevel)
@@ -337,7 +338,7 @@ makeCatXML(catFile=None,xmlFile=None)
     a SExtractor catalog
     """
     import threedhst
-    catFile='ib3721050_drz.cat'
+    #catFile='ib3721050_drz.cat'
     if not catFile:
         print 'makeCatXML: no `catFile` specified'
         return None

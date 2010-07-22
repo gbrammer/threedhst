@@ -363,6 +363,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     var map = 0; // Global
     var centerLng = %f;
     var offset = %f;
+    var zoomLevel = %f;
     
     function initialize() {        
         if (GBrowserIsCompatible()) {
@@ -373,7 +374,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
             var copyright = new GCopyright(1,
                  new GLatLngBounds(new GLatLng(%f,%f),
                                    new GLatLng(%f,%f)),
-                                   14, "3D-HST");
+                                   zoomLevel, "3D-HST");
             var copyrightCollection = new GCopyrightCollection('Map Data:');
             copyrightCollection.addCopyright(copyright);
 
@@ -381,20 +382,22 @@ def makeHTML(SPCFile, mySexCat, mapParams,
             CustomGetDirectTileUrl=function(a,b){
                 return "tiles/direct_"+a.x+"_"+a.y+"_"+b+".jpg"
             }
-            var tilelayersDirect = [new GTileLayer(copyrightCollection,14,14)];
+            var tilelayersDirect = [new GTileLayer(copyrightCollection,
+                                          zoomLevel,zoomLevel)];
             tilelayersDirect[0].getTileUrl = CustomGetDirectTileUrl;
             var custommapDirect = new GMapType(tilelayersDirect, 
-                   new GMercatorProjection(15), "Direct");
+                   new GMercatorProjection(zoomLevel+1), "Direct");
             map.addMapType(custommapDirect);
 
             // Grism image tiles
             CustomGetGrismTileUrl=function(a,b){
                 return "tiles/grism_"+a.x+"_"+a.y+"_"+b+".jpg"
             }
-            var tilelayersGrism = [new GTileLayer(copyrightCollection,14,14)];
+            var tilelayersGrism = [new GTileLayer(copyrightCollection,
+                                          zoomLevel,zoomLevel)];
             tilelayersGrism[0].getTileUrl = CustomGetGrismTileUrl;
             var custommapGrism = new GMapType(tilelayersGrism, 
-                   new GMercatorProjection(15), "Grism");
+                   new GMercatorProjection(zoomLevel+1), "Grism");
             map.addMapType(custommapGrism);
             
             // Can't remove all three for some reason
@@ -405,7 +408,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
             map.addControl(new GMapTypeControl());
             
             // Set map center
-            map.setCenter(new GLatLng(%f, offset), 14,
+            map.setCenter(new GLatLng(%f, offset), zoomLevel,
              custommapDirect);
 
             plotXmlObjects();
@@ -471,11 +474,11 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     function recenter(ra,dec) {
         var lat = dec;
         var lng = (360-ra)-centerLng+offset
-        map.setCenter(new GLatLng(lat,lng), 14);
+        map.setCenter(new GLatLng(lat,lng), zoomLevel);
     }
     
             </script>
-        """ %(center[1],lng_offset,
+        """ %(center[1],lng_offset,mapParams['ZOOMLEVEL'],
               llSW[0],llSW[1]-center[1]+lng_offset,
               llNE[0],llNE[1]-center[1]+lng_offset,
                       center[0]))
