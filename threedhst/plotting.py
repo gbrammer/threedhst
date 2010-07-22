@@ -489,7 +489,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     <div id="map"></div>
     
     <div id="title">%s</div>
-    <img src="3dhst.png" id="logo">
+    <img src="scripts/3dhst.png" id="logo">
     
     """ %(title))
     

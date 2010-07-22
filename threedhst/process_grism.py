@@ -380,12 +380,20 @@ Pipeline to process a set of grism/direct exposures.
         for rmfile in rmfiles:
             os.remove(rmfile)
 
-    #### Make output webpages with spectra thumbnails
+    #### Make output webpages with spectra thumbnails    
+    try:
+        os.mkdir('../HTML/scripts')
+    except:
+        print("""
+        WARNING: ../HTML/scripts/ not found.  Download from
+                 http://code.google.com/p/threedhst/
+              """)
+              
     try:
         os.mkdir('../HTML/images')
     except:
         pass
-    
+        
     SPC = threedhst.plotting.SPCFile(root_direct+'_2_opt.SPC.fits')
     print '\nthreedhst.plotting.makeThumbs: Creating direct image ' + \
           'thumbnails...\n\n'
