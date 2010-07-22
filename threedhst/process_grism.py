@@ -379,8 +379,13 @@ Pipeline to process a set of grism/direct exposures.
     if len(rmfiles) > 0:
         for rmfile in rmfiles:
             os.remove(rmfile)
-    
+
     #### Make output webpages with spectra thumbnails
+    try:
+        os.mkdir('../HTML/images')
+    except:
+        pass
+    
     SPC = threedhst.plotting.SPCFile(root_direct+'_2_opt.SPC.fits')
     print '\nthreedhst.plotting.makeThumbs: Creating direct image ' + \
           'thumbnails...\n\n'
@@ -394,9 +399,26 @@ Pipeline to process a set of grism/direct exposures.
           'thumbnails...\n\n'
     threedhst.plotting.makeSpec2dImages(SPC, path='../HTML/images/')
     
+    #### Make tiles for Google map
+    try:
+        os.mkdir('../HTML/tiles')
+    except:
+        pass
+    
+    threedhst.gmap.makeCatXML(catFile=root_direct+'_drz.fits',
+                              xmlFile='../HTML/cat.xml')
+    threedhst.gmap.makeCirclePNG(outfile='../HTML/circle.php')                          
+    mapParams = threedhst.gmap.makeGMapTiles(fitsfile=root_direct+'_drz.fits',
+                                             outPath='../HTML/tiles/',
+                                             tileroot='direct')
+    
+    mapParams = threedhst.gmap.makeGMapTiles(fitsfile=root_grism+'_drz.fits',
+                                             outPath='../HTML/tiles/',
+                                             tileroot='grism')
+    
     out_web = '../HTML/'+root_direct+'_index.html'
     print '\nthreedhst.plotting.makeHTML: making webpage: %s\n' %out_web
-    threedhst.plotting.makeHTML(SPC, sexCat, output=out_web)
+    threedhst.plotting.makeHTML(SPC, sexCat, mapParams, output=out_web)
     
     #### Done!
     print 'threedhst: cleaned up and Done!\n'

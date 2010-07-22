@@ -17,7 +17,7 @@ MAP_SIZE = [TILE_SIZE,TILE_SIZE]
 MAP_KEY = 'ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb' \
     '_rzgcy5bqzSaTV8cyi2Bgsx3g'
 
-def makeGMapTiles(fitsimage=None,outPath=None):
+def makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct'):
     """
     This almost works.  Output coords don't seem to quite line up.
     """
@@ -26,13 +26,15 @@ def makeGMapTiles(fitsimage=None,outPath=None):
     import fitsimage
     import numpy as np
     
-    if not fitsimage:
-        fitsimage = 'ib3721050_drz.fits'
+    if not fitsfile:
+        fitsfile = 'ib3721050_drz.fits'
     if not outPath:
         outPath = '/Users/gbrammer/Sites/map/ASTR/'
     
+    # print fitsfile, outPath
+    
     ### Read the FITS file
-    fi = pyfits.open(fitsimage)
+    fi = pyfits.open(fitsfile)
     head = fi[1].header
     data = fi[1].data
     #data = np.fliplr(fi[1].data)
@@ -46,16 +48,16 @@ def makeGMapTiles(fitsimage=None,outPath=None):
     llSW = radec2latlon(wcs.wcs_pix2sky([[1,1]],1)[0])
     llNW = radec2latlon(wcs.wcs_pix2sky([[1,wcs.naxis2]],1)[0])
     llCenter = (llSW+llNE)/2.
-    print llNE,llSW
-    print llCenter
+    # print llNE,llSW
+    # print llCenter
     
     lng_offset = 90
     
     params = {}
     params['LNG_OFFSET'] = lng_offset
-    params['LLNE'] = llNE
-    params['LLSW'] = llSW
-    params['LLCENTER'] = llCenter
+    params['LLNE'] = llNE*1.
+    params['LLSW'] = llSW*1.
+    params['LLCENTER'] = llCenter*1.
     
     #makeMapHTML(llSW,llNE,lng_offset=lng_offset)
     
@@ -124,8 +126,8 @@ def makeGMapTiles(fitsimage=None,outPath=None):
             sub = full_image[fully-(j+1)*TILE_SIZE:fully-j*TILE_SIZE,
                              i*TILE_SIZE:(i+1)*TILE_SIZE]
             subim = data2image(sub)
-            outfile = outPath+'direct_%d_%d_%d.jpg' %(tileX0+i,
-                            tileY0+j,zoomLevel)
+            outfile = outPath+'%s_%d_%d_%d.jpg' %(tileroot,
+                            tileX0+i,tileY0+j,zoomLevel)
             subim.save(outfile)
             #print outfile
             
@@ -238,8 +240,7 @@ function plotXmlObjects(map, centerLng, offset) {
     </html>
     """ %(llSW[0],llSW[1]-center[1]+lng_offset,
                   llNE[0],llNE[1]-center[1]+lng_offset,
-                  center[0],lng_offset,
-                  center[1],lng_offset)
+                  center[0],lng_offset)
     
     outfile = '/Users/gbrammer/Sites/map/ASTR/map.html'
     fp = open(outfile,'w')
@@ -247,7 +248,7 @@ function plotXmlObjects(map, centerLng, offset) {
     fp.close()
     print outfile
     
-def makeCirclePNG(outfile=None):
+def makeCirclePNG(outfile='circle.php'):
     """
 makeCirclePNG(outfile=None)
     

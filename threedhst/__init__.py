@@ -16,6 +16,7 @@ import shifts
 import sex
 import process_grism
 import plotting
+import gmap
 
 options = {}
 

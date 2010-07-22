@@ -292,23 +292,36 @@ def makeSpec1dImages(SPCFile, path='./HTML/'):
         plot1Dspec(SPCFile, id, outfile=path+'/'+root+'_'+idstr+'_1D.png',
                    close_window=True)
     
-def makeHTML(SPCFile, mySexCat, output='./HTML/index.html', title=None):
+def makeHTML(SPCFile, mySexCat, mapParams,
+             output='./HTML/index.html', title=None):
     """
-    makeHTML(SPCFile, mySexCat, output='./HTML/index.html', title=None)
+    makeHTML(SPCFile, mySexCat, mapParams,
+             output='./HTML/index.html', title=None)
     """
     import os
     root = os.path.basename(SPCFile.filename).split('_2')[0]
     if not title:
         title = root
     
+    #### Header
     lines = ["""
     <html>
     <head>
-    <script type="text/javascript" src="scripts/jquery-1.4.2.min.js"></script> 
-    <script type="text/javascript" src="scripts/jquery.tablesorter.min.js"></script> 
+    
     <link rel="stylesheet" href="scripts/style.css" type="text/css" id="" media="print, projection, screen" /> 
-    <title>%s</title>
+
+    <script type="text/javascript" src="scripts/jquery-1.4.2.min.js"></script> 
+
+    <script type="text/javascript" src="scripts/jquery.tablesorter.min.js"></script> 
+    
+    <script src="http://maps.google.com/maps?file=api&amp;v=3&amp;key=ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb_rzgcy5bqzSaTV8cyi2Bgsx3g" type="text/javascript"></script> 
+    """]
+    
+    #### Script for sorting the table
+    lines.append("""
+    
     <script type="text/javascript" id="js">
+    
     $(document).ready(function() {
         $.tablesorter.defaults.sortList = [[0,0]]; 
     	$("table").tablesorter({
@@ -332,19 +345,152 @@ def makeHTML(SPCFile, mySexCat, output='./HTML/index.html', title=None):
     	
     	// Set the div heights with jQuery
     	$("#content").height($(window).height()-60);
-    	$("#direct").height($(window).height()-60);	
-    });</script>    
-    </head>
-    <body>
+    	$("#map").height($(window).height()-60);	
+    });
     
-    <div class="fixedDiv" id="Direct"><a id="relative-selector" href="#i100" >Test</a></div>
+    </script>   
+    """)
     
-    <div id="container" style="height:100%%">
-        
-    """ %title]
+    #### Script for the Google map
+    llSW = mapParams['LLSW']
+    llNE = mapParams['LLNE']
+    center = mapParams['LLCENTER']
+    lng_offset = mapParams['LNG_OFFSET']
     
     lines.append("""
-    <h2>%s</h2>
+            <script type="text/javascript"> 
+    
+    var map = 0; // Global
+    var centerLng = %f;
+    var offset = %f;
+    
+    function initialize() {        
+        if (GBrowserIsCompatible()) {
+            map = new GMap2(document.getElementById("map"));
+            map.addControl(new GScaleControl());
+            // map.addControl(new GSmallMapControl());
+            // map.addControl(new GMapTypeControl());
+            var copyright = new GCopyright(1,
+                 new GLatLngBounds(new GLatLng(%f,%f),
+                                   new GLatLng(%f,%f)),
+                                   14, "3D-HST");
+            var copyrightCollection = new GCopyrightCollection('Map Data:');
+            copyrightCollection.addCopyright(copyright);
+
+            // Direct image tiles
+            CustomGetDirectTileUrl=function(a,b){
+                return "tiles/direct_"+a.x+"_"+a.y+"_"+b+".jpg"
+            }
+            var tilelayersDirect = [new GTileLayer(copyrightCollection,14,14)];
+            tilelayersDirect[0].getTileUrl = CustomGetDirectTileUrl;
+            var custommapDirect = new GMapType(tilelayersDirect, 
+                   new GMercatorProjection(15), "Direct");
+            map.addMapType(custommapDirect);
+
+            // Grism image tiles
+            CustomGetGrismTileUrl=function(a,b){
+                return "tiles/grism_"+a.x+"_"+a.y+"_"+b+".jpg"
+            }
+            var tilelayersGrism = [new GTileLayer(copyrightCollection,14,14)];
+            tilelayersGrism[0].getTileUrl = CustomGetGrismTileUrl;
+            var custommapGrism = new GMapType(tilelayersGrism, 
+                   new GMercatorProjection(15), "Grism");
+            map.addMapType(custommapGrism);
+            
+            // Can't remove all three for some reason
+            map.removeMapType(G_NORMAL_MAP);
+            map.removeMapType(G_HYBRID_MAP);
+            map.removeMapType(G_SATELLITE_MAP);
+            
+            map.addControl(new GMapTypeControl());
+            
+            // Set map center
+            map.setCenter(new GLatLng(%f, offset), 14,
+             custommapDirect);
+
+            plotXmlObjects();
+        }
+    }
+
+    // Globals
+    var myIcon = new GIcon();
+    myIcon.iconSize = new GSize(40, 40);
+    myIcon.iconAnchor = new GPoint(19.5, 19.5);
+    var lats = [];
+    var lngs = [];
+    var ids = [];
+    var nObject = 0;
+
+    // Read objects from XML file and plot regions
+    function plotXmlObjects() {
+        GDownloadUrl("cat.xml", function(data) {
+            var xml = GXml.parse(data);
+            var markers = xml.documentElement.getElementsByTagName("marker");
+            nObject = markers.length;
+
+            for (var i = 0; i < markers.length; i++) {
+                // Read from XML
+                var id = markers[i].getAttribute("id");
+                var ra = markers[i].getAttribute("ra");
+                var dec = markers[i].getAttribute("dec");
+                var lat = dec;
+                var lng = (360-ra)-centerLng+offset;
+                lats.push(lat);
+                lngs.push(lng);
+                ids.push(id);
+
+                // The marker
+                myIcon.image = "circle.php?id="+id;
+                markerOptions = { icon:myIcon, title:id};
+                var point = new GLatLng(lat,lng);
+                var marker = new GMarker(point, markerOptions);
+
+                // The only thing passed to the listener is LatLng(), 
+                // so need to find which object is closest to the clicked marker.
+                GEvent.addListener(marker, "click", function(self) {
+                    //alert(self.lat()+' '+nObject+' '+lats[0]);
+                    var matchID = 0;
+                    var lat = self.lat();
+                    var lng = self.lng();
+                    for (var j=0;j<nObject;j++) {
+                        var dj = (lats[j]-lat)*(lats[j]-lat)+
+                                 (lngs[j]-lng)*(lngs[j]-lng) ;
+                        if (dj == 0) {
+                            matchID = ids[j];
+                            break;
+                        }
+                    }
+                    //alert(matchID);
+                    window.location = '#i'+matchID;
+                });
+                map.addOverlay(marker);            
+            }
+        });
+    }
+    
+    function recenter(ra,dec) {
+        var lat = dec;
+        var lng = (360-ra)-centerLng+offset
+        map.setCenter(new GLatLng(lat,lng), 14);
+    }
+    
+            </script>
+        """ %(center[1],lng_offset,
+              llSW[0],llSW[1]-center[1]+lng_offset,
+              llNE[0],llNE[1]-center[1]+lng_offset,
+                      center[0]))
+    
+    #### HTML Body   
+    lines.append("""
+
+    </head>
+    <body onload="initialize()" onunload="GUnload()">
+    
+    <div id="map"></div>
+    
+    <div id="title">%s</div>
+    <img src="3dhst.png" id="logo">
+    
     """ %(title))
     
     lines.append("""
@@ -379,7 +525,9 @@ def makeHTML(SPCFile, mySexCat, output='./HTML/index.html', title=None):
         img = '%s_%04d' %(root,id)
         lines.append("""
         <tr> 
-            <td id="i%d">%d</td>
+            <td id="i%d">
+              <a href="#" onclick="javascript:recenter(%13.6f,%13.6f)">%d</a>
+            </td>
             <td>%13.6f</td> 
             <td>%13.6f</td> 
             <td>%6.2f</td> 
@@ -387,13 +535,13 @@ def makeHTML(SPCFile, mySexCat, output='./HTML/index.html', title=None):
             <td><a href='images/%s_1D.png'><img src='images/%s_1D.png' width=200px></a></td> 
             <td><a href='images/%s_2D.png'><img src='images/%s_2D.png' width=200px></a></td> 
         </tr> 
-        """ %(id,id,np.float(ra),np.float(dec),np.float(mag),
+        """ %(id,np.float(ra),np.float(dec),id,
+              np.float(ra),np.float(dec),np.float(mag),
               img,img,img,img,img,img))
     
     lines.append("""
     </tbody>
     </div> <!-- content -->
-    </div> <!-- container -->
     </body>
     </html>""")
     
