@@ -79,4 +79,4 @@ The 2D spectra are in individual files, named `ib6o23020_mef_ID#.fits`, which ea
 The pipeline produces an HTML table with thumbnails of the direct images, 1D, and 2D spectra, which look like
 http://www.astro.yale.edu/brammer/ERS/grism.png
 
-For an example of the full webpage, see [http://www.astro.yale.edu/brammer/ERS/HTML/ib6o23020_index.html].
+For an example of the full webpage, see [http://www.astro.yale.edu/brammer/ERS/HTMLv2/ib6o23020_index.html].
