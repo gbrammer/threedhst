@@ -414,8 +414,10 @@ Pipeline to process a set of grism/direct exposures.
         pass
     
     threedhst.gmap.makeCatXML(catFile=root_direct+'_drz.cat',
-                              xmlFile='../HTML/cat.xml')
-    threedhst.gmap.makeCirclePNG(outfile='../HTML/circle.php')                          
+                              xmlFile='../HTML/'+root_direct+'.xml')
+    
+    threedhst.gmap.makeCirclePNG(outfile='../HTML/circle.php')            
+                  
     mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile=root_direct+'_drz.fits',
                                              outPath='../HTML/tiles/',
                                              tileroot='direct')
