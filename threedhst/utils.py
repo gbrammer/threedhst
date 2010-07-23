@@ -98,10 +98,16 @@ _read_asn_file(self)
     def writeToFile(self, out_file=None, clobber=True):
         """
 writeToFile(self,out_file=None, clobber=True)
+
+    out_file='self' writes to `self.file`.
+    
         """
         if not out_file:
             print "USAGE:: writeToFile(out_file='output_asn.fits')"
         else:
+            if out_file == 'self':
+                out_file = self.file
+            
             nexp  = self.exposures.__len__()
             if self.product:
                 nprod = 1

@@ -120,25 +120,47 @@ import Tkinter as tk
 
 class QueryWindow:
     """
+QueryWindow(master, 
+            asn_grism_file='ib3704060_asn.fits',
+            asn_direct_file='ib3704050_asn.fits'):
+)
+    `master` is an instance of Tkinter.tk()
+    
     Widget application.
     """
-    def __init__(self, master, asn_grism, asn_direct):
-        self.direct = ''
-        self.grism = ''
+    def __init__(self, master, 
+           asn_grism_file='ib3704060_asn.fits',
+           asn_direct_file='ib3704050_asn.fits'):
+           
+        self.master = master
         frame = tk.Frame(master)
         frame.pack()
+        self.frame = frame
         
-        ds9 = myDS9()
+        # maybe want to put ds9 outside of the method
+        # to preserve state between subsequent ASN files
+        self.ds9 = myDS9()
+        
+        self.asn_grism = threedhst.utils.ASNFile(asn_grism_file)
+        self.asn_direct = threedhst.utils.ASNFile(asn_direct_file)
+        print '=== Grism ==='
+        self.asn_grism.showContents()
+        print '=== Direct ==='
+        self.asn_direct.showContents()
+        
+        self.nexp = len(self.asn_grism.exposures)
         self.idx = 0
         self.current = None  # set if editing grism or direct
+        self.showExposures()
         
+        #
         #### need to add method for displaying grism/direct SCI/DQ images
         #### and ...
-        
+        #
         #### Buttons
         #
         self.button = tk.Button(frame, 
-            text="QUIT", fg="red", command=frame.quit)
+            text="QUIT", fg="red", command=self.finish)
         self.button.pack(side=tk.LEFT)
         #
         self.button_next = tk.Button(frame,
@@ -146,7 +168,7 @@ class QueryWindow:
         self.button_next.pack(side=tk.LEFT)
         #
         self.button_kill = tk.Button(frame,
-            text="Kill exposure", bg="red", command=self.dummy)
+            text="Kill exposure", bg="red", command=self.kill_exposure)
         self.button_kill.pack(side=tk.LEFT)
         #
         self.button_dqdirect = tk.Button(frame,
@@ -158,36 +180,114 @@ class QueryWindow:
         self.button_dqgrism.pack(side=tk.LEFT)
         #### Add button for 'Done' or somehow catch when done with 
         #### adding mask polygons.
-    #
-    def dummy(self):
-        print 'Placeholder'
-    #
+    
     def goNext(self):
         """
 goNext(self)
     
     Go to next image in ASN file.
         """
-        idx+=1
-        # redisplay ...
+        self.idx+=1
+        if (self.idx == self.nexp):
+            self.finish()
+        else:
+            self.showExposures()
+    
+    def kill_exposure(self):
+        """
+kill_exposure(self)
+
+    Remove current exposure from the ASN lists.
+        """
+        out = self.asn_direct.exposures.pop(self.idx)
+        out = self.asn_grism.exposures.pop(self.idx)
+        self.idx-=1
+        self.nexp-=1
+        self.goNext()
         
     def dqdirect(self):
         """
 dqdirect(self)
         """
         self.current = 'DIRECT'
-        # do things ...
+        # do things ... run polygon mask routine for direct image
     
     def dqgrism(self):
         """
 dqgrism(self)
         """
         self.current = 'GRISM'
-        # do things ...
+        # do things ...  run polygon mask routine for grism image
     
-def testWidget():  
+    def readMask(self):
+        """
+readMask(self)
+    
+    Get polygon regions from current DS9 and save a mask region file.
+        """
+        
+    def showExposures(self):
+        """
+showExposure(self)
+
+    Display Direct and Grism exposures in ds9.
+        """
+        # open 4 frames and show grism/direct, SCI/DQ extensions
+        # Use the `self.idx`th object from the ASN list
+        flt_grism = self.asn_grism.exposures[self.idx]
+        flt_direct = self.asn_direct.exposures[self.idx]
+        fi_grism = pyfits.open(flt_grism+'_flt.fits')
+        fi_direct = pyfits.open(flt_direct+'_flt.fits')
+
+        ### Display SCI extension [1]
+        self.ds9.frame(1)
+        self.ds9.view(fi_direct[1])
+        self.ds9.scale(-0.1,2)
+        ### Display DQ extension [3]
+        self.ds9.frame(2)
+        self.ds9.view(fi_direct[3])
+        self.ds9.scale(0,100)
+
+        ### Display SCI extension [1]
+        self.ds9.frame(3)
+        self.ds9.view(fi_grism[1].data-np.median(fi_grism[1].data))
+        self.ds9.scale(-0.1,2)
+        ### Display DQ extension [3]
+        self.ds9.frame(4)
+        self.ds9.view(fi_grism[3])
+        self.ds9.scale(0,100)
+
+        ### DS9 Tile and return to Frame 1
+        self.ds9.set('tile yes')
+        self.ds9.set('tile grid')
+
+        self.ds9.frame(3)
+        self.ds9.set('zoom to fit')
+        self.ds9.set('match frames image')
+    
+    def finish(self):
+        """
+finish(self)
+        
+    Write out ASN files and close widget.
+        """
+        ### write asn files
+        self.asn_grism.writeToFile('self')
+        self.asn_direct.writeToFile('self')
+        
+        ### close widget
+        self.frame.quit()
+        self.master.destroy()
+        del(self.ds9)
+        
+def testWidget():
+    """
+testWidget()
+
+    Wrapper around `QueryWindow`.
+    """  
     root = tk.Tk()
-    app = QueryWindow(root,'x')
+    app = dq.QueryWindow(root)
     root.mainloop()
 
 def apply_dq_mask(flt_file, addval=2048):
