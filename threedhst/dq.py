@@ -130,16 +130,19 @@ class QueryWindow:
         
         ds9 = myDS9()
         self.idx = 0
+        self.current = None  # set if editing grism or direct
         
         #### need to add method for displaying grism/direct SCI/DQ images
+        #### and ...
         
+        #### Buttons
         #
         self.button = tk.Button(frame, 
             text="QUIT", fg="red", command=frame.quit)
         self.button.pack(side=tk.LEFT)
         #
         self.button_next = tk.Button(frame,
-            text="NEXT", bg="green", command=self.dummy)
+            text="NEXT", bg="green", command=self.goNext)
         self.button_next.pack(side=tk.LEFT)
         #
         self.button_kill = tk.Button(frame,
@@ -147,16 +150,41 @@ class QueryWindow:
         self.button_kill.pack(side=tk.LEFT)
         #
         self.button_dqdirect = tk.Button(frame,
-            text="Flag DIRECT", bg="white", fg="blue", command=self.dummy)
+            text="Flag DIRECT", bg="white", fg="blue", command=self.dqdirect)
         self.button_dqdirect.pack(side=tk.LEFT)
         #
         self.button_dqgrism = tk.Button(frame,
-            text="Flag GRISM", bg="blue", fg="white", command=self.dummy)
+            text="Flag GRISM", bg="blue", fg="white", command=self.dqgrism)
         self.button_dqgrism.pack(side=tk.LEFT)
+        #### Add button for 'Done' or somehow catch when done with 
+        #### adding mask polygons.
     #
     def dummy(self):
         print 'Placeholder'
+    #
+    def goNext(self):
+        """
+goNext(self)
+    
+    Go to next image in ASN file.
+        """
+        idx+=1
+        # redisplay ...
         
+    def dqdirect(self):
+        """
+dqdirect(self)
+        """
+        self.current = 'DIRECT'
+        # do things ...
+    
+    def dqgrism(self):
+        """
+dqgrism(self)
+        """
+        self.current = 'GRISM'
+        # do things ...
+    
 def testWidget():  
     root = tk.Tk()
     app = QueryWindow(root,'x')
