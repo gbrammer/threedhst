@@ -428,7 +428,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
 
     // Read objects from XML file and plot regions
     function plotXmlObjects() {
-        GDownloadUrl("cat.xml", function(data) {
+        GDownloadUrl("%s.xml", function(data) {
             var xml = GXml.parse(data);
             var markers = xml.documentElement.getElementsByTagName("marker");
             nObject = markers.length;
@@ -483,7 +483,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         """ %(center[1],lng_offset,mapParams['ZOOMLEVEL'],
               llSW[0],llSW[1]-center[1]+lng_offset,
               llNE[0],llNE[1]-center[1]+lng_offset,
-                      center[0]))
+              center[0]), threedhst.currentRun['root_direct'])
     
     #### HTML Body   
     lines.append("""

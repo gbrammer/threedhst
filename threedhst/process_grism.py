@@ -151,6 +151,11 @@ Pipeline to process a set of grism/direct exposures.
     root_grism = asn_grism_file.split('_asn.fits')[0]
     root_direct = asn_direct_file.split('_asn.fits')[0]
     
+    threedhst.currentRun['asn_grism_file'] = asn_grism_file
+    threedhst.currentRun['asn_direct_file'] = asn_direct_file
+    threedhst.currentRun['root_grism'] = root_grism
+    threedhst.currentRun['root_direct'] = root_direct
+        
     #### Copy ASN files from RAW
     shutil.copy('../RAW/'+asn_grism_file,'./')
     shutil.copy('../RAW/'+asn_direct_file,'./')
@@ -178,6 +183,8 @@ Pipeline to process a set of grism/direct exposures.
         print exp
         fi.writeto('./'+exp+'_flt.fits', clobber=True)
         
+    threedhst.currentRun['step'] = 'COPY_FROM_RAW'
+    
     #########################################
     ####   Compute shifts
     #########################################
@@ -196,6 +203,8 @@ Pipeline to process a set of grism/direct exposures.
     #### same shifts taken from the direct images
     threedhst.shifts.make_grism_shiftfile(asn_direct_file,asn_grism_file)
     
+    threedhst.currentRun['step'] = 'SHIFTS'
+    
     #########################################
     ####   Make detection image and generate a catalog
     #########################################
@@ -207,6 +216,7 @@ Pipeline to process a set of grism/direct exposures.
        shiftfile=root_direct + '_shifts.txt', \
        output = '', final_scale = INDEF, final_pixfrac = 1.0)
     cleanMultidrizzleOutput()
+    threedhst.currentRun['step'] = 'DETECTION_IMAGE'
     
     direct_mosaic = root_direct+'_drz.fits'
     
@@ -233,8 +243,12 @@ Pipeline to process a set of grism/direct exposures.
     ## Run SExtractor
     status = se.sextractImage(root_direct+'_SCI.fits')
     
+    threedhst.currentRun['step'] = 'SEXTRACT_CATALOG'
+    
     #### Read catalog to keep around
     sexCat = threedhst.sex.mySexCat(root_direct+'_drz.cat')
+    threedhst.currentRun['sexCat'] = sexCat
+    
     #### Replace MAG_AUTO column name to MAG_F1392W
     sexCat.change_MAG_AUTO_for_aXe(filter='F1392W')
     sexCat.writeToFile()
@@ -274,12 +288,16 @@ Pipeline to process a set of grism/direct exposures.
         fp.write(line)
     fp.close()
     
+    threedhst.currentRun['step'] = 'PROCESS_CATALOG'
+    
     #########################################
     ####   Run aXe scripts
     #########################################
     #taxe20
     #### initialize parameters
     conf = Conf(threedhst.options['CONFIG_FILE'])
+    threedhst.currentRun['conf'] = conf
+    
     conf.params['DRZROOT'] = root_direct
     ## Workaround to get 0th order contam. from fluxcube
     conf.params['BEAMB'] = '-220 220'    
@@ -302,6 +320,7 @@ Pipeline to process a set of grism/direct exposures.
     flprMulti()
     iraf.axeprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
         backgr="YES", backims=SKY, mfwhm="2.0",norm="NO")
+    threedhst.currentRun['step'] = 'AXEPREP'
     
     #### Multidrizzle the grism images to flag cosmic rays
     os.chdir('./DATA')
@@ -311,6 +330,7 @@ Pipeline to process a set of grism/direct exposures.
                       output = '', final_scale = INDEF, 
                       final_pixfrac = 1.0, skysub = no)
     cleanMultidrizzleOutput()
+    threedhst.currentRun['step'] = 'MULTIDRIZZLE_GRISM'
     
     #### Prepare fluxcube image
     #### (Force flat spectrum in f_nu)
@@ -325,6 +345,8 @@ Pipeline to process a set of grism/direct exposures.
        filter_info = 'zeropoints.lis', AB_zero = yes, 
        dimension_info = '0,0,0,0')
     
+    threedhst.currentRun['step'] = 'FCUBEPREP'
+    
     ####################       Main aXe run
     os.chdir('../')
     flprMulti()
@@ -336,16 +358,22 @@ Pipeline to process a set of grism/direct exposures.
         inter_type="linear", np=10,interp=-1,smooth_lengt=1, smooth_fwhm=1.0,
         spectr="NO", adj_sens="NO", weights="NO", sampling="drizzle")
     
+    threedhst.currentRun['step'] = 'AXECORE'
+    
     #### tdrzprep
     flprMulti()
     iraf.drzprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
         opt_extr="YES", back="NO")
+    
+    threedhst.currentRun['step'] = 'DRZPREP'
         
     #### taxedrizzle
     flprMulti()
     iraf.axedrizzle(inlist=prep_name(asn_grism_file), configs=CONFIG,
                     infwhm=4.1,outfwhm=4, back="NO", makespc="YES",
                     opt_extr="YES",adj_sens="YES")
+    
+    threedhst.currentRun['step'] = 'AXEDRIZZLE'
     
     #### Make a multidrizzled contamination image
     os.chdir('./DATA')
@@ -364,6 +392,8 @@ Pipeline to process a set of grism/direct exposures.
        static=no, driz_separate=no,median=no, blot=no, driz_cr=no)
     cleanMultidrizzleOutput()
     
+    threedhst.currentRun['step'] = 'MULTIDRIZZLE_CONTAMINATION'
+    
     #### Clean up
     rmfiles = glob.glob('*FLX.fits')
     rmfiles.extend(glob.glob('*_flt.fits'))
@@ -380,6 +410,8 @@ Pipeline to process a set of grism/direct exposures.
         for rmfile in rmfiles:
             os.remove(rmfile)
 
+    threedhst.currentRun['step'] = 'CLEANUP_DATA'
+    
     #### Make output webpages with spectra thumbnails    
     try:
         os.mkdir('../HTML/scripts')
@@ -395,6 +427,8 @@ Pipeline to process a set of grism/direct exposures.
         pass
         
     SPC = threedhst.plotting.SPCFile(root_direct+'_2_opt.SPC.fits')
+    threedhst.currentRun['SPC'] = SPC
+    
     print '\nthreedhst.plotting.makeThumbs: Creating direct image ' + \
           'thumbnails...\n\n'
     threedhst.plotting.makeThumbs(SPC, sexCat, path='../HTML/images/')
@@ -406,6 +440,8 @@ Pipeline to process a set of grism/direct exposures.
     print '\nthreedhst.plotting.makeSpec1dImages: Creating 2D spectra '+ \
           'thumbnails...\n\n'
     threedhst.plotting.makeSpec2dImages(SPC, path='../HTML/images/')
+    
+    threedhst.currentRun['step'] = 'MAKE_THUMBNAILS'
     
     #### Make tiles for Google map
     try:
@@ -426,12 +462,18 @@ Pipeline to process a set of grism/direct exposures.
                                              outPath='../HTML/tiles/',
                                              tileroot='grism')
     
+    threedhst.currentRun['step'] = 'MAKE_GMAP_TILES'
+    
     out_web = '../HTML/'+root_direct+'_index.html'
     print '\nthreedhst.plotting.makeHTML: making webpage: %s\n' %out_web
     threedhst.plotting.makeHTML(SPC, sexCat, mapParamsD, output=out_web)
     
+    threedhst.currentRun['step'] = 'MAKE_HTML'
+    
     #### Done!
     print 'threedhst: cleaned up and Done!\n'
+    
+    threedhst.currentRun['step'] = 'DONE'
     
 
 def prep_name(input_asn):

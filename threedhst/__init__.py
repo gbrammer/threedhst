@@ -19,6 +19,8 @@ import plotting
 import gmap
 
 options = {}
+currentRun = {}
+currentRun['step'] = 'INIT'
 
 def defaultOptions():
     """

@@ -279,7 +279,6 @@ will compute from header directly.
              (np.array([0,0,NAXIS[1],NAXIS[1]])-CRPIX[1])*sci['CD2_2'])
              
     return regX, regY
-
     
 def region_mask(shape,px,py):
     """
