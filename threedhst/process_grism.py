@@ -185,7 +185,7 @@ Pipeline to process a set of grism/direct exposures.
         print exp
         fi.writeto('./'+exp+'_flt.fits', clobber=True)
         #### Apply DQ mask (.mask.reg), if it exists
-        threedhst.dq.apply_dq_mask(os.path.basename(fits_file)Å, addval=2048)
+        threedhst.dq.apply_dq_mask(os.path.basename(fits_file), addval=2048)
         
     threedhst.currentRun['step'] = 'COPY_FROM_RAW'
     
@@ -460,23 +460,21 @@ Pipeline to process a set of grism/direct exposures.
                   
     mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile=root_direct+'_drz.fits',
                                              outPath='../HTML/tiles/',
-                                             tileroot='direct')
+                                             tileroot=root_direct+'_d')
     
     mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile=root_grism+'_drz.fits',
                                              outPath='../HTML/tiles/',
-                                             tileroot='grism')
+                                             tileroot=root_direct+'_g')
     
     threedhst.currentRun['step'] = 'MAKE_GMAP_TILES'
     
     out_web = '../HTML/'+root_direct+'_index.html'
     print '\nthreedhst.plotting.makeHTML: making webpage: %s\n' %out_web
     threedhst.plotting.makeHTML(SPC, sexCat, mapParamsD, output=out_web)
-    
     threedhst.currentRun['step'] = 'MAKE_HTML'
     
     #### Done!
     print 'threedhst: cleaned up and Done!\n'
-    
     threedhst.currentRun['step'] = 'DONE'
     
 

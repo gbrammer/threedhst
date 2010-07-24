@@ -366,6 +366,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     var centerLng = %f;
     var offset = %f;
     var zoomLevel = %f;
+    var root = '%s';
     
     function initialize() {        
         if (GBrowserIsCompatible()) {
@@ -382,7 +383,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
 
             // Direct image tiles
             CustomGetDirectTileUrl=function(a,b){
-                return "tiles/direct_"+a.x+"_"+a.y+"_"+b+".jpg"
+                return "tiles/"+root+"_d_"+a.x+"_"+a.y+"_"+b+".jpg"
             }
             var tilelayersDirect = [new GTileLayer(copyrightCollection,
                                           zoomLevel,zoomLevel)];
@@ -393,7 +394,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
 
             // Grism image tiles
             CustomGetGrismTileUrl=function(a,b){
-                return "tiles/grism_"+a.x+"_"+a.y+"_"+b+".jpg"
+                return "tiles/"+root+"_g_"+a.x+"_"+a.y+"_"+b+".jpg"
             }
             var tilelayersGrism = [new GTileLayer(copyrightCollection,
                                           zoomLevel,zoomLevel)];
@@ -428,7 +429,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
 
     // Read objects from XML file and plot regions
     function plotXmlObjects() {
-        GDownloadUrl("%s.xml", function(data) {
+        GDownloadUrl(root+".xml", function(data) {
             var xml = GXml.parse(data);
             var markers = xml.documentElement.getElementsByTagName("marker");
             nObject = markers.length;
@@ -481,9 +482,10 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     
             </script>
         """ %(center[1],lng_offset,mapParams['ZOOMLEVEL'],
+              threedhst.currentRun['root_direct'],
               llSW[0],llSW[1]-center[1]+lng_offset,
               llNE[0],llNE[1]-center[1]+lng_offset,
-              center[0]), threedhst.currentRun['root_direct'])
+              center[0]))
     
     #### HTML Body   
     lines.append("""

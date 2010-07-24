@@ -11,8 +11,9 @@ __version__ = "$Rev$"
 # $Author$
 # $Date$
 
-import pyfits
+import os
 
+import pyfits
 import numpy as np
 import threedhst
 import pysao
@@ -65,6 +66,7 @@ checkDQ(asn_grism_file='ib3704060_asn.fits',
     
     Widget application.
     """
+    
     def __init__(self, asn_grism_file='ib3704060_asn.fits',
            asn_direct_file='ib3704050_asn.fits',
            path_to_flt='../RAW/'):
@@ -257,6 +259,9 @@ showExposure(self)
         self.ds9.frame(1)
         self.ds9.view(fi_direct[1])
         self.ds9.scale(-0.1,2)
+        if os.path.exists(flt_direct+'_flt.fits.mask.reg'):
+            self.ds9.set('regions load %s_flt.fits.mask.reg' %flt_direct)
+            
         ### Display DQ extension [3]
         self.ds9.frame(2)
         self.ds9.view(fi_direct[3])
@@ -265,7 +270,10 @@ showExposure(self)
         ### Display SCI extension [1]
         self.ds9.frame(3)
         self.ds9.view(fi_grism[1].data-np.median(fi_grism[1].data))
-        self.ds9.scale(-0.1,2)
+        self.ds9.scale(-0.1,0.6)
+        if os.path.exists(flt_grism+'_flt.fits.mask.reg'):
+            self.ds9.set('regions load %s_flt.fits.mask.reg' %flt_grism)
+        
         ### Display DQ extension [3]
         self.ds9.frame(4)
         self.ds9.view(fi_grism[3])
@@ -294,11 +302,15 @@ finish(self)
         self.master.destroy()
         del(self.ds9)
 
-def checkAllDQ():
+def checkAllDQ(clobber=False):
     """
-checkAllDQ()
-
-    Find all grism and direct ASN files and run checkDQ.
+checkAllDQ(clobber=False)
+    
+    Copy ASN files from ../RAW to ./ [DATA].  If clobber==False, 
+    don't overwrite ASN files in DATA.
+    
+    Figure out which ASN are grism, which are direct and run checkDQ.
+    
     This should be run in the `DATA` directory.
     
     Assumes that grism/direct pairs will be next to eachother 
@@ -311,7 +323,10 @@ checkAllDQ()
     os.chdir('../RAW')
     asn_files = glob.glob('*asn.fits')
     for file in asn_files:
-        shutil.copy(file,'../DATA/')
+        if (clobber is True) | (not os.path.exists('../DATA/'+file)):
+            shutil.copy(file,'../DATA/')
+            print 'Copy %s ../DATA' %file
+            
     os.chdir('../DATA')
     
     direct_files = []
