@@ -17,6 +17,7 @@ import sex
 import process_grism
 import plotting
 import gmap
+import dq
 
 options = {}
 currentRun = {}

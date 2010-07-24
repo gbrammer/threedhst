@@ -16,6 +16,7 @@ import pyfits
 import numpy as np
 import threedhst
 import pysao
+import Tkinter as tk
 
 class myDS9(pysao.ds9):
     """
@@ -54,92 +55,33 @@ delete_all_frames(self)
             self.set('frame %s' %frame)
             self.set('frame delete')
 
-def flag_dq_polygon(ds9, flt_file):
+class checkDQ:
     """
-check_data_quality(flt_file)
-    
-Display an image and check DQ extension (e.g. for satellite trails)
-    
-    """
-    ##### Start a DS9 instance
-    #ds9 = myDS9()
-    ##### Open FITS file
-    fi = pyfits.open(flt_file)
-    ### Display SCI extension [1]
-    ds9.frame(1)
-    ds9.view(fi[1])
-    ds9.scale(-0.1,1)
-    ### Display DQ extension [3]
-    ds9.frame(2)
-    ds9.view(fi[3])
-    ds9.scale(0,100)
-    ### DS9 Tile and return to Frame 1
-    ds9.set('tile yes')
-    ds9.set('tile grid')
-    ds9.set('zoom to fit')
-    ds9.frame(1)
-    ds9.set('zoom to fit')
-    ##### Ask at prompt if we should define regions and continue
-    test = raw_input('3DHST/check_data_quality: Define DQ region y/[n]? ')
-    if (test == '') | (test.lower().startswith('n')):
-        return None
-    else:
-        ds9.set('regions shape polygon')
-        dummy = raw_input('Define region polygon in DS9 and hit [return] ')
-    ##### Define region
-    ds9.set('regions system image')
-    regions = ds9.get('regions source')
-    ##### Initialize DQ image
-    dqflag = np.zeros(fi[1].data.shape,dtype=np.int)
-    ##### Loop through user-defined regions
-    for region in regions.split('\n'):
-        if region.strip().startswith('polygon'):
-            #region = 'polygon(375.05333,642.2,465.18667,642.2,751.36,
-            # 709.8,393.08,326.73333,210.56,461.93333,465.18667,
-            # 552.06667,375.05333,552.06667,221.82667,509.25333)'
-            spl = np.float_(np.array(
-                     region[region.find('(')+1:region.find(')')].split(',')
-                     ))
-            px = spl[0::2]
-            py = spl[1::2]
-            dqflag += threedhst.utils.region_mask(fi[1].data.shape,px,py)
-            
-    ##### Set DQ bit
-    dqflag[np.where(dqflag > 0)] = 2048
-    ##### Show region mask in Frame 2        
-    ds9.frame(2)
-    ds9.view_array(fi[3].data+dqflag)
-    ds9.scale(0,100)
-    ##### Save defined regions in output file, [flt_file]+'.mask.reg'
-    fp = open(flt_file.split('.gz')[0]+'.mask.reg','w')
-    fp.write(regions)
-    fp.close()
-    return True
+checkDQ(asn_grism_file='ib3704060_asn.fits',
+            asn_direct_file='ib3704050_asn.fits'
+            path_to_flt='../RAW/'):
 
-import Tkinter as tk
-
-class QueryWindow:
-    """
-QueryWindow(master, 
-            asn_grism_file='ib3704060_asn.fits',
-            asn_direct_file='ib3704050_asn.fits'):
-)
     `master` is an instance of Tkinter.tk()
     
     Widget application.
     """
-    def __init__(self, master, 
-           asn_grism_file='ib3704060_asn.fits',
-           asn_direct_file='ib3704050_asn.fits'):
+    def __init__(self, asn_grism_file='ib3704060_asn.fits',
+           asn_direct_file='ib3704050_asn.fits',
+           path_to_flt='../RAW/'):
            
+        master = tk.Tk()
         self.master = master
+        master.title('3D-HST')
+        master.geometry('200x90-350+40')
         frame = tk.Frame(master)
         frame.pack()
         self.frame = frame
+        self.path_to_flt = path_to_flt
         
         # maybe want to put ds9 outside of the method
         # to preserve state between subsequent ASN files
         self.ds9 = myDS9()
+        self.ds9.set('width 600')
         
         self.asn_grism = threedhst.utils.ASNFile(asn_grism_file)
         self.asn_direct = threedhst.utils.ASNFile(asn_direct_file)
@@ -152,35 +94,42 @@ QueryWindow(master,
         self.idx = 0
         self.current = None  # set if editing grism or direct
         self.showExposures()
+        self.busy = False
         
-        #
-        #### need to add method for displaying grism/direct SCI/DQ images
-        #### and ...
-        #
         #### Buttons
-        #
-        self.button = tk.Button(frame, 
+        self.button_quit = tk.Button(frame, 
             text="QUIT", fg="red", command=self.finish)
-        self.button.pack(side=tk.LEFT)
-        #
+        self.button_quit.pack(side=tk.LEFT)
+        
         self.button_next = tk.Button(frame,
             text="NEXT", bg="green", command=self.goNext)
         self.button_next.pack(side=tk.LEFT)
-        #
+
+        self.button_back = tk.Button(frame,
+            text="BACK", bg="yellow", command=self.goBack)
+        self.button_back.pack(side=tk.LEFT)
+        
         self.button_kill = tk.Button(frame,
             text="Kill exposure", bg="red", command=self.kill_exposure)
         self.button_kill.pack(side=tk.LEFT)
-        #
+        
         self.button_dqdirect = tk.Button(frame,
             text="Flag DIRECT", bg="white", fg="blue", command=self.dqdirect)
         self.button_dqdirect.pack(side=tk.LEFT)
-        #
+        
         self.button_dqgrism = tk.Button(frame,
             text="Flag GRISM", bg="blue", fg="white", command=self.dqgrism)
         self.button_dqgrism.pack(side=tk.LEFT)
-        #### Add button for 'Done' or somehow catch when done with 
-        #### adding mask polygons.
-    
+        
+        self.button_next.grid(row=0, column=0)
+        self.button_back.grid(row=1, column=0)
+        self.button_kill.grid(row=2, column=0)
+        self.button_dqdirect.grid(row=0, column=1)
+        self.button_dqgrism.grid(row=1, column=1)
+        self.button_quit.grid(row=2, column=1)
+        
+        self.master.mainloop()
+        
     def goNext(self):
         """
 goNext(self)
@@ -192,6 +141,18 @@ goNext(self)
             self.finish()
         else:
             self.showExposures()
+    
+    def goBack(self):
+        """
+goBack(self)
+
+    Go back one image in ASN file.
+        """
+        if self.idx == 0:
+            return None
+        
+        self.idx-=1
+        self.showExposures()
     
     def kill_exposure(self):
         """
@@ -209,14 +170,30 @@ kill_exposure(self)
         """
 dqdirect(self)
         """
-        self.current = 'DIRECT'
+        if not self.busy:
+            self.current = 'DIRECT'
+        else:
+            ### If in the middle of defining polygons
+            ### and other button clicked, do nothing
+            if self.current == 'GRISM':
+                return None
+                
+        self.readMask()
         # do things ... run polygon mask routine for direct image
-    
+        
     def dqgrism(self):
         """
 dqgrism(self)
         """
-        self.current = 'GRISM'
+        if not self.busy:
+            self.current = 'GRISM'
+        else:
+            ### If in the middle of defining polygons
+            ### and other button clicked, do nothing
+            if self.current == 'DIRECT':
+                return None
+                
+        self.readMask()
         # do things ...  run polygon mask routine for grism image
     
     def readMask(self):
@@ -225,7 +202,38 @@ readMask(self)
     
     Get polygon regions from current DS9 and save a mask region file.
         """
-        
+        ### First click on region button
+        if not self.busy:
+            self.busy = True
+            self.ds9.set('tile no')
+            if self.current == 'DIRECT':
+                self.ds9.frame(1)
+                self.polyfile_root = self.asn_direct.exposures[self.idx]
+            else:
+                self.ds9.frame(3)
+                self.polyfile_root = self.asn_grism.exposures[self.idx]
+            
+            self.ds9.set('zoom to fit')
+            self.ds9.set('regions shape polygon')
+            print 'Define region polygon(s) in DS9 and click again '
+            
+        else:
+            self.busy = False
+            self.ds9.set('regions system image')
+            regions = self.ds9.get('regions source')
+            
+            #### If polygon regions defined, write them to the mask file
+            if len(regions.split('polygon')) > 1:
+                fp = open(self.polyfile_root+'_flt.fits.mask.reg','w')
+                fp.write(regions)
+                fp.close()
+                print 'Wrote mask, %s_flt.fits.mask.reg' %self.polyfile_root
+            
+            self.ds9.set('tile yes')
+            self.ds9.frame(3)
+            self.ds9.set('zoom to fit')
+            self.ds9.set('match frames image')
+            
     def showExposures(self):
         """
 showExposure(self)
@@ -236,8 +244,14 @@ showExposure(self)
         # Use the `self.idx`th object from the ASN list
         flt_grism = self.asn_grism.exposures[self.idx]
         flt_direct = self.asn_direct.exposures[self.idx]
-        fi_grism = pyfits.open(flt_grism+'_flt.fits')
-        fi_direct = pyfits.open(flt_direct+'_flt.fits')
+        
+        fits_grism = threedhst.utils.find_fits_gz(self.path_to_flt+
+                                                  flt_grism+'_flt.fits')
+        fits_direct = threedhst.utils.find_fits_gz(self.path_to_flt+
+                                                   flt_direct+'_flt.fits')
+        
+        fi_grism = pyfits.open(fits_grism)
+        fi_direct = pyfits.open(fits_direct)
 
         ### Display SCI extension [1]
         self.ds9.frame(1)
@@ -279,17 +293,55 @@ finish(self)
         self.frame.quit()
         self.master.destroy()
         del(self.ds9)
-        
-def testWidget():
+
+def checkAllDQ():
     """
-testWidget()
+checkAllDQ()
 
-    Wrapper around `QueryWindow`.
-    """  
-    root = tk.Tk()
-    app = dq.QueryWindow(root)
-    root.mainloop()
-
+    Find all grism and direct ASN files and run checkDQ.
+    This should be run in the `DATA` directory.
+    
+    Assumes that grism/direct pairs will be next to eachother 
+    in the list of *asn.fits.
+    """
+    import glob
+    import shutil
+    import os
+    
+    os.chdir('../RAW')
+    asn_files = glob.glob('*asn.fits')
+    for file in asn_files:
+        shutil.copy(file,'../DATA/')
+    os.chdir('../DATA')
+    
+    direct_files = []
+    grism_files = []
+    for file in asn_files:
+        print file
+        asn = threedhst.utils.ASNFile(file)
+        fits = threedhst.utils.find_fits_gz('../RAW/'+asn.exposures[0]+
+                                            '_flt.fits')
+        fi = pyfits.open(fits)
+        head = fi[0].header
+        if head['FILTER'] == 'F140W':
+            direct_files.append(file)
+        if head['FILTER'] == 'G141':
+            grism_files.append(file)
+    
+    if len(direct_files) != len(grism_files):
+        print """
+    checkAllDQ: Number of direct ASN files is not the same as the
+                number of grism ASN files!'
+            """
+        return None
+    
+    Npairs = len(direct_files)
+    for i in range(Npairs):
+        checkDQ(asn_grism_file=grism_files[i],
+                asn_direct_file=direct_files[i],
+                path_to_flt='../RAW/')
+                
+    
 def apply_dq_mask(flt_file, addval=2048):
     """
 apply_dq_mask(flt_file, addval=2048)

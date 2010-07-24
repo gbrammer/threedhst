@@ -156,9 +156,11 @@ Pipeline to process a set of grism/direct exposures.
     threedhst.currentRun['root_grism'] = root_grism
     threedhst.currentRun['root_direct'] = root_direct
         
-    #### Copy ASN files from RAW
-    shutil.copy('../RAW/'+asn_grism_file,'./')
-    shutil.copy('../RAW/'+asn_direct_file,'./')
+    #### Copy ASN files from RAW, if they don't already exist
+    if not os.path.exists(asn_grism_file):
+        shutil.copy('../RAW/'+asn_grism_file,'./')
+    if not os.path.exists(asn_direct_file):
+        shutil.copy('../RAW/'+asn_direct_file,'./')
     
     #### Read ASN files
     asn_grism  = threedhst.utils.ASNFile(file=asn_grism_file)
@@ -182,6 +184,8 @@ Pipeline to process a set of grism/direct exposures.
             dummy = 1
         print exp
         fi.writeto('./'+exp+'_flt.fits', clobber=True)
+        #### Apply DQ mask (.mask.reg), if it exists
+        threedhst.dq.apply_dq_mask(fits_file, addval=2048)
         
     threedhst.currentRun['step'] = 'COPY_FROM_RAW'
     
