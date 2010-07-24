@@ -358,7 +358,8 @@ apply_dq_mask(flt_file, addval=2048)
     #
     print 'Applying mask from %s.mask_reg' %(flt_file.split('.gz')[0])
     regions = ''.join(fp.readlines())
-    fi = pyfits.open(flt_file,mode='update')
+    fi = pyfits.open(threedhst.utils.find_fits_gz(flt_file.split('.gz')[0]),
+                     mode='update')
     dqflag = np.zeros(fi[3].data.shape,dtype=np.int)
     ##### Loop through user-defined regions
     for region in regions.split('\n'):

@@ -185,7 +185,7 @@ Pipeline to process a set of grism/direct exposures.
         print exp
         fi.writeto('./'+exp+'_flt.fits', clobber=True)
         #### Apply DQ mask (.mask.reg), if it exists
-        threedhst.dq.apply_dq_mask(fits_file, addval=2048)
+        threedhst.dq.apply_dq_mask(os.path.basename(fits_file)Å, addval=2048)
         
     threedhst.currentRun['step'] = 'COPY_FROM_RAW'
     
