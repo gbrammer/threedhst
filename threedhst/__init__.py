@@ -45,6 +45,12 @@ defaultOptions()
     options['CONFIG_FILE'] = 'WFC3.IR.G141.V1.0.conf'
     options['SKY_BACKGROUND'] = 'WFC3.IR.G141.sky.V1.0.fits'
     
+    #### WCS alignment image
+    options['ALIGN_IMAGE'] = None
+    
+    #### Add other bands to the fluxcube
+    options['OTHER_BANDS'] = []
+    
     #### For fluxcube, if these remain 'None', use files 
     #### created from the internal SExtractor run 
     options['CATALOG_FILE'] = None

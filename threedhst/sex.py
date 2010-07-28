@@ -787,7 +787,7 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
                             self.options['IMAGE_SIZE'],self.options['CENTER'])
     
     
-    def swarpImage(self,inputImage,mode='waiterror'):
+    def swarpImage(self,inputImage,mode='direct'):
         """
         swarpImage(self,inputImage,mode='waiterror')
         
@@ -826,7 +826,12 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
             self.name = fnbase
                 
         self._saveFiles(fnbase)
-        clstr = 'swarp %s -c %s' %(inputImage,self.name+'.swarp')
+        if isinstance(inputImage,list):
+            imgList = ' '.join(inputImage)
+        else:
+            imgList = inputImage
+        
+        clstr = 'swarp %s -c %s' %(imgList,self.name+'.swarp')
         
         print 'THREEDHST/SWarp.swarpImage: %s\n' %clstr
         

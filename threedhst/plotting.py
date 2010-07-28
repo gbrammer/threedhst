@@ -134,8 +134,8 @@ def plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
     import os
     root = os.path.basename(SPCFile.filename).split('_2')[0]
     
-    mef = pyfits.open('../DRIZZLE_G141/'+root+'_mef_ID'+
-                      str(object_number)+'.fits')
+    mef = pyfits.open('../'+threedhst.options['DRIZZLE_PATH']+
+                      '/'+root+'_mef_ID'+str(object_number)+'.fits')
     
     head = mef['SCI'].header
     lmin = 10800
@@ -146,7 +146,10 @@ def plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
     defaultPlotParameters()
     fig = pyplot.figure(figsize=[6,4],dpi=100)
     fig.subplots_adjust(wspace=0.2,hspace=0.02,left=0.06,
-                        bottom=0.13,right=0.98,top=0.98)
+                        bottom=0.12,right=0.99,top=0.99)
+    # fig = pyplot.figure(figsize=[4.2,2.8]) #,dpi=100)
+    # fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.07,
+    #                     bottom=0.11,right=0.99,top=0.93)
         
     interp = 'nearest'
     asp = 'auto'
@@ -195,7 +198,7 @@ def plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
         +head['CRPIX1'])
     ax.set_xticklabels(np.arange(np.ceil(lmin/1000.)*1000,
         np.ceil(lmax/1000.)*1000,1000)/1.e4)
-    pyplot.ylabel('Cont.')
+    pyplot.ylabel('Contam.')
     
     pyplot.xlabel(r'$\lambda$ [$\mu$m]')
     
@@ -243,36 +246,55 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     contam = spec.field('CONTAM')
     lam  = spec.field('LAMBDA')
     
-    fig = pyplot.figure(figsize=[6,4],dpi=100)
-    fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.08,bottom=0.13,right=0.98,top=0.93)
-    
-    ### Plot Flux and Contamination
+    ### Initialize plot
+    # fig = pyplot.figure(figsize=[6,4],dpi=100)
+    # fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.07,
+    #                     bottom=0.11,right=0.99,top=0.93)
+    fig = pyplot.figure(figsize=[4.8,3.2]) #,dpi=100)
+    fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.08,
+                        bottom=0.125,right=0.99,top=0.93)
+
+    ### plot window
     ax = fig.add_subplot(111)
+        
+    ### Plot Flux and Contamination
     ax.plot(lam, flux-contam, linewidth=1.0, color='blue',alpha=1)
     ax.plot(lam, contam, linewidth=1.0, color='red',alpha=1)
     ax.plot(lam, flux,
                color='red',linewidth=1.0,alpha=0.2)
     ax.errorbar(lam, flux-contam,
                yerr= ferr,ecolor='blue',
-               color='blue',fmt='o',alpha=0.5)
+               color='blue',fmt='.',alpha=0.5)
     
-    ### Axes
     xmin = 10800
     xmax = 16800
-    ax.set_xlim(xmin,xmax)
     sub = np.where((lam > xmin) & (lam < xmax))[0]
-    ax.set_ylim(-0.05*np.max((flux-0*contam)[sub]),
-                1.1*np.max((flux-0*contam)[sub]))
+    ymax = np.max((flux-0*contam)[sub])
+    
+    ### Show emission line wavelengths
+    # zb = np.linspace(0.5,2.5,5)
+    # zi = np.linspace(0.5,2.5,20)
+    # yz = np.linspace(0,ymax*1.1,5)
+    # lines = [3727,4862,5007,6563]
+    # for line in lines:
+    #     ax.plot(line*(1+zb),yz,color='black',alpha=0.1)
+    #     ax.scatter(line*(1+zb),yz,marker='o',color='black',alpha=0.1)
+    
+    ### Axes
+    #pyplot.semilogx(subsx=[11000,12500,15000])
+    ax.set_xlim(xmin,xmax)
+    ax.set_ylim(-0.05*ymax,1.1*ymax)
     
     ### Labels
     root = os.path.basename(SPCFile.filename).split('_2')[0]
     pyplot.title('%s: \#%d' %(root,object_number))
     pyplot.xlabel(r'$\lambda$[\AA]')
     pyplot.ylabel(r'$\mathit{F}_{\lambda}$')
+
     
     ### Save to PNG
     if outfile:
-        fig.savefig(outfile,dpi=100,transparent=False)
+        fig.savefig(outfile,dpi=75,transparent=False)
     
     if close_window:
         pyplot.close()
@@ -587,8 +609,8 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         img = '%s_%04d' %(root,id)
         lines.append("""
         <tr> 
-            <td id="i%d">
-              <a href="#" onclick="javascript:recenter(%13.6f,%13.6f)">%d</a>
+            <td id="i%d" onclick="javascript:recenter(%13.6f,%13.6f)">
+                  %d
             </td>
             <td>%13.6f</td> 
             <td>%13.6f</td> 
