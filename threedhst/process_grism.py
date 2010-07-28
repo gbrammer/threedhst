@@ -319,6 +319,7 @@ Pipeline to process a set of grism/direct exposures.
     flprMulti()
     iraf.iolprep(mdrizzle_ima=root_direct+'_drz.fits',
                  input_cat=root_direct+'_drz.cat')
+    threedhst.currentRun['step'] = 'IOLPREP'
     ## taxe20.taxeprep
     os.chdir('../')
     flprMulti()
@@ -419,12 +420,13 @@ Pipeline to process a set of grism/direct exposures.
     #### Make output webpages with spectra thumbnails    
     try:
         os.mkdir('../HTML/scripts')
-    except:
         print("""
         WARNING: ../HTML/scripts/ not found.  Download from
                  http://code.google.com/p/threedhst/
               """)
-              
+    except:
+        pass
+        
     try:
         os.mkdir('../HTML/images')
     except:
@@ -433,36 +435,40 @@ Pipeline to process a set of grism/direct exposures.
     SPC = threedhst.plotting.SPCFile(root_direct+'_2_opt.SPC.fits')
     threedhst.currentRun['SPC'] = SPC
     
-    print '\nthreedhst.plotting.makeThumbs: Creating direct image ' + \
+    print '\nmakeThumbs: Creating direct image ' + \
           'thumbnails...\n\n'
     threedhst.plotting.makeThumbs(SPC, sexCat, path='../HTML/images/')
     
-    print '\nthreedhst.plotting.makeSpec1dImages: Creating 1D spectra '+ \
+    print '\nmakeSpec1dImages: Creating 1D spectra '+ \
           'thumbnails...\n\n'
     threedhst.plotting.makeSpec1dImages(SPC, path='../HTML/images/')
 
-    print '\nthreedhst.plotting.makeSpec1dImages: Creating 2D spectra '+ \
+    print '\nmakeSpec1dImages: Creating 2D spectra '+ \
           'thumbnails...\n\n'
     threedhst.plotting.makeSpec2dImages(SPC, path='../HTML/images/')
     
     threedhst.currentRun['step'] = 'MAKE_THUMBNAILS'
     
     #### Make tiles for Google map
+    print '\nMaking GMap tiles in ./HTML\n\n'
+    
     try:
         os.mkdir('../HTML/tiles')
     except:
         pass
     
-    threedhst.gmap.makeCatXML(catFile=root_direct+'_drz.cat',
+    threedhst.gmap.makeCatXML(catFile=root_direct.lower()+'_drz.cat',
                               xmlFile='../HTML/'+root_direct+'.xml')
     
     threedhst.gmap.makeCirclePNG(outfile='../HTML/circle.php')            
                   
-    mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile=root_direct+'_drz.fits',
+    mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile=
+                                             root_direct.lower()+'_drz.fits',
                                              outPath='../HTML/tiles/',
                                              tileroot=root_direct+'_d')
     
-    mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile=root_grism+'_drz.fits',
+    mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile=
+                                             root_grism.lower()+'_drz.fits',
                                              outPath='../HTML/tiles/',
                                              tileroot=root_direct+'_g')
     
@@ -546,7 +552,7 @@ def flprMulti(n=3):
     """
     flprMulti(n=3)
     
-    Run iraf.flpr() ``n`` times.
+    Run iraf.flpr() `n` times.
     """
     if n < 1:
         n=1

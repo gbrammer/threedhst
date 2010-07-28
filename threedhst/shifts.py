@@ -224,5 +224,26 @@ class ShiftFile():
             fp.write(line)
         fp.close()
     
-
-
+    def pop(self,idx):
+        """
+pop(self,idx)
+        """
+        out = self.images.pop(idx) 
+        out = self.xshift.pop(idx) 
+        out = self.yshift.pop(idx) 
+        out = self.rotate.pop(idx) 
+        out = self.scale.pop(idx) 
+        self.nrows -= 1
+    
+    def append(self,image, xshift=0., yxhift=0.,
+                    rotate=0.0, scale=1.0):
+        """
+append(self,image, xshift=0., yxhift=0.,
+                   rotate=0.0, scale=1.0)
+        """
+        self.images.extend([image])
+        self.xshift.extend([xshift])
+        self.yshift.extend([yshift])
+        self.rotate.extend([rotate])
+        self.scale.extend([scale])
+        self.nrows += 1

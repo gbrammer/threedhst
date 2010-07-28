@@ -45,8 +45,11 @@ defaultOptions()
     options['CONFIG_FILE'] = 'WFC3.IR.G141.V1.0.conf'
     options['SKY_BACKGROUND'] = 'WFC3.IR.G141.sky.V1.0.fits'
     
-    options['THIS_RUN'] = 0     
-    options['LAST_RUN'] = 0     
+    #### For fluxcube, if these remain 'None', use files 
+    #### created from the internal SExtractor run 
+    options['CATALOG_FILE'] = None
+    options['SEGMENTATION_MAP'] = None
+    
     
 defaultOptions()
 

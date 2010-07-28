@@ -324,6 +324,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     
     <script type="text/javascript" id="js">
     
+    // Add ability to sort the table
     $(document).ready(function() {
         $.tablesorter.defaults.sortList = [[0,0]]; 
     	$("table").tablesorter({
@@ -345,10 +346,60 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     		}
     	});
     	
-    	// Set the div heights with jQuery
-    	$("#content").height($(window).height()-60);
-    	$("#map").height($(window).height()-60);	
+    	switch_layout();
+    	
     });
+    
+    var layout = -1; // Start with horizontal
+    function switch_layout() {
+        if (layout == 0) {
+            layout = 1;
+            vertical_layout();
+            $("#switchbox").text("||");
+            $("#switchbox").css("cursor","s-resize");  
+            map.checkResize();                    
+        } else {
+            layout = 0;
+            horizontal_layout();
+            $("#switchbox").text("=");
+            $("#switchbox").css("cursor","e-resize");
+            map.checkResize();          
+        }
+    }
+    
+    function vertical_layout() {
+    
+    	$("#title").css("width",1087);
+    	
+    	$("#content").css("height",$(window).height()-60);
+    	$("#content").css("width","840px");
+    	$("#content").css("top","55px");
+    	$("#content").css("left","301px");
+        
+    	$("#map").css("height",$(window).height()-60);	
+    	$("#map").css("width","300px");	
+        
+    }
+    
+    function horizontal_layout() {
+
+    	$("#title").css("width",$(window).width()-12-
+    	    parseFloat($("#title").css("padding-left"))+
+    	    parseFloat($("#title").css("padding-right")));
+
+    	$("#content").css("height",170);
+    	$("#content").css("width",$("#title").width()+
+    	    parseFloat($("#title").css("padding-left"))+
+    	    parseFloat($("#title").css("padding-right")));
+    	//alert(parseFloat($("#title").css("padding-left"))+20);
+    	$("#content").css("top",$(window).height()-170);
+        $("#content").css("left",$("#map").css("left"));
+        
+    	$("#map").css("height",$(window).height()-60-170);
+    	$("#map").css("width",$("#title").width()+
+    	    parseFloat($("#title").css("padding-left"))+
+    	    parseFloat($("#title").css("padding-right")));        
+    }
     
     </script>   
     """)
@@ -420,8 +471,8 @@ def makeHTML(SPCFile, mySexCat, mapParams,
 
     // Globals
     var myIcon = new GIcon();
-    myIcon.iconSize = new GSize(40, 40);
-    myIcon.iconAnchor = new GPoint(19.5, 19.5);
+    myIcon.iconSize = new GSize(30, 25);
+    myIcon.iconAnchor = new GPoint(14.5, 14.5);
     var lats = [];
     var lngs = [];
     var ids = [];
@@ -495,9 +546,13 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     
     <div id="map"></div>
     
-    <div id="title">%s</div>
-    <img src="scripts/3dhst.png" id="logo">
-    
+    <div id="title">
+        %s
+    </div>
+    <img src="scripts/3dHST.png" id="logo">
+    <div onclick="javascript:switch_layout()" id="switchbox">
+        ||
+    </div>
     """ %(title))
     
     lines.append("""

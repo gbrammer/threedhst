@@ -19,7 +19,10 @@ MAP_KEY = 'ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb' \
 
 def makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct'):
     """
-    This almost works.  Output coords don't seem to quite line up.
+makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct')
+    
+    Make Google map tiles for an input FITS image, which is assumed to be
+    North-up, East-left, like normal Multidrizzle output.
     """
     import pyfits
     import pywcs
@@ -29,7 +32,7 @@ def makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct'):
     if not fitsfile:
         fitsfile = 'ib3721050_drz.fits'
     if not outPath:
-        outPath = '/Users/gbrammer/Sites/map/ASTR/'
+        outPath = '/tmp/'
     
     # print fitsfile, outPath
     
@@ -266,14 +269,14 @@ makeCirclePNG(outfile=None)
     PHPstring = """<?php
     $string = $_GET['id'];
     // Create a blank image.
-    $image = imagecreatetruecolor(40, 40);
+    $image = imagecreatetruecolor(30, 25);
     // Make the background transparent
     $black = imagecolorallocate($im, 0, 0, 0);
     imagecolortransparent($image, $black);
     // Choose a color for the ellipse.
     $green = imagecolorallocate($image, 0, 255, 0);
     // Draw the ellipse.
-    imageellipse($image, 19.5, 19.5, 10, 10, $green);
+    imageellipse($image, 14.5, 14.5, 10, 10, $green);
     // Add the ID number
     $px     = (imagesx($image) - 4.5 * strlen($string)) / 2;
     imagestring($image, 0, $px, 1.5, $string, $green);
