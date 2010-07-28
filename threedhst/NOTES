@@ -1,0 +1,25 @@
+Miscellaneous notes
+===================
+
+---------
+I tried to run the reduction script with ASN files that contain *all* of the available observations for GOODS-N.  I got as far as iolprep, which broke because one of the iraf tasks it uses (wtran) doesn't output its results with enough decimal precision given the input image size.  I edited /usr/stsci/stsdas/python/axe/axesrc/awtran.py as follows:
+
+#xin = float(split(line)[1])
+#yin = float(split(line)[2])
+#xout = float(split(line)[4])
+#yout = float(split(line)[5])
+# (gbb) above breaks for 
+# Xin,Yin:    504.67820-13194.11936 Xout,Yout:   5208.18000   851.60700
+# (a very large input image)
+if line.find('***') > 0:
+    xin = -9000
+    yin = -9000
+    xout = -9000
+    yout = -9000
+else:
+    xin = float(line[9:22])
+    yin = float(line[22:34])
+    xout = float(line[48:58])
+    yout = float(line[58:-1])
+
+---------
