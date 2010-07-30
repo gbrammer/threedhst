@@ -18,6 +18,7 @@ import process_grism
 import plotting
 import gmap
 import dq
+import spec1d
 
 options = {}
 currentRun = {}

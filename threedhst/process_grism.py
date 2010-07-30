@@ -530,16 +530,22 @@ Pipeline to process a set of grism/direct exposures.
                               xmlFile='../HTML/'+root_direct+'.xml')
     
     threedhst.gmap.makeCirclePNG(outfile='../HTML/circle.php')            
-                  
+    
+    ## direct tiles
     mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile=
                                              root_direct.lower()+'_drz.fits',
                                              outPath='../HTML/tiles/',
                                              tileroot=root_direct+'_d')
-    
+    ## grism tiles
     mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile=
                                              root_grism.lower()+'_drz.fits',
                                              outPath='../HTML/tiles/',
                                              tileroot=root_direct+'_g')
+    ## model tiles                           
+    mapParamsM = threedhst.gmap.makeGMapTiles(fitsfile=
+                                             root_grism.lower()+'CONT_drz.fits',
+                                             outPath='../HTML/tiles/',
+                                             tileroot=root_direct+'_m')
     
     threedhst.currentRun['step'] = 'MAKE_GMAP_TILES'
     
@@ -547,6 +553,9 @@ Pipeline to process a set of grism/direct exposures.
     print '\nthreedhst.plotting.makeHTML: making webpage: %s\n' %out_web
     threedhst.plotting.makeHTML(SPC, sexCat, mapParamsD, output=out_web)
     threedhst.currentRun['step'] = 'MAKE_HTML'
+    
+    print '\n Making ASCII spectra in ../HTML/ascii/\n'
+    threedhst.plotting.asciiSpec(SPC,root=root_direct,path='../HTML/ascii')
     
     #### Done!
     print 'threedhst: cleaned up and Done!\n'

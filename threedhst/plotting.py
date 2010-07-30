@@ -118,7 +118,9 @@ def makeThumbs(SPCFile, mySexCat, path='./HTML/'):
     im = pyfits.open(mySexCat.filename.split('.cat')[0]+'.fits')
     dat = im[1].data
     root = os.path.basename(SPCFile.filename).split('_2')[0]
-    for id in SPCFile._ext_map:
+    ids = SPCFile._ext_map+0
+    ids.sort()
+    for id in ids:
         idstr = '%04d' %id
         print noNewLine+'plotting.makeThumbs: %s_%s_thumb.png' %(root, idstr)
         plotThumb(id, mySexCat, in_image=dat, size= 20, scale =0.128,
@@ -221,7 +223,9 @@ def makeSpec2dImages(SPCFile, path='./HTML/'):
     import os
     noNewLine = '\x1b[1A\x1b[1M'
     root = os.path.basename(SPCFile.filename).split('_2')[0]
-    for id in SPCFile._ext_map:
+    ids = SPCFile._ext_map+0
+    ids.sort()
+    for id in ids:
         idstr = '%04d' %id
         print noNewLine+'plotting.makeSpecImages: %s_%s_2D.png' %(root, idstr)
         plot2Dspec(SPCFile, id, outfile=path+'/'+root+'_'+idstr+'_2D.png',
@@ -245,7 +249,7 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     ferr = spec.field('FERROR')
     contam = spec.field('CONTAM')
     lam  = spec.field('LAMBDA')
-    
+        
     ### Initialize plot
     # fig = pyplot.figure(figsize=[6,4],dpi=100)
     # fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.07,
@@ -266,6 +270,30 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
                yerr= ferr,ecolor='blue',
                color='blue',fmt='.',alpha=0.5)
     
+    #### Search for lines
+    lines = threedhst.spec1d.findLines(SPCFile, idx=object_number)
+    if lines:
+        for line in lines:
+            if (line.flag == 'ok') & (line.type=='em'):
+                ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),
+                        color='black',linewidth=2,alpha=0.2)
+                ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),'--',
+                        color='orange',linewidth=2,alpha=0.7)
+            
+            if (line.flag == 'contam') & (line.type=='em'):
+                ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),'--',
+                        color='orange',linewidth=2,alpha=0.1)
+            
+            if (line.flag == 'ok') & (line.type=='abs'):
+                ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),
+                        color='black',linewidth=2,alpha=0.2)
+                ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),'--',
+                        color='green',linewidth=2,alpha=0.7)
+
+            if (line.flag == 'artifact') & (line.type=='abs'):
+                ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),'--',
+                        color='green',linewidth=2,alpha=0.1)
+            
     xmin = 10800
     xmax = 16800
     sub = np.where((lam > xmin) & (lam < xmax))[0]
@@ -308,7 +336,9 @@ def makeSpec1dImages(SPCFile, path='./HTML/'):
     import os
     noNewLine = '\x1b[1A\x1b[1M'
     root = os.path.basename(SPCFile.filename).split('_2')[0]
-    for id in SPCFile._ext_map:
+    ids = SPCFile._ext_map+0
+    ids.sort()
+    for id in ids:
         idstr = '%04d' %id
         print noNewLine+'plotting.makeSpec1dImages: %s_%s_1D.png' %(root, idstr)
         plot1Dspec(SPCFile, id, outfile=path+'/'+root+'_'+idstr+'_1D.png',
@@ -401,6 +431,18 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     	$("#map").css("height",$(window).height()-60);	
     	$("#map").css("width","300px");	
         
+        $("#coords").css("left",
+    	    parseInt($("#map").css("width"))/2.-
+    	    parseInt($("#coords").css("width"))/2.);
+    	    
+    	c = $("#centerbox");
+        c.css("left",parseFloat($("#map").css("left"))+
+                     parseFloat($("#map").css("width"))/2.-
+                     parseFloat(c.css("width"))/2.-0);
+                     
+        c.css("top",parseFloat($("#map").css("top"))+
+                     parseFloat($("#map").css("height"))/2.-
+                     parseFloat(c.css("height"))/2.-0);
     }
     
     function horizontal_layout() {
@@ -420,7 +462,29 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     	$("#map").css("height",$(window).height()-60-170);
     	$("#map").css("width",$("#title").width()+
     	    parseFloat($("#title").css("padding-left"))+
-    	    parseFloat($("#title").css("padding-right")));        
+    	    parseFloat($("#title").css("padding-right")));    
+    	
+    	$("#coords").css("left",
+    	    parseInt($("#map").css("width"))/2.-
+    	    parseInt($("#coords").css("width"))/2.);    
+    	
+    	c = $("#centerbox");
+        c.css("left",parseFloat($("#map").css("left"))+
+                     parseFloat($("#map").css("width"))/2.-
+                     parseFloat(c.css("width"))/2.-0);
+                     
+        c.css("top",parseFloat($("#map").css("top"))+
+                     parseFloat($("#map").css("height"))/2.-
+                     parseFloat(c.css("height"))/2.-0);
+    }
+    
+    function show_centerbox() {
+        c = $("#centerbox");
+        document.getElementById("centerbox").style.display = "block";
+        c.animate({ opacity: 1.0}, 300, function() { });        
+        c.animate({ opacity: 0.0}, 300, function() {
+            document.getElementById("centerbox").style.display = "none";
+        });
     }
     
     </script>   
@@ -476,6 +540,17 @@ def makeHTML(SPCFile, mySexCat, mapParams,
                    new GMercatorProjection(zoomLevel+1), "Grism");
             map.addMapType(custommapGrism);
             
+            // Model image tiles
+            CustomGetModelTileUrl=function(a,b){
+                return "tiles/"+root+"_m_"+a.x+"_"+a.y+"_"+b+".jpg"
+            }
+            var tilelayersModel = [new GTileLayer(copyrightCollection,
+                                          zoomLevel,zoomLevel)];
+            tilelayersModel[0].getTileUrl = CustomGetModelTileUrl;
+            var custommapModel = new GMapType(tilelayersModel, 
+                   new GMercatorProjection(zoomLevel+1), "Model");
+            map.addMapType(custommapModel);
+            
             // Can't remove all three for some reason
             map.removeMapType(G_NORMAL_MAP);
             map.removeMapType(G_HYBRID_MAP);
@@ -486,11 +561,74 @@ def makeHTML(SPCFile, mySexCat, mapParams,
             // Set map center
             map.setCenter(new GLatLng(%f, offset), zoomLevel,
              custommapDirect);
-
+            
+            latLng2raDec();
+            
+            GEvent.addListener(map, "moveend", function() {
+                latLng2raDec();
+                show_centerbox();
+            });
+            
             plotXmlObjects();
         }
     }
+    
+    function latLng2raDec() {
+        var mapcenter = map.getCenter();
+        var dec = mapcenter.lat();                       
+        var dsign = "+";
+        if (dec < 0) {dsign = "-";}
+        dec = Math.abs(dec);
+        var ded = parseInt(dec);
+        var dem = parseInt((dec-ded)*60);
+        var des = parseInt(((dec-ded)*60-dem)*60);
+        var dess = parseInt((((dec-ded)*60-dem)*60-des)*10);
+        if (ded < 10) {ded = "0"+ded;} 
+        if (dem < 10) {dem = "0"+dem;} 
+        if (des < 10) {des = "0"+des;} 
+        var decstr = dsign+ded+":"+dem+":"+des+"."+dess;
+        document.getElementById("decInput").value = decstr;
+        
+        var ra = (360-mapcenter.lng()+offset-centerLng)/360.*24;
+        var rah = parseInt(ra);
+        var ram = parseInt((ra-rah)*60);
+        var ras = parseInt(((ra-rah)*60-ram)*60);
+        var rass = parseInt((((ra-rah)*60-ram)*60-ras)*100);
+        if (rah < 10) {rah = "0"+rah;} 
+        if (ram < 10) {ram = "0"+ram;} 
+        if (ras < 10) {ras = "0"+ras;} 
+        if (rass < 10) {rass = "0"+rass;} 
+        var rastr = rah+":"+ram+":"+ras+"."+rass;
+        document.getElementById("raInput").value = rastr;        
+    }
+    
+    function centerOnInput() {
+        var rastr = document.getElementById("raInput").value;
+        var rsplit = rastr.split(":");
+        
+        var ra = (parseInt(rsplit[0])+
+              parseInt(rsplit[1])/60.+
+              parseFloat(rsplit[2])/3600.)/24.*360;
+    
+        var decstr = document.getElementById("decInput").value;
+        var dsplit = decstr.split(":");
+        var dec = Math.abs(parseInt(dsplit[0])+
+              Math.abs(parseInt(dsplit[1])/60.)+
+              Math.abs(parseFloat(dsplit[2])/3600.));
 
+        /// Don't know why, but need to do this twice
+        dec = Math.abs(parseInt(dsplit[0]))+
+        parseInt(dsplit[1])/60.+
+        parseFloat(dsplit[2])/3600.;
+        
+        if (parseFloat(dsplit[0]) < 0) {
+            dec *= -1;
+        }
+        
+        recenter(ra,dec);
+        latLng2raDec();
+    }
+    
     // Globals
     var myIcon = new GIcon();
     myIcon.iconSize = new GSize(30, 25);
@@ -575,6 +713,16 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     <div onclick="javascript:switch_layout()" id="switchbox">
         ||
     </div>
+    
+    <div id="centerbox"></div>
+    
+    <div id="coords">
+        <form>
+        <input type="text" value="00:00:00.00" class="cinput" id="raInput" maxlength="11" onchange="centerOnInput()"/>
+        <input type="text" value="+00:00:00.0" class="cinput" id="decInput" maxlength="11" onchange="centerOnInput()"/>
+        </form>
+    </div>
+    
     """ %(title))
     
     lines.append("""
@@ -616,7 +764,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
             <td>%13.6f</td> 
             <td>%6.2f</td> 
             <td><a href='images/%s_thumb.png'><img src='images/%s_thumb.png' width=133px></a></td> 
-            <td><a href='images/%s_1D.png'><img src='images/%s_1D.png' width=200px></a></td> 
+            <td><a href='ascii/%s.dat.gz'><img src='images/%s_1D.png' width=200px title='ascii'></a></td> 
             <td><a href='images/%s_2D.png'><img src='images/%s_2D.png' width=200px></a></td> 
         </tr> 
         """ %(id,np.float(ra),np.float(dec),id,
@@ -636,8 +784,51 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     fp.writelines(lines)
     fp.close()
     
+def asciiSpec(SPCFile, root="spec", path="../HTML/ascii"):
+    """
+asciiSpec(SPCFile, root="spec", path="../HTML/ascii")
     
-
+    Put ASCII spectra in HTML/ascii.
+    """
+    import os
+    import gzip
+    import tarfile
+    
+    try:
+        os.mkdir(path)
+    except:
+        pass
+    
+    ids = SPCFile._ext_map+0
+    ids.sort()
+    noNewLine = '\x1b[1A\x1b[1M'
+    
+    for id in ids:
+        spec = SPCFile.getSpec(id)
+        lam  = spec.field('LAMBDA')
+        flux = spec.field('FLUX')
+        ferr = spec.field('FERROR')
+        contam = spec.field('CONTAM')
+    
+        out = root+'_%04d.dat' %id
+        print noNewLine+out
+        
+        fp = gzip.open(path+'/'+out+'.gz','wb')
+        NL = len(lam)
+        for i in range(NL):
+            fp.write('%11.5e %10.3e %10.3e %10.3e\n' %(lam[i],flux[i],ferr[i],contam[i]))
+        fp.close()
+        
+    ### make a tarfile
+    oldwd = os.getcwd()
+    os.chdir(path)
+    fptar = tarfile.open(root+'_spec.tar.gz','w|gz')
+    for id in ids:
+        out = root+'_%04d.dat.gz' %id
+        fptar.add(out)
+    fptar.close()
+    os.chdir(oldwd)
+    
 class SPCFile(object):
     """
     SPCFile
