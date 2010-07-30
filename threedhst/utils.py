@@ -13,18 +13,71 @@ __version__ = "$Rev$"
 import os,pyfits
 import numpy as np
 
+class listArray(list):
+    """
+listArray(list)
+    
+    Add + - / * ** operators to Python list objects via Numpy.
+    
+    >>> x = listArray([1,2,3])
+    >>> x * 2
+    [2, 4, 6]
+    
+    """
+    import numpy as np
+
+    def __add__(self, addval):
+        return list(np.array(self)+addval)
+    
+    def __sub__(self, addval):
+        return list(np.array(self)-addval)
+
+    def __mul__(self, addval):
+        return list(np.array(self)*addval)
+    
+    def __div__(self, addval):
+        return list(np.array(self)/addval)
+    
+    def __pow__(self, addval):
+        return list(np.array(self)**addval)
+    
+    # def __getitem__(self, idx):
+    #     return list(np.array(self)[idx])
+    
+def get_package_data(dataname):
+    """
+    (taken from astropysics.io)
+    Use this function to load data files distributed with astropysics in the 
+    astropysics/data directory
+    
+    `dataname` is the file name of a file in the *threedhst/data* directory, and
+    a string with the contents of the file will be returned
+    """
+    try:
+        ### Find the data directory in the root
+        ### directory of the threedhst package
+        from . import __name__ as rootname
+        from . import __file__ as rootfile
+        from pkgutil import get_loader
+        from os.path import dirname
+        path = dirname(rootfile)+'/data/'+dataname
+        return get_loader(rootname).get_data(path)
+    except:
+        ### Hardwired  in case relative import doesn't work
+        fp = open('/research/HST/GRISM/3DHST/progs/threedhst/data/'+dataname)
+        return fp.read()
+
 def find_fits_gz(fits_file, hard_break = True):
     """
 the_file = find_fits_gz(fits_file, hard_break = True)
     
-With ``fits_file`` being some filename with an extension
-``.fits`` (ib3713wvq_flt.fits), check to see if the file 
-itself or its gzipped counterpart (fits_file+'.gz')
-exists.  
+    With ``fits_file`` being some filename with an extension ``.fits``
+    (ib3713wvq_flt.fits), check to see if the file itself or its gzipped
+    counterpart (fits_file+'.gz') exists.
     
-If neither is found, 
-    hard_break = True  : raise an IOError
-    hard_break = False : return None
+    If neither is found, 
+        hard_break = True  : raise an IOError
+        hard_break = False : return None
     
     """
     import os

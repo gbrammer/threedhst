@@ -9,7 +9,7 @@ __version__ = "$Rev$"
 # $Author$
 # $Date$
 
-from matplotlib.pyplot import *
+import matplotlib.pyplot as pyplot
 import numpy as np
 import numpy.random as nprand
 import threedhst
@@ -17,6 +17,93 @@ import threedhst
 ### Random number seed so results are repeatable!!!
 SEED = 67
 
+def estimateRedshift(lines):
+    """
+estimateRedshift(lines)
+    
+    `lines` is a list of `spLineNew` objects, found with `findLines`.
+    
+    IDEA: for starters, just make a plot showing where all of the other lines
+    would be if an observed line were associated with a particular line from a
+    predefined linelist.
+    """
+    lines = readLinelist()
+    idHa = np.where(np.array(lines.species) == 'H a')[0]
+    ido3 = np.where(np.array(lines.species) == 'O III')[0]
+    ido2 = np.where(np.array(lines.species) == 'O II')[0]
+    
+def readLinelist():
+    """
+lines = readLinelist()
+
+    Read SDSS-like linelist from *threedhst/data/linelist.txt*
+    """
+    linelist = threedhst.utils.get_package_data("linelist.txt")
+    lines = linelist.split('\n')
+    species = lineList()
+    for line in lines:
+        if not line.startswith("#"):
+            spl = line.split()
+            species.append(lineSpecies(spl[0], spl[1], spl[2], 
+            ' '.join(spl[3:])))
+    
+    return species
+    
+class lineList():
+    """
+lineList()
+    """
+    def __init__(self):
+        """
+__init__()
+        """
+        self.wave = threedhst.utils.listArray([])
+        self.gal_weight = threedhst.utils.listArray([])
+        self.qso_weight = threedhst.utils.listArray([])
+        self.species = threedhst.utils.listArray([])
+        self.lines = []
+    
+    def append(self, line):
+        """
+append(lineSpecies)
+        """
+        if not isinstance(line, lineSpecies):
+            print 'Input line is not a `lineSpecies` object'
+            return None
+        
+        self.wave.append(line.wave)
+        self.gal_weight.append(line.gal_weight)
+        self.qso_weight.append(line.qso_weight)
+        self.species.append(line.species)
+        self.lines.append(line)
+    
+    def pop(self, idx):
+        """
+pop(idx)
+        """
+        val = self.wave.pop(idx)
+        val = self.gal_weight.pop(idx)
+        val = self.qso_weight.pop(idx)
+        val = self.species.pop(idx)
+        val = self.lines.pop(idx)
+        
+
+class lineSpecies():
+    """
+lineSpecies(wave=0., gal_weight=0, qso_weight=0, species="")
+
+    e.g. halpha = lineSpecies(6563.,8,8,"H a")
+    """
+    def __init__(self, wave=0., gal_weight=0, qso_weight=0, species=""):
+        self.wave = np.float(wave)
+        self.gal_weight = np.float(gal_weight)
+        self.qso_weight = np.float(qso_weight)
+        self.species = species
+    
+    def show(self):
+        print '%7.1f %d %d %s' %(self.wave, self.gal_weight, self.qso_weight, 
+                                self.species)
+                                
 def findLines(SPCFile, idx=195, show=False, verbose=False):
     """
 lines = findLines(SPCFile, idx=195, show=False, verbose=False)
@@ -123,7 +210,8 @@ lines = spWFindLines(SPCFile, idx=195, show=True, check_contam=False)
     
     corr = flux-contam
             
-    if show: pl = plot(lam,corr)
+    if show: 
+        pl = pyplot.plot(lam,corr)
     
     mask = np.array([1.0, 4.0, 6.0, 4.0, 1.0])
     
@@ -240,8 +328,8 @@ lines = spWFindLines(SPCFile, idx=195, show=True, check_contam=False)
             cpgmtxt("T", -1.5, 0.85, 0.0, label)
         
         if show: 
-            opl = plot(x,wave)
-            plot(x,t,color=opl[0]._color)
+            opl = pyplot.plot(x,wave)
+            pyplot.plot(x,t,color=opl[0]._color)
             
         # Do the line finding. Locate pixels above local threshold (t[i]). We
         # require that adjacent pixels are also above threshold and that pixel
@@ -300,7 +388,8 @@ lines = spWFindLines(SPCFile, idx=195, show=True, check_contam=False)
                     print ("line centre %f, limits %f %f, height %f\n" 
                               %(x[i], x[ilo], x[ihi], line.height))
                 
-                if show: plot(line.wave*np.array([1,1]),np.array([-1,1]),
+                if show: 
+                    pyplot.plot(line.wave*np.array([1,1]),np.array([-1,1]),
                         color=opl[0]._color)
                 
                 line.scale = scale
@@ -313,8 +402,8 @@ lines = spWFindLines(SPCFile, idx=195, show=True, check_contam=False)
         
         scale *= 2
     
-    xlim(wavemin,wavemax)
-    ylim(-1.e-19,5.e-19)
+    pyplot.xlim(wavemin,wavemax)
+    pyplot.ylim(-1.e-19,5.e-19)
     
     # for line in emLines:
     #     print line.wave, line.scale, line.sigma, line.type

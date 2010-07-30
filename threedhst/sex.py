@@ -16,31 +16,7 @@ __version__ = "$Rev$"
 
 import numpy as np
 import aXe2html.sexcat.sextractcat
-
-#### This should probably go in utils.py
-def _get_package_data(dataname):
-    """
-    (taken from astropysics.io)
-    Use this function to load data files distributed with astropysics in the 
-    astropysics/data directory
-    
-    dataname is the file name of a file in the data directory, and a string
-    with the contents of the file will be returned
-    """
-    try:
-        ### Find the data directory in the root
-        ### directory of the threedhst package
-        from . import __name__ as rootname
-        from . import __file__ as rootfile
-        from pkgutil import get_loader
-        from os.path import dirname
-        path = dirname(rootfile)+'/data/'+dataname
-        return get_loader(rootname).get_data(path)
-    except:
-        ### Hardwired  in case relative import doesn't work
-        fp = open('/research/HST/GRISM/3DHST/progs/threedhst/data/'+dataname)
-        return fp.read()
-
+import threedhst
 
 class SExtractor(object):
     """
@@ -80,7 +56,7 @@ class SExtractor(object):
             #               executable='sex',stdout=PIPE,stderr=PIPE)
             # pparm.wait()
             # parmstr = pparm.communicate()[0]
-            parmstr = _get_package_data('sexdp') #gbb
+            parmstr = threedhst.utils.get_package_data('sexdp') #gbb
         except OSError:
             raise OSError('Sextractor not found on system path')
         
@@ -136,7 +112,7 @@ class SExtractor(object):
         
         Copy default.conv from threedhst/data to ./
         """
-        self.conv = _get_package_data('default.conv')
+        self.conv = threedhst.utils.get_package_data('default.conv')
         fp = open('default.conv','w')
         fp.write(self.conv)
         fp.close()
@@ -236,7 +212,7 @@ class SExtractor(object):
         """
         for k in self._parorder:
             self.params[k] = False
-        useParams = _get_package_data('aXe.param').split('\n')[:-1]
+        useParams = threedhst.utils.get_package_data('aXe.param').split('\n')[:-1]
         for par in useParams:
             self.params[par] = True
     
