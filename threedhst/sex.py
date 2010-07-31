@@ -387,6 +387,7 @@ sexcat_regions(sexcat, regfile, format=1)
         asec = 3600.
         pp = '"'
         theta_sign = -1
+    
     useEllipse = (cat.searchcol('A'+ext) > -1) and \
                  (cat.searchcol('B'+ext) > -1) and \
                  (cat.searchcol('THETA'+ext) > -1)
@@ -444,6 +445,9 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         self.nrows  = self.makecols(allheads, self.rowlines)
         success     = self.makeorder()
         
+        #### populate columns
+        self._easy_columns()
+        
     def popItem(self, number):
         """
         popItem(self, number)
@@ -469,7 +473,10 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         self.ncols  = len(allheads)
         self.nrows  = self.makecols(allheads, self.rowlines)
         success     = self.makeorder()
-    
+        
+        #### repopulate columns
+        self._easy_columns()
+        
     def writeToFile(self, outfile=None):
         """
         writeToFile(self, outfile=None)
@@ -510,7 +517,32 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         else:
             warn('change_MAG_AUTO_for_aXe: No MAG_AUTO column found\n')
         
-    
+    def _easy_columns(self):
+        """
+easy_columns()
+        
+        Populate self.column_names and add make column data easier to get out, 
+        like:
+        
+        >>> id = sexCat.ID
+        """
+        self.column_names = []
+        for col in self.columns:
+            self.column_names.append(col.getname())
+            str = 'self.%s = col.entry*1' %col.getname() # *1 makes a copy
+            exec(str)
+            
+    def __getitem__(self, name):
+        """
+        """
+        if name not in self.column_names:
+            print 'Column %s not found.  Check `column_names` attribute.' %name
+            return None
+        else:
+            str = 'out = self.%s*1' %name
+            exec(str)
+            return out
+            
 class SWarp(object):
     """
     SWarp()
