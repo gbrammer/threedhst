@@ -232,10 +232,10 @@ def makeSpec2dImages(SPCFile, path='./HTML/'):
                    close_window=True)
 
 def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
-               close_window=False):
+               close_window=False, show_test_lines=False):
     """
     plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png', 
-               close_window=False)
+               close_window=False, show_test_lines=False)
     """
     import os
     #import threedhst.plotting as pl
@@ -270,16 +270,50 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
                yerr= ferr,ecolor='blue',
                color='blue',fmt='.',alpha=0.5)
     
+    xmin = 10800
+    xmax = 16800
+    sub = np.where((lam > xmin) & (lam < xmax))[0]
+    ymax = np.max((flux-0*contam)[sub])
+    
     #### Search for lines
     lines = threedhst.spec1d.findLines(SPCFile, idx=object_number)
     if lines:
+        sdss_lines = threedhst.spec1d.readLinelist()
+        #sdss_lines.gal_weight = sdss_lines.gal_weight+1
+        sdss_lines.gal_weight /= np.max(sdss_lines.gal_weight)
+        sdss_lines.qso_weight /= np.max(sdss_lines.qso_weight)
+        colors = ['green','orange','blue']
+        weight = sdss_lines.gal_weight
+        #weight = sdss_lines.qso_weight
+        sdss_use = np.where(np.array(weight) > -10)[0]
+        
+        iline=0
         for line in lines:
             if (line.flag == 'ok') & (line.type=='em'):
+                #print iline
                 ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),
                         color='black',linewidth=2,alpha=0.2)
                 ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),'--',
                         color='orange',linewidth=2,alpha=0.7)
-            
+                ### show assuming line is OII, OIII, Ha
+                compare_lines = np.array([3727., 5007, 6563.])
+                if show_test_lines: 
+                  for iz, z_test in enumerate(line.wave/compare_lines-1):
+                    print 'z: %5.2f' %z_test
+                    ygauss = lam*0.
+                    gsigma = 60 ## Ang
+                    for l in sdss_use:
+                        ygauss += np.exp(
+                            -1.*( (lam - sdss_lines.wave[l]*(1+z_test) ) 
+                            /gsigma)**2)*ymax*0.1*weight[l]
+                    
+                    scl = 0.1
+                    ax.plot(lam,ygauss+scl*ymax*iz,alpha=0.7,color='white', 
+                            linewidth=4)
+                    ax.plot(lam,ygauss+scl*ymax*iz,alpha=1,color=colors[iline])
+                
+                iline += 1
+                    
             if (line.flag == 'contam') & (line.type=='em'):
                 ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),'--',
                         color='orange',linewidth=2,alpha=0.1)
@@ -293,12 +327,7 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
             if (line.flag == 'artifact') & (line.type=='abs'):
                 ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),'--',
                         color='green',linewidth=2,alpha=0.1)
-            
-    xmin = 10800
-    xmax = 16800
-    sub = np.where((lam > xmin) & (lam < xmax))[0]
-    ymax = np.max((flux-0*contam)[sub])
-    
+                
     ### Show emission line wavelengths
     # zb = np.linspace(0.5,2.5,5)
     # zi = np.linspace(0.5,2.5,20)

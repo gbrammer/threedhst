@@ -32,6 +32,7 @@ estimateRedshift(lines)
     ido3 = np.where(np.array(lines.species) == 'O III')[0]
     ido2 = np.where(np.array(lines.species) == 'O II')[0]
     
+    
 def readLinelist():
     """
 lines = readLinelist()
@@ -338,13 +339,15 @@ lines = spWFindLines(SPCFile, idx=195, show=True, check_contam=False)
         # genuine lines.
         #for (i = 2 i < npix-2 ++i) {
         for i in range(2,npix-2):
-            #### fix this
+            ### Has to be within range
             testRange = (x[i] > wavemin) & (x[i] < wavemax)
+            ### Emission
             testPos = ( (wave[i] > t[i]) & (wave[i-1] > t[i-1]) & 
                         (wave[i+1] > t[i+1]) & 
                         (wave[i] >= wave[i-1]) & (wave[i] >= wave[i+1]) & 
                         (wave[i] >= wave[i-2]) & (wave[i] >= wave[i+2]) )
             
+            ### Absorption
             nwave = -1*wave            
             testNeg = ( (nwave[i] > t[i]) & (nwave[i-1] > t[i-1]) & 
                         (nwave[i+1] > t[i+1]) & 
