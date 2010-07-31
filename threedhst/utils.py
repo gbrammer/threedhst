@@ -10,8 +10,155 @@ __version__ = "$Rev$"
 # $Author$
 # $Date$
 
-import os,pyfits
+import os
+import string
+import time
+
+import pyfits
 import numpy as np
+
+def columnFormat(colname):
+    """
+Set format for common column names.  
+    
+    id: 'A'
+    ra,dec: 'D'
+    [everything else]: 'E'
+    """
+    fmt='E'
+    if colname.lower().find('id') >= 0: fmt='A'
+    if colname.lower().find('ra') >= 0: fmt='D'
+    if colname.lower().find('dec') >= 0: fmt='D'
+    return fmt
+    
+def ASCIItoFITS(infile, comment='#'):
+    """
+ASCIItoFITS(infile, [comment='#'])
+
+    Read an ASCII file, `infile`, and get column names from first line, 
+    which begins with the `comment` character.
+    
+    Output will be in `infile`+'.FITS'
+    """
+    ### Get first header line and count commented lines to skip
+    file = open(infile,'r')
+    line0 = file.readline()
+    line=line0
+    hskip=0
+    while line.startswith(comment):
+        line = file.readline()
+        hskip +=1
+    #file.close()
+    
+    #### clean up special characters from header
+    line0 = line0.replace('.','p')
+    line0 = line0.replace('-','_')
+    line0 = line0.replace('(','')
+    line0 = line0.replace(')','')
+    line0 = line0.replace('-','_')
+    line0 = line0.replace('[','')
+    line0 = line0.replace(']','')
+    header=string.split(line0[1:])
+    NCOLS = len(header)
+    for i in range(NCOLS):
+        header[i] = header[i].lower()
+    if NCOLS == 0:
+        print ('No header line found.  I\'m looking for a first line that'+
+               'begins with %s followed by column names.' %comment)
+        return None
+        
+    #### Check next NCHECK data lines to look for alphanumeric characters
+    formats = ['f4']*NCOLS
+    formats_pyfits = ['D']*NCOLS
+    NCHECK = 10
+    for i in range(NCHECK):
+        line = file.readline().split()
+        for j, value in enumerate(line):
+            nchar = len(value)
+            for k in range(nchar):
+                if value[k].isalpha():
+                    formats[j] = '1S'
+                    formats_pyfits[j] = 'A'
+    
+    file.close()
+            
+    #### Read data file
+    data=np.loadtxt(infile, comments=comment,
+                    dtype = {'names': tuple(header), 'formats': tuple(formats)})
+                    
+    #### Make output FITS table
+    # make_struct='str = {'
+    go_ColDefs='cols=pyfits.ColDefs(['
+    for i in range(NCOLS):
+        col_string = 'col%d = pyfits.Column(name=\'%s\',' %(i,header[i]) + \
+    ' format=\'%s\', array=data[data.dtype.names[%d]])' %(formats_pyfits[i],i)
+        exec(col_string)
+        go_ColDefs += 'col%d,' %(i)
+        # make_struct += '\'%s\':data[0:,%d],' %(header[i],i)
+    
+    exec(go_ColDefs[:-1]+'])') # cols=pyfits.ColDefs([col1, col2, ...])
+    
+    #### Initialize table
+    tbhdu = pyfits.new_table(cols)
+    
+    #### Primary HDU
+    hdu = pyfits.PrimaryHDU()
+    
+    thdulist = pyfits.HDUList([hdu,tbhdu])
+    
+    #### Add modification time of "infile" to FITS header
+    infile_mod_time = time.strftime("%m/%d/%Y %I:%M:%S %p", \
+                         time.localtime(os.path.getmtime(infile)))
+    thdulist[1].header.update('MODTIME',infile_mod_time)
+    
+    thdulist.writeto(infile+'.FITS', clobber=True)
+    
+    #return tbhdu.data, tbhdu.columns
+    return tbhdu.data
+    
+def ReadASCIICat(infile, comment='#', force=False, verbose=False):
+    """
+data = ReadASCIICat(infile, comment='#', force=False, verbose=False)
+
+    Read FITS table created from an ASCII catalog file.
+    
+    If ASCIItoFITS output doesn't exist or "force=True", create it.
+    """
+    
+    if os.path.exists(infile) is False:
+        print ('File, %s, not found.' %(infile))
+        return -1
+    
+    fileExists = False
+    if (os.path.exists(infile+'.FITS')):
+        fileExists = True
+        theFITSFile = infile+'.FITS'
+    if (os.path.exists(infile+'.FITS.gz')):
+        fileExists = True
+        theFITSFile = infile+'.FITS.gz'
+    
+    if (fileExists is False) or (force):
+        if verbose:
+            print ('Running ASCIItoFITS: %s' %(infile))
+        data = ASCIItoFITS(infile,comment=comment)
+        return data
+        #return ASCIItoFITS(infile,comment=comment)
+    else:
+        if verbose:
+            print ('Reading : %s' %(theFITSFile))
+        hdulist = pyfits.open(theFITSFile)
+        #### Check mod time of 'infile'.  
+        #### If changed, then re-read with ASCIItoFITS
+        infile_mod_time = time.strftime("%m/%d/%Y %I:%M:%S %p", \
+                                time.localtime(os.path.getmtime(infile)))
+        if infile_mod_time == hdulist[1].header['MODTIME']:
+            return hdulist[1].data
+        else:
+            if verbose:
+                print('%s has changed.  Re-generating FITS file...' %(infile))
+            data = ASCIItoFITS(infile,comment=comment)
+            return data
+
 
 class listArray(list):
     """
