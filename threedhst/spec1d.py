@@ -1,7 +1,7 @@
 """
 3DHST.spec1d
 
-Process a 1-D spectrum.
+Process a 1-D spectrum and search for emission/absorption lines.
 """
 
 __version__ = "$Rev$"
