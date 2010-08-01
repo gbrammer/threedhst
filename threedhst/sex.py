@@ -531,18 +531,41 @@ easy_columns()
             self.column_names.append(col.getname())
             str = 'self.%s = col.entry*1' %col.getname() # *1 makes a copy
             exec(str)
-            
-    def __getitem__(self, name):
+        
+        self.makeRaDec()
+        
+    def __getitem__(self, column_name):
         """
+__getitem__(column_name)
+    
+    >>> cat = mySexCat('drz.cat')
+    >>> print cat['NUMBER']
+    
         """
-        if name not in self.column_names:
-            print 'Column %s not found.  Check `column_names` attribute.' %name
+        if column_name not in self.column_names:
+            print ('Column %s not found.  Check `column_names` attribute.'
+                    %column_name)
             return None
         else:
-            str = 'out = self.%s*1' %name
+            str = 'out = self.%s*1' %column_name
             exec(str)
             return out
-            
+    
+    def makeRaDec(self):
+        """
+makeRaDec()
+    
+    id = int(NUMBER)
+    ra = float(X_WORLD)
+    dec = float(Y_WORLD)
+        """
+        if 'NUMBER' in self.column_names:
+            self.id = np.cast[int](np.array(self.NUMBER))
+        if 'X_WORLD' in self.column_names:
+            self.ra = np.cast[float](np.array(self.X_WORLD))
+        if 'Y_WORLD' in self.column_names:
+            self.dec = np.cast[float](np.array(self.Y_WORLD))
+        
 class SWarp(object):
     """
     SWarp()

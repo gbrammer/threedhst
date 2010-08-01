@@ -405,8 +405,9 @@ lines = spWFindLines(SPCFile, idx=195, show=True, check_contam=False)
         
         scale *= 2
     
-    pyplot.xlim(wavemin,wavemax)
-    pyplot.ylim(-1.e-19,5.e-19)
+    if show:
+        pyplot.xlim(wavemin,wavemax)
+        pyplot.ylim(-1.e-19,5.e-19)
     
     # for line in emLines:
     #     print line.wave, line.scale, line.sigma, line.type

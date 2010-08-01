@@ -912,6 +912,6 @@ __init__(filename='ib3721050_2_opt.SPC.fits',
             idx = np.where(self._ext_map == object_number)[0][0]
             return self.fits[idx+1].data
         else:
-            print "Object #%d not found in %s." (object_number, self.filename)
+            print "Object #%d not found in %s." %(object_number, self.filename)
             return False
             

@@ -43,8 +43,12 @@ defaultOptions()
     options['ANALYSIS_THRESH']  = 5.  ## Default 1.5
     options['GRISM_NAME'] = 'G141'
     options['MAG_ZEROPOINT'] = 26.46
+    
+    #### Config options
     options['CONFIG_FILE'] = 'WFC3.IR.G141.V1.0.conf'
     options['SKY_BACKGROUND'] = 'WFC3.IR.G141.sky.V1.0.fits'
+    options['DRZRESOLA'] = '46.5'
+    options['DRZSCALE'] = '0.128254'
     
     #### WCS alignment image
     options['ALIGN_IMAGE'] = None

@@ -23,3 +23,25 @@ else:
     yout = float(line[58:-1])
 
 ---------
+
+Add SVN keyword properties:
+
+svn propset svn:keywords "Rev URL Author Date" combine_phot.py
+
+---------
+
+AXEPREP warns you if only a few percent of the grism image is available for
+computing the background level. This becomes a problem when you have a low S/N
+threshold value for the object catalog and therefore have grism spectra that
+nearly cover the image.  The prompt interrupts the flow of the automated pipeline.
+
+Edit the following lines as so in /usr/stsci/stsdas/pkg/analysis/slitless/axe/axesrc, line 457
+
+# idec = IrafParS(['         Continue or quit? [(y)es/(q)uit] :(q)','string','h'],'whatever')
+# idec.getWithPrompt()
+# dec = idec.value.strip()
+dec = 'Y'
+
+
+
+

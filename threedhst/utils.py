@@ -61,7 +61,13 @@ ASCIItoFITS(infile, [comment='#'])
     header=string.split(line0[1:])
     NCOLS = len(header)
     for i in range(NCOLS):
+        #### lowercase column names
         header[i] = header[i].lower()
+        #### Add an 'n' to column names that start with a digit
+        #### so you can address them like column = data.x
+        if header[i][0].isdigit():
+            header[i] = 'n'+header[i]
+            
     if NCOLS == 0:
         print ('No header line found.  I\'m looking for a first line that'+
                'begins with %s followed by column names.' %comment)
@@ -127,7 +133,7 @@ data = ReadASCIICat(infile, comment='#', force=False, verbose=False)
     
     if os.path.exists(infile) is False:
         print ('File, %s, not found.' %(infile))
-        return -1
+        return None
     
     fileExists = False
     if (os.path.exists(infile+'.FITS')):
@@ -141,7 +147,7 @@ data = ReadASCIICat(infile, comment='#', force=False, verbose=False)
         if verbose:
             print ('Running ASCIItoFITS: %s' %(infile))
         data = ASCIItoFITS(infile,comment=comment)
-        return data
+        #return data
         #return ASCIItoFITS(infile,comment=comment)
     else:
         if verbose:
@@ -152,14 +158,17 @@ data = ReadASCIICat(infile, comment='#', force=False, verbose=False)
         infile_mod_time = time.strftime("%m/%d/%Y %I:%M:%S %p", \
                                 time.localtime(os.path.getmtime(infile)))
         if infile_mod_time == hdulist[1].header['MODTIME']:
-            return hdulist[1].data
+            data = hdulist[1].data
+            #return hdulist[1].data
         else:
             if verbose:
                 print('%s has changed.  Re-generating FITS file...' %(infile))
             data = ASCIItoFITS(infile,comment=comment)
-            return data
+            #return data
 
-
+    data.file = infile
+    return data
+    
 class listArray(list):
     """
 listArray(list)

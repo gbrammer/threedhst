@@ -246,6 +246,11 @@ Pipeline to process a set of grism/direct exposures.
     direct_mosaic = root_direct+'_drz.fits'
     
     #### Get out SCI and WHT extensions of the Multidrizzle mosaic
+    try:
+        os.remove(root_direct+'_SCI.fits')
+        os.remove(root_direct+'_WHT.fits')
+    except:
+        pass
     iraf.imcopy(input=direct_mosaic+'[1]',output=root_direct+'_SCI.fits')
     iraf.imcopy(input=direct_mosaic+'[2]',output=root_direct+'_WHT.fits')
     
@@ -326,6 +331,9 @@ Pipeline to process a set of grism/direct exposures.
     threedhst.currentRun['conf'] = conf
     
     conf.params['DRZROOT'] = root_direct
+    conf.params['DRZRESOLA'] = threedhst.options['DRZRESOLA']
+    conf.params['DRZSCALE'] = threedhst.options['DRZSCALE']
+    
     ## Workaround to get 0th order contam. from fluxcube
     conf.params['BEAMB'] = '-220 220'    
     conf.writeto(root_direct+'_full.conf')
@@ -619,7 +627,7 @@ swarpOtherBands()
         direct = pyfits.open(root_direct+'_drz.fits')
         new = pyfits.open('coadd.fits')
         direct[1].data = new[0].data
-        direct.writeto(root_direct+'_'+band[1]+'_drz.fits')
+        direct.writeto(root_direct+'_'+band[1]+'_drz.fits', clobber=True)
         del(direct)
         try:
             os.remove('coadd.fits')
