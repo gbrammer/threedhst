@@ -87,7 +87,7 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct')
     ### multiples of TILE_SIZE
     padL = (pixSW.tilex-np.floor(pixSW.tilex))*TILE_SIZE
     padR = (np.ceil(pixNE.tilex)-pixNE.tilex)*TILE_SIZE
-    print padL,padR
+    # print padL,padR
     
     #padR = (pixNE.tilex-np.floor(pixNE.tilex))*TILE_SIZE
     #padL = (np.ceil(pixSW.tilex)-pixSW.tilex)*TILE_SIZE
@@ -116,7 +116,7 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct')
     full_image = np.zeros((fully,fullx))    
     full_image[padB:-padT, padL:-padR] = data_copy
     
-    print pixRatio, dx/xsize, fullx/256., fully/256.
+    # print pixRatio, dx/xsize, fullx/256., fully/256.
     
     NX = (padL+padR+dx)*1./TILE_SIZE
     NY = (padT+padB+dy)*1./TILE_SIZE

@@ -6,7 +6,7 @@ __version__ = "$Rev$"
 #   $Date$
 
 import sys
-from threedhst import utils
+from threedhst import regions
 
 def main():
     """
@@ -21,7 +21,7 @@ Usage: asn_file_info xxx_asn.fits
     else:
         NFILES=len(sys.argv)-1
         for i in range(NFILES):
-            utils.asn_region(sys.argv[i+1])
+            regions.asn_region(sys.argv[i+1])
 ##### main
 
 if __name__ == "__main__":

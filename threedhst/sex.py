@@ -448,9 +448,9 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         #### populate columns
         self._easy_columns()
         
-    def popItem(self, number):
+    def popItem(self, number, verbose=False):
         """
-        popItem(self, number)
+        popItem(self, number, verbose=False)
         
         Pop an item from a SExtractor catalog.
         """
@@ -467,13 +467,13 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
             if ni == str(number):
                 break             
         lineOut = self.rowlines.pop(idx)
-        print lineOut
+        if verbose:
+            print lineOut
         
         allheads    = self.makeheads(self.headerlines)
         self.ncols  = len(allheads)
         self.nrows  = self.makecols(allheads, self.rowlines)
         success     = self.makeorder()
-        
         #### repopulate columns
         self._easy_columns()
         
@@ -513,6 +513,8 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
             self.ncols  = len(allheads)
             self.nrows  = self.makecols(allheads, self.rowlines)
             success     = self.makeorder()
+            #### repopulate columns
+            self._easy_columns()
             
         else:
             warn('change_MAG_AUTO_for_aXe: No MAG_AUTO column found\n')

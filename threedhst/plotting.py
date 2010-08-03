@@ -45,8 +45,7 @@ def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128,
     
     obj_str = str(object_number)
     idx = -1
-    for i, number in enumerate(
-      mySexCat.columns[mySexCat.searchcol('NUMBER')].entry):
+    for i, number in enumerate(mySexCat.NUMBER):
         if number == obj_str:
             idx = i
             break
@@ -58,10 +57,8 @@ def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128,
     
     ##### Figure out why X,Y are swapped in mySexCat.
     ##### Maybe the orientation of in_image is rotated w.r.t catalog?
-    x0 = \
- np.round(np.float(mySexCat.columns[mySexCat.searchcol('X_IMAGE')].entry[idx]))
-    y0 = \
- np.round(np.float(mySexCat.columns[mySexCat.searchcol('Y_IMAGE')].entry[idx]))
+    x0 = np.round(np.float(mySexCat.X_IMAGE[idx]))
+    y0 = np.round(np.float(mySexCat.Y_IMAGE[idx]))
     sub = in_image[y0-size:y0+size, x0-size:x0+size]
         
     interp = 'nearest'
@@ -75,8 +72,7 @@ def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128,
         vmin = -0.5*0.8
         vmax = 0.1*0.8
     
-    flux = \
-np.round(np.float(mySexCat.columns[mySexCat.searchcol('FLUX_AUTO')].entry[idx]))
+    flux = np.round(np.float(mySexCat.FLUX_AUTO[idx]))
     vmin = -0.03*flux
     vmax = 0.003*flux
     
@@ -658,6 +654,11 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         latLng2raDec();
     }
     
+    function centerOnID() {
+        var id = document.getElementById("idInput").value;
+        window.location = '#i'+id;
+    }
+    
     // Globals
     var myIcon = new GIcon();
     myIcon.iconSize = new GSize(30, 25);
@@ -736,7 +737,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     <div id="map"></div>
     
     <div id="title">
-        %s
+        %s <a href="./ascii/%s_spec.tar.gz"><img src="./scripts/asc.gif"></a>
     </div>
     <img src="scripts/3dHST.png" id="logo">
     <div onclick="javascript:switch_layout()" id="switchbox">
@@ -746,13 +747,14 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     <div id="centerbox"></div>
     
     <div id="coords">
-        <form>
+    <form onsubmit="return false">
+        <input type="text" value="#id" class="cinput" id="idInput" maxlength="4" onchange="centerOnID()"/>
         <input type="text" value="00:00:00.00" class="cinput" id="raInput" maxlength="11" onchange="centerOnInput()"/>
         <input type="text" value="+00:00:00.0" class="cinput" id="decInput" maxlength="11" onchange="centerOnInput()"/>
         </form>
     </div>
     
-    """ %(title))
+    """ %(title, title))
     
     lines.append("""
     
@@ -774,14 +776,13 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     """)
         
     for id in SPCFile._ext_map:
-        for idx,num in enumerate(
-          mySexCat.columns[mySexCat.searchcol('NUMBER')].entry):
+        for idx,num in enumerate(mySexCat.NUMBER):
             if num == str(id):
                 break
         
-        ra  = mySexCat.columns[mySexCat.searchcol('X_WORLD')].entry[idx]
-        dec = mySexCat.columns[mySexCat.searchcol('Y_WORLD')].entry[idx]
-        mag = mySexCat.columns[mySexCat.searchcol('MAG_F1392W')].entry[idx]
+        ra  = mySexCat.X_WORLD[idx]
+        dec = mySexCat.Y_WORLD[idx]
+        mag = mySexCat.MAG_F1392W[idx]
         
         img = '%s_%04d' %(root,id)
         lines.append("""

@@ -130,7 +130,6 @@ Pipeline to process a set of grism/direct exposures.
     import shutil
     import aXe2html.sexcat.sextractcat
     import glob
-    import pywcs
     import numpy as np
     
     ##########################################
@@ -279,6 +278,9 @@ Pipeline to process a set of grism/direct exposures.
     
     #### Read catalog to keep around
     sexCat = threedhst.sex.mySexCat(root_direct+'_drz.cat')
+    
+    threedhst.regions.trim_edge_objects(sexCat)
+    
     threedhst.currentRun['sexCat'] = sexCat
     
     #### Replace MAG_AUTO column name to MAG_F1392W
@@ -287,38 +289,40 @@ Pipeline to process a set of grism/direct exposures.
     #### Make region file for SExtracted catalog and the pointing itself
     threedhst.sex.sexcatRegions(root_direct+'_drz.cat', 
                                 root_direct+'_drz.reg', format=2)
-    threedhst.utils.asn_region(asn_direct_file)
+    threedhst.regions.asn_region(asn_direct_file)
     
     #### Make zeroth order region file
-    x_world = sexCat.columns[sexCat.searchcol('X_WORLD')].entry
-    y_world = sexCat.columns[sexCat.searchcol('Y_WORLD')].entry
-    a_col = sexCat.columns[sexCat.searchcol('A_WORLD')].entry
-    b_col = sexCat.columns[sexCat.searchcol('B_WORLD')].entry
-    theta_col = sexCat.columns[sexCat.searchcol('THETA_WORLD')].entry
-    asec = 3600.
-    pp = '"'
-    theta_sign = -1
+    threedhst.regions.make_zeroth(sexCat, outfile=root_grism+'_zeroth.reg')
     
-    flt = pyfits.open(asn_direct.exposures[0]+'_flt.fits')
-    wcs = pywcs.WCS(flt[1].header)
-    world_coord = []
-    for i in range(len(x_world)):
-        world_coord.append([np.float(x_world[i]),np.float(y_world[i])])
-    xy_coord = wcs.wcs_sky2pix(world_coord,0)
-    ## conf: XOFF_B -192.2400520   -0.0023144    0.0111089
-    for i in range(len(x_world)):
-        xy_coord[i][0] += (-192.2400520 - 0.0023144*xy_coord[i][0] +
-                            0.0111089*xy_coord[i][1])
-    world_coord = wcs.wcs_pix2sky(xy_coord,0)
-    fp = open(root_grism+'_zeroth.reg','w')
-    fp.write('fk5\n')
-    for i in range(len(x_world)):
-        line = "ellipse(%s, %s, %6.2f%s, %6.2f%s, %6.2f)\n" %(world_coord[i][0],
-              world_coord[i][1], 
-              float(a_col[i])*asec, pp,
-              float(b_col[i])*asec, pp, float(theta_col[i])*theta_sign)
-        fp.write(line)
-    fp.close()
+    # x_world = sexCat.columns[sexCat.searchcol('X_WORLD')].entry
+    # y_world = sexCat.columns[sexCat.searchcol('Y_WORLD')].entry
+    # a_col = sexCat.columns[sexCat.searchcol('A_WORLD')].entry
+    # b_col = sexCat.columns[sexCat.searchcol('B_WORLD')].entry
+    # theta_col = sexCat.columns[sexCat.searchcol('THETA_WORLD')].entry
+    # asec = 3600.
+    # pp = '"'
+    # theta_sign = -1
+    # 
+    # flt = pyfits.open(asn_direct.exposures[0]+'_flt.fits')
+    # wcs = pywcs.WCS(flt[1].header)
+    # world_coord = []
+    # for i in range(len(x_world)):
+    #     world_coord.append([np.float(x_world[i]),np.float(y_world[i])])
+    # xy_coord = wcs.wcs_sky2pix(world_coord,0)
+    # ## conf: XOFF_B -192.2400520   -0.0023144    0.0111089
+    # for i in range(len(x_world)):
+    #     xy_coord[i][0] += (-192.2400520 - 0.0023144*xy_coord[i][0] +
+    #                         0.0111089*xy_coord[i][1])
+    # world_coord = wcs.wcs_pix2sky(xy_coord,0)
+    # fp = open(root_grism+'_zeroth.reg','w')
+    # fp.write('fk5\n')
+    # for i in range(len(x_world)):
+    #     line = "ellipse(%s, %s, %6.2f%s, %6.2f%s, %6.2f)\n" %(world_coord[i][0],
+    #           world_coord[i][1], 
+    #           float(a_col[i])*asec, pp,
+    #           float(b_col[i])*asec, pp, float(theta_col[i])*theta_sign)
+    #     fp.write(line)
+    # fp.close()
     
     threedhst.currentRun['step'] = 'PROCESS_CATALOG'
     
@@ -557,11 +561,14 @@ Pipeline to process a set of grism/direct exposures.
     
     threedhst.currentRun['step'] = 'MAKE_GMAP_TILES'
     
+    ## Make HTML file
     out_web = '../HTML/'+root_direct+'_index.html'
     print '\nthreedhst.plotting.makeHTML: making webpage: %s\n' %out_web
     threedhst.plotting.makeHTML(SPC, sexCat, mapParamsD, output=out_web)
+    
     threedhst.currentRun['step'] = 'MAKE_HTML'
     
+    ## Make ASCII spectra
     print '\n Making ASCII spectra in ../HTML/ascii/\n'
     threedhst.plotting.asciiSpec(SPC,root=root_direct,path='../HTML/ascii')
     

@@ -18,6 +18,7 @@ import process_grism
 import plotting
 import gmap
 import dq
+import regions
 import spec1d
 
 options = {}
@@ -43,6 +44,10 @@ defaultOptions()
     options['ANALYSIS_THRESH']  = 5.  ## Default 1.5
     options['GRISM_NAME'] = 'G141'
     options['MAG_ZEROPOINT'] = 26.46
+    
+    # #### Image format for webpage
+    # #options['IMAGE_FORMAT'] = 'png'
+    # options['IMAGE_FORMAT'] = 'svgz'
     
     #### Config options
     options['CONFIG_FILE'] = 'WFC3.IR.G141.V1.0.conf'

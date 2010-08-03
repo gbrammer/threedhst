@@ -120,7 +120,8 @@ phot_grism(grism_idx=None, phot_idx=None)
             print 'Neither `grism_idx` nor `phot_idx` are set.'
             return False
     
-    if dr > 1.1:
+    if dr > 1.5:
+        print 'dr = %6.2f' %dr
         return False
         
     phot_z = threedhst.utils.ReadASCIICat('FIREWORKS/FIREWORKS_redshift.cat')
@@ -153,10 +154,11 @@ phot_grism(grism_idx=None, phot_idx=None)
     if lines:
         for line in lines:
             #### Mask lines for normalization
-            flag = np.where(np.abs(grism.LAMBDA-line.wave) < 100)[0]
+            flag = np.where(np.abs(grism.LAMBDA-line.wave) < 150)[0]
             mask[flag] = 0.
             if (line.flag == 'ok') & (line.type == 'em'):
-                str = '%9.2e' %line.wave
+                str = '%14.2f' %(np.float(line.wave)/1.e4)
+                str += r'$\mu\mathrm{m}$'
                 for mat in [3727, 5007, 6563.]:
                     str+='%6.3f' %(line.wave/mat-1)
                 print str
@@ -165,7 +167,14 @@ phot_grism(grism_idx=None, phot_idx=None)
     use = np.where( (grism.LAMBDA > wave_limits[0]) & 
                     (grism.LAMBDA < wave_limits[1]) )
     
+    bad = np.where((grism.FLUX == 0) | (np.isnan(grism.FLUX)))[0]
+    if len(bad) > 0:
+        mask[bad] = 0.
+        
     use_mask = np.where(mask > 0)
+    ### nothing in spectrum to show
+    if len(use_mask) == 0:
+        return False
     
     #### simple interpolation normalization.  should mask out lines
     finterp = interpolate.interp1d(lc,flux)
@@ -177,34 +186,49 @@ phot_grism(grism_idx=None, phot_idx=None)
         
     pyplot.semilogx(np.array([1,1]),np.array([1,1]))
     
+    pyplot.errorbar(lc, flux, yerr=err, fmt='o',color='0.95', 
+                    ecolor='0.7', alpha=0.8, markersize=10)
+                    
+    pyplot.plot(grism.LAMBDA[use], grism.CONTAM[use]/grism_to_phot,
+                    color='red', alpha=0.4, linewidth=2)
+    
+    pyplot.plot(grism.LAMBDA[use], grism.corr[use],
+                    color='black', alpha=0.1, linewidth=2)
+    
     pyplot.plot(grism.LAMBDA[use], grism.corr[use]/grism_to_phot,
-                    color='red')
-    pyplot.errorbar(lc, flux, yerr=err, fmt='o',color='blue')
+                    color='blue', alpha=0.6, linewidth=2)
+                    
     pyplot.xlim(3000, 9.e4)
     ymax = np.max(flux)
     pyplot.ylim(-0.1*ymax,1.1*ymax)
     pyplot.text(2.e4,0.95*ymax, outstr, verticalalignment='top')
+    pyplot.ylabel(r'$f_\lambda$')
+    pyplot.xlabel(r'$\lambda$')
+    
     return True
     
-def check_z15():
+def check_FIREWORKS():
     """
     """
     from matplotlib.backends.backend_pdf import PdfPages
     cp = threedhst.combine_phot
     
+    threedhst.plotting.defaultPlotParameters()
+    pyplot.rcParams['text.usetex'] = False
+    
     hmag = 23.86-2.5*np.log10(cp.phot_cat.h_colf/cp.phot_cat.ks_colf* cp.phot_cat.ks_totf)
     
     jh = -2.5*np.log10(cp.phot_cat.j_colf/cp.phot_cat.h_colf)
-    #jh = -2.5*np.log10(cp.phot_cat.z850_colf/cp.phot_cat.h_colf)
+    jh = -2.5*np.log10(cp.phot_cat.z850_colf/cp.phot_cat.h_colf)
     
-    zlimit = 1.1
+    zlimit = 0.8
     phot_z = threedhst.utils.ReadASCIICat('FIREWORKS/FIREWORKS_redshift.cat')
-    q = np.where((phot_z.zph_best > zlimit) &
+    q = np.where((phot_z.zsp > zlimit) &
                   (cp.phot_cat.ra > min(cp.grism_cat.ra)) &
                   (cp.phot_cat.ra < max(cp.grism_cat.ra)) &
                   (cp.phot_cat.dec > min(cp.grism_cat.dec)) &
                   (cp.phot_cat.dec < max(cp.grism_cat.dec)) & 
-                  (hmag < 25) & (jh > 0.8) )[0]
+                  (hmag < 24) )[0]
     
     ### sort on redshift
     q = q[phot_z.zph_best[q].argsort()]
@@ -212,23 +236,52 @@ def check_z15():
     ### sort on H mag
     q = q[hmag[q].argsort()]
     
-    pp = PdfPages('check_z15.pdf')
+    pp = PdfPages('check_FIREWORKS.pdf')
     
-    for i,phot_idx in enumerate(q):
+    f = 1
+    for i,phot_idx in enumerate(q[0:1]):
 
-        if i > 200:
-            continue
-        
-        fig = pyplot.figure(figsize=[7,4]) #,dpi=100)
+        fig = pyplot.figure(figsize=[7*f,4*f]) #,dpi=100)
         fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.08,
-                            bottom=0.125,right=0.99,top=0.93)
+                            bottom=0.145,right=0.99,top=0.93)
         
         print '\n #%d \n' %i
         status = cp.phot_grism(phot_idx=phot_idx)
         if status:
             pp.savefig(fig)
+            #pyplot.savefig('junk.svgz', dpi=60)
         pyplot.close()
         
     pp.close()
         
+def check_bright():
+    from matplotlib.backends.backend_pdf import PdfPages
+    cp = threedhst.combine_phot
+    
+    threedhst.plotting.defaultPlotParameters()
+    pyplot.rcParams['text.usetex'] = False
+    
+    hmag = np.cast[float](cp.grism_cat.MAG_F1392W)
+    
+    q = np.where(hmag < 23)[0]
+    q = np.where((hmag > 23) & (hmag < 24))[0]
+    q = np.where(hmag > 24)[0]
+    q = q[hmag[q].argsort()]
+    pp = PdfPages('check_bright.pdf')
+    
+    f = 1.
+    for i,grism_idx in enumerate(q):
+        
+        fig = pyplot.figure(figsize=[7*f,4*f]) #,dpi=100)
+        fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.08,
+                            bottom=0.145,right=0.99,top=0.93)
+        
+        print '\n #%d \n' %i
+        status = cp.phot_grism(grism_idx=grism_idx)
+        if status:
+            pp.savefig(fig)
+            #pyplot.savefig('junk.svgz', dpi=60)
+        pyplot.close()
+        
+    pp.close()
     

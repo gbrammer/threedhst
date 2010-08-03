@@ -95,18 +95,18 @@ xshift, yshift = align_to_reference()
     alignCat = threedhst.sex.mySexCat('align.cat')
     
     #### Get x,y coordinates of detected objects
-    directCat.x = directCat.columns[directCat.searchcol('X_IMAGE')].entry
-    directCat.y = directCat.columns[directCat.searchcol('Y_IMAGE')].entry
+    # directCat.x = directCat.X_IMAGE
+    # directCat.y = directCat.Y_IMAGE
     fp = open('direct.xy','w')
-    for i in range(len(directCat.x)):
-        fp.write('%s  %s\n' %(directCat.x[i],directCat.y[i]))
+    for i in range(len(directCat.X_IMAGE)):
+        fp.write('%s  %s\n' %(directCat.X_IMAGE[i],directCat.Y_IMAGE[i]))
     fp.close()
     
-    alignCat.x = alignCat.columns[alignCat.searchcol('X_IMAGE')].entry
-    alignCat.y = alignCat.columns[alignCat.searchcol('Y_IMAGE')].entry
+    # alignCat.x = alignCat.X_IMAGE
+    # alignCat.y = alignCat.Y_IMAGE
     fp = open('align.xy','w')
-    for i in range(len(alignCat.x)):
-        fp.write('%s  %s\n' %(alignCat.x[i],alignCat.y[i]))
+    for i in range(len(alignCat.X_IMAGE)):
+        fp.write('%s  %s\n' %(alignCat.X_IMAGE[i],alignCat.Y_IMAGE[i]))
     fp.close()
      
     #### use IRAF to compute shifts
