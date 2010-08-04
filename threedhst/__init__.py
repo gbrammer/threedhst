@@ -52,7 +52,7 @@ defaultOptions()
     #### Config options
     options['CONFIG_FILE'] = 'WFC3.IR.G141.V1.0.conf'
     options['SKY_BACKGROUND'] = 'WFC3.IR.G141.sky.V1.0.fits'
-    options['DRZRESOLA'] = '46.5'
+    options['DRZRESOLA'] = '50' #'46.5'
     options['DRZSCALE'] = '0.128254'
     
     #### WCS alignment image
@@ -63,8 +63,8 @@ defaultOptions()
     
     #### For fluxcube, if these remain 'None', use files 
     #### created from the internal SExtractor run 
-    options['CATALOG_FILE'] = None
-    options['SEGMENTATION_MAP'] = None
+    #options['CATALOG_FILE'] = None
+    #options['SEGMENTATION_MAP'] = None
     
     
 defaultOptions()
