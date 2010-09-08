@@ -687,7 +687,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
                 ids.push(id);
 
                 // The marker
-                myIcon.image = "circle.php?id="+id;
+                myIcon.image = "scripts/circle.php?id="+id;
                 markerOptions = { icon:myIcon, title:id};
                 var point = new GLatLng(lat,lng);
                 var marker = new GMarker(point, markerOptions);
