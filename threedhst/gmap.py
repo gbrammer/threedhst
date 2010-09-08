@@ -26,7 +26,7 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct')
     """
     import pyfits
     import pywcs
-    import fitsimage
+    #import fitsimage
     import numpy as np
     
     if not fitsfile:

@@ -46,17 +46,38 @@ def compute_shifts(asn_direct):
        pad = no, fwhm = 7.0, ellip = 0.05, pa = 45.0, fitbox = 7, \
     )
     ### !!! Need to add steps to match WCS to astrometric references (e.g. ACS)
+
+def find_align_images_that_overlap():
+    """
+align_img_list = find_align_images_that_overlap()
+    
+    """
+    import glob
+    
+    root_direct = threedhst.currentRun['root_direct']
+    align_images = glob.glob(threedhst.options['ALIGN_IMAGE'])
+    
+    px, py = threedhst.regions.wcs_polygon(root_direct+'_drz.fits', extension=1)
+    
+    align_img_list = []
+    for align_image in align_images:
+        qx, qy = threedhst.regions.wcs_polygon(align_image, extension=0)
+        if threedhst.regions.polygons_intersect(px, py, qx, qy):
+            align_img_list.append(align_image)
+    
+    return align_img_list
     
 def align_to_reference():
     """
 xshift, yshift = align_to_reference()
     """        
-    import glob
     import os
+    import glob
+    import shutil
     
     #### Clean slate
     rmfiles = ['SCI.fits','align.cat',
-               'align.map','align.match','align.reg','align.xy',
+               'align.map','align.match','align.reg','align.xy','align.fits'
                'direct.cat','direct.reg','direct.xy']
     for file in rmfiles:
         try:
@@ -65,7 +86,14 @@ xshift, yshift = align_to_reference()
             pass
             
     root_direct = threedhst.currentRun['root_direct']
-    matchImagePixels(input=glob.glob(threedhst.options['ALIGN_IMAGE']),
+    
+    # align_img_list = glob.glob(threedhst.options['ALIGN_IMAGE'])
+    align_img_list = find_align_images_that_overlap()
+    if not align_img_list:
+        print '3dHST.shifts.align_to_reference: no alignment images overlap.'
+        return 0,0
+        
+    matchImagePixels(input=align_img_list,
                      matchImage=root_direct+'_drz.fits',
                      output='align.fits', match_extension = 1)
                      
@@ -126,10 +154,13 @@ xshift, yshift = align_to_reference()
             yshift = float(spl[1])    
     fp.close()
     
+    shutil.copy('align.map',root_direct+'.map')
+    
     #### Cleanup
     rmfiles = ['SCI.fits','align.cat',
                'align.map','align.match','align.reg','align.xy',
                'direct.cat','direct.reg','direct.xy']
+    
     for file in rmfiles:
         try:
             os.remove(file)
@@ -152,6 +183,9 @@ def matchImagePixels(input=None,matchImage=None,output=None,
     
     #input = '/research/HST/GRISM/WEINER/ACS/h_nz_sect33_v2.0_drz_img.fits'
     #matchImage = 'IB3721050_SCI.fits'
+    
+    if not input:
+        return False
     
     sw = threedhst.sex.SWarp()
     sw._aXeDefaults()

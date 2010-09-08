@@ -737,7 +737,9 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     <div id="map"></div>
     
     <div id="title">
-        %s <a href="./ascii/%s_spec.tar.gz"><img src="./scripts/asc.gif"></a>
+        %s
+        <a href="./%s_drz.cat" class="dl"> cat </a>
+        <a href="./ascii/%s_spec.tar.gz" class="dl"> spec </a>
     </div>
     <img src="scripts/3dHST.png" id="logo">
     <div onclick="javascript:switch_layout()" id="switchbox">
@@ -754,7 +756,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         </form>
     </div>
     
-    """ %(title, title))
+    """ %(title, title, title))
     
     lines.append("""
     

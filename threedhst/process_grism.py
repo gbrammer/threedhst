@@ -128,9 +128,10 @@ Pipeline to process a set of grism/direct exposures.
     
     """
     import shutil
-    import aXe2html.sexcat.sextractcat
     import glob
     import numpy as np
+    import aXe2html.sexcat.sextractcat
+    import threedhst.dq
     
     ##########################################
     ####   Bookkeeping, set up DATA directory
@@ -184,7 +185,8 @@ Pipeline to process a set of grism/direct exposures.
         print exp
         fi.writeto('./'+exp+'_flt.fits', clobber=True)
         #### Apply DQ mask (.mask.reg), if it exists
-        threedhst.dq.apply_dq_mask(os.path.basename(fits_file), addval=2048)
+        if threedhst.options['PYSAO_INSTALLED']:
+            threedhst.dq.apply_dq_mask(os.path.basename(fits_file), addval=2048)
         
     threedhst.currentRun['step'] = 'COPY_FROM_RAW'
     
@@ -279,7 +281,7 @@ Pipeline to process a set of grism/direct exposures.
     #### Read catalog to keep around
     sexCat = threedhst.sex.mySexCat(root_direct+'_drz.cat')
     
-    threedhst.regions.trim_edge_objects(sexCat)
+    #threedhst.regions.trim_edge_objects(sexCat)
     
     threedhst.currentRun['sexCat'] = sexCat
     
@@ -561,6 +563,9 @@ Pipeline to process a set of grism/direct exposures.
     
     threedhst.currentRun['step'] = 'MAKE_GMAP_TILES'
     
+    ## Copy catalog
+    shutil.copy(root_direct+'_drz.cat','../HTML/')
+    
     ## Make HTML file
     out_web = '../HTML/'+root_direct+'_index.html'
     print '\nthreedhst.plotting.makeHTML: making webpage: %s\n' %out_web
@@ -575,6 +580,8 @@ Pipeline to process a set of grism/direct exposures.
     #### Done!
     print 'threedhst: cleaned up and Done!\n'
     threedhst.currentRun['step'] = 'DONE'
+    
+    os.chdir('../')
     
 def swarpOtherBands():
     """
@@ -618,7 +625,7 @@ swarpOtherBands()
     sw.swarpRecenter()                  
     
     band_count=0
-    for band in other_bands:
+    for ib, band in enumerate(other_bands):
         ### should be like:
         if len(band) != 4:
             continue

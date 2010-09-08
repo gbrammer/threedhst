@@ -263,8 +263,7 @@ Note: something like this could be used to flag grism 0th order contaminants
     flag_idx = np.where(np.abs(theta) > np.pi)
     dq[flag_idx] = 1
     return dq
-
-
+    
 def point_in_polygon(x,y,px,py):
     """
 test = point_in_polygon(x,y,px,py)
@@ -294,4 +293,80 @@ Test if coordinates (x,y) are inside polygon defined by (px, py)
     else:
         return False
 
+class PointXY():
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
 
+def ccw(A,B,C):
+    """
+ccw(A, B, C)
+
+    Test if moving from point A to B to C moves in a counter-clockwise
+    direction.
+    
+    Points are (P.x, P.y)
+    
+    http://www.bryceboe.com/2006/10/23/line-segment-intersection-algorithm/
+    """
+    return (C.y-A.y)*(B.x-A.x) > (B.y-A.y)*(C.x-A.x)
+
+def intersect(A,B,C,D):
+    """
+intersect(A, B, C, D)
+    
+    Test if line segments AB and CD intersect.
+    
+    Points are (P.x, P.y)
+    
+    http://www.bryceboe.com/2006/10/23/line-segment-intersection-algorithm/
+        """
+    return ccw(A,C,D) != ccw(B,C,D) and ccw(A,B,C) != ccw(A,B,D)
+
+def polygons_intersect(px, py, qx, qy):
+    """
+polygons_intersect(px, py, qx, qy)
+    
+    Test if two polygons intersect.  First check if line segments intersect.  If
+    not, check if all points of one polygon are within another.
+    """
+    ### check if polygons are closed
+    if px[-1] != px[0]:
+        px = np.append(px,px[0])
+        py = np.append(py,py[0])
+    if qx[-1] != qx[0]:
+        qx = np.append(qx,qx[0])
+        qy = np.append(qy,qy[0])
+    
+    ### Test line segments.  Return true if any segments intersect
+    NP = len(px)
+    NQ = len(qx)
+    for ip in range(NP-1):
+        for iq in range(NQ-1):
+            if intersect(PointXY(px[ip], py[ip]), PointXY(px[ip+1], py[ip+1]),
+                         PointXY(qx[iq], qy[iq]), PointXY(qx[iq+1], qy[iq+1])):
+                return True
+    
+    ### Test if first vertex of one polygon is within the other.  If it is, and 
+    ### the intersection tests above were false, then all vertices have to be 
+    ### within the test polygon
+    if point_in_polygon(px[0],py[0],qx,qy):
+        return True
+    
+    if point_in_polygon(qx[0],qy[0],px,py):
+        return True
+    
+    ### All tests failed, so polygons don't intersect
+    return False
+
+def test_intersect():
+    import glob
+    
+    ### GOODS-N
+    px, py = wcs_polygon('ib3701050_drz.fits')
+    zfiles = glob.glob('../ACS/h_nz_sect*drz_img.fits')
+    for zfile in zfiles:
+        qx, qy = wcs_polygon(zfile, extension=0)
+        if threedhst.regions.polygons_intersect(px, py, qx, qy):
+            print zfile
+    

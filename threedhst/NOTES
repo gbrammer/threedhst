@@ -42,6 +42,9 @@ Edit the following lines as so in /usr/stsci/stsdas/pkg/analysis/slitless/axe/ax
 # dec = idec.value.strip()
 dec = 'Y'
 
+-----------
+
+Add link to CDS vizier catalog query from webpage: e.g. http://vizier.u-strasbg.fr/viz-bin/VizieR?-c=12:36:36.85+%2B62:06:58.7&-c.rs=1
 
 
 

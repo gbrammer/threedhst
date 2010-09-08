@@ -17,9 +17,8 @@ import sex
 import process_grism
 import plotting
 import gmap
-import dq
 import regions
-import spec1d
+import spec1d   
 
 options = {}
 currentRun = {}

@@ -15,10 +15,17 @@ import os
 
 import pyfits
 import numpy as np
-import threedhst
-import pysao
 import Tkinter as tk
 
+import threedhst
+
+try:
+    import pysao
+    threedhst.options['PYSAO_INSTALLED'] = True
+except:
+    print 'No pysao installation found.'
+    threedhst.options['PYSAO_INSTALLED'] = False
+    
 class myDS9(pysao.ds9):
     """
 myDS9(pysao.ds9)
@@ -387,7 +394,7 @@ apply_dq_mask(flt_file, addval=2048)
                      ))
             px = spl[0::2]
             py = spl[1::2]
-            dqflag += threedhst.utils.region_mask(fi[1].data.shape,px,py)
+            dqflag += threedhst.regions.region_mask(fi[1].data.shape,px,py)
     
     ##### Set DQ bit
     dqflag[np.where(dqflag > 0)] = addval
