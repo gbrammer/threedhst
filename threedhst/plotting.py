@@ -59,8 +59,12 @@ def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128,
     ##### Maybe the orientation of in_image is rotated w.r.t catalog?
     x0 = np.round(np.float(mySexCat.X_IMAGE[idx]))
     y0 = np.round(np.float(mySexCat.Y_IMAGE[idx]))
+    
     sub = in_image[y0-size:y0+size, x0-size:x0+size]
-        
+    
+    if sub.shape != (size, size):
+        sub = np.zeros([size, size])
+       
     interp = 'nearest'
     asp = 'auto'
     sub_max = np.max(sub)
