@@ -76,17 +76,19 @@ xshift, yshift = align_to_reference()
     import shutil
     
     #### Clean slate
+    root_direct = threedhst.currentRun['root_direct']
+    
     rmfiles = ['SCI.fits','align.cat',
-               'align.map','align.match','align.reg','align.xy','align.fits'
+               'align.map','align.match','align.reg','align.xy', 
+               root_direct+'_align.fits',
                'direct.cat','direct.reg','direct.xy']
+               
     for file in rmfiles:
         try:
             os.remove(file)
         except:
             pass
-            
-    root_direct = threedhst.currentRun['root_direct']
-    
+                
     # align_img_list = glob.glob(threedhst.options['ALIGN_IMAGE'])
     align_img_list = find_align_images_that_overlap()
     if not align_img_list:
@@ -95,7 +97,7 @@ xshift, yshift = align_to_reference()
         
     matchImagePixels(input=align_img_list,
                      matchImage=root_direct+'_drz.fits',
-                     output='align.fits', match_extension = 1)
+                     output=root_direct+'_align.fits', match_extension = 1)
                      
     #### Run SExtractor on the direct image, with the WHT 
     #### extension as a weight image
@@ -117,7 +119,7 @@ xshift, yshift = align_to_reference()
     status = se.sextractImage('SCI.fits')
     
     se.options['CATALOG_NAME']    = 'align.cat'
-    status = se.sextractImage('align.fits')
+    status = se.sextractImage(root_direct+'_align.fits')
     
     directCat = threedhst.sex.mySexCat('direct.cat')
     alignCat = threedhst.sex.mySexCat('align.cat')
@@ -154,7 +156,7 @@ xshift, yshift = align_to_reference()
             yshift = float(spl[1])    
     fp.close()
     
-    shutil.copy('align.map',root_direct+'.map')
+    shutil.copy('align.map',root_direct+'_align.map')
     
     #### Cleanup
     rmfiles = ['SCI.fits','align.cat',
