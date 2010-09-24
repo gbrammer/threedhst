@@ -859,7 +859,7 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
         
         clstr = 'swarp %s -c %s' %(imgList,self.name+'.swarp')
         
-        print 'THREEDHST/SWarp.swarpImage: %s\n' %clstr
+        print "\n3DHST.sex.swarp.swarpImage:\n\n %s\n" %clstr
         
         if mode == 'waiterror' or mode =='wait':
             proc = Popen(clstr.split(),

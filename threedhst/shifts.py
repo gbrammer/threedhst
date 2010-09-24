@@ -72,7 +72,7 @@ align_img_list = find_align_images_that_overlap()
     """
     import glob
     
-    #ROOT_DIRECT = threedhst.currentRun['ROOT_DIRECT']
+    #ROOT_DIRECT = threedhst.options['ROOT_DIRECT']
     align_images = glob.glob(ALIGN_IMAGE)
     
     #### Get polygon of the direct mosaic edges

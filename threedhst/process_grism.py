@@ -124,12 +124,12 @@ def write_to_log(lines, init=False):
     """
 write_to_log(lines, init=False)
     
-    Write output of IRAF tasks to currentRun['ROOT_DIRECT']+'.iraf.log'
+    Write output of IRAF tasks to options['ROOT_DIRECT']+'.iraf.log'
     """
     if init:
-        fp = open(threedhst.currentRun['ROOT_DIRECT']+'.iraf.log','w')
+        fp = open(threedhst.options['ROOT_DIRECT']+'.iraf.log','w')
     else:
-        fp = open(threedhst.currentRun['ROOT_DIRECT']+'.iraf.log','a')
+        fp = open(threedhst.options['ROOT_DIRECT']+'.iraf.log','a')
         
     fp.writelines(lines)
     fp.close()
@@ -171,14 +171,16 @@ Pipeline to process a set of grism/direct exposures.
     #### Save parameters for the current run
     threedhst.currentRun['asn_grism_file'] = asn_grism_file
     threedhst.currentRun['asn_direct_file'] = asn_direct_file
-    threedhst.currentRun['ROOT_GRISM'] = ROOT_GRISM
-    threedhst.currentRun['ROOT_DIRECT'] = ROOT_DIRECT
+    threedhst.options['ROOT_GRISM'] = ROOT_GRISM
+    threedhst.options['ROOT_DIRECT'] = ROOT_DIRECT
     
     #### Copy ASN files from RAW, if they don't already exist
     if not os.path.exists(asn_grism_file):
         shutil.copy('../RAW/'+asn_grism_file,'./')
     if not os.path.exists(asn_direct_file):
         shutil.copy('../RAW/'+asn_direct_file,'./')
+    
+    print "\n3DHST.process_grism: Fresh ASN and FLT files...\n"
     
     #### Read ASN files
     asn_grism  = threedhst.utils.ASNFile(file=asn_grism_file)
@@ -215,7 +217,7 @@ Pipeline to process a set of grism/direct exposures.
         threedhst.options['MAKE_SHIFTFILES'] = True
         
     if threedhst.options['MAKE_SHIFTFILES']:
-        print "threedhst.process_grism: Getting initial shifts...\n"
+        print "\n3DHST.process_grism: Getting initial shifts...\n"
         #### Run iraf.tweakshifts on the diret images
         threedhst.shifts.run_tweakshifts(asn_direct_file)
         
@@ -392,7 +394,7 @@ Pipeline to process a set of grism/direct exposures.
     os.chdir('../')
     flprMulti()
     status = iraf.axeprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
-        backgr="YES", backims=SKY, mfwhm=2.0,norm="NO", Stdout=1)
+        backgr="YES", backims=SKY, mfwhm=3.0,norm="NO", Stdout=1)
     threedhst.currentRun['step'] = 'AXEPREP'
     
     #### Multidrizzle the grism images to flag cosmic rays
@@ -452,12 +454,19 @@ Pipeline to process a set of grism/direct exposures.
     os.chdir('../')
     print "\n3DHST.proces_grism: iraf.AXECORE\n"
     flprMulti()
+    
+    if threedhst.options['FULL_EXTRACTION_GEOMETRY'] is True:
+        geom_yn = "YES"
+    else:
+        geom_yn = "NO"
+        
     status = iraf.axecore(inlist=prep_name(asn_grism_file), configs=CONFIG,
-        back="NO",extrfwhm=4.0, drzfwhm=3.0, backfwhm=0.0,
-        slitless_geom="NO", orient="NO", exclude="NO",lambda_mark=1392.0, 
+        back="NO",extrfwhm=4.1, drzfwhm=4.0, backfwhm=0.0,
+        slitless_geom=geom_yn, orient=geom_yn, exclude="NO", lambda_mark=1392.0, 
         cont_model="fluxcube", model_scale=4.0, lambda_psf=1392.0,
         inter_type="linear", np=10, interp=-1, smooth_lengt=0, smooth_fwhm=0.0,
-        spectr="NO", adj_sens="NO", weights="NO", sampling="drizzle", Stdout=1)
+        spectr="NO", adj_sens=threedhst.options['AXE_ADJ_SENS'], weights="NO",
+        sampling="drizzle", Stdout=1)
     
     threedhst.currentRun['step'] = 'AXECORE'
         
@@ -479,8 +488,10 @@ Pipeline to process a set of grism/direct exposures.
     print "\n3DHST.proces_grism: iraf.AXEDRIZZLE (#1)\n"
     flprMulti()
     status = iraf.axedrizzle(inlist=prep_name(asn_grism_file), configs=CONFIG,
-                    infwhm=4.1,outfwhm=4, back="NO", makespc="YES",
-                    opt_extr="YES",adj_sens="YES",driz_separate='NO', Stdout=1)
+                    infwhm=4.1,outfwhm=4.0, back="NO", makespc="YES",
+                    opt_extr=threedhst.options['AXE_OPT_EXTR'],
+                    adj_sens=threedhst.options['AXE_ADJ_SENS'], 
+                    driz_separate='NO', Stdout=1)
     
     
     #### Run drizzle again for internal CR rejection.  Perhaps all CRs are
@@ -502,7 +513,9 @@ Pipeline to process a set of grism/direct exposures.
         flprMulti()
         iraf.axedrizzle(inlist=prep_name(asn_grism_file), configs=CONFIG,
                         infwhm=4.1,outfwhm=4, back="NO", makespc="YES",
-                        opt_extr="YES",adj_sens="YES",driz_separate='YES',
+                        opt_extr=threedhst.options['AXE_OPT_EXTR'], 
+                        adj_sens=threedhst.options['AXE_ADJ_SENS'], 
+                        driz_separate='YES',
                         combine_type='median', combine_maskpt=0.7,
                         combine_nsigmas="4.0 3.0", combine_nlow=0, 
                         combine_nhigh=0, combine_lthresh="INDEF",
@@ -556,23 +569,35 @@ Pipeline to process a set of grism/direct exposures.
         if len(rmfiles) > 0:
             for rmfile in rmfiles:
                 os.remove(rmfile)
-
-    threedhst.currentRun['step'] = 'CLEANUP_DATA'
+        
+        threedhst.currentRun['step'] = 'CLEANUP_DATA'
     
     ############################################################################
     #### Make output webpages with spectra thumbnails    
     ############################################################################
     if threedhst.options['MAKE_WEBPAGE']:
         threedhst.plotting.make_data_products(ROOT_DIRECT, ROOT_GRISM)
+                
+    #############################################
+    #### Write parameter log
+    #############################################
+
+    os.chdir('../')
+
+    logfile = ROOT_DIRECT+'.threedhst.info'
+    print '\nthreedhst: Parameter log in <%s>.\n' %logfile
+    
+    threedhst.showOptions(to_file = logfile)
+    if threedhst.options['MAKE_WEBPAGE']:
+        threedhst.showOptions(to_file = "./HTML/"+logfile)
         
     #############################################
     #### Done!
     #############################################
-    print 'threedhst: cleaned up and Done!\n'
+    
+    print '\nthreedhst: cleaned up and Done!\n'
     threedhst.currentRun['step'] = 'DONE'
-    
-    os.chdir('../')
-    
+
 def swarpOtherBands():
     """
 swarpOtherBands()
@@ -593,7 +618,7 @@ swarpOtherBands()
     """
     import glob
     
-    ROOT_DIRECT = threedhst.currentRun['ROOT_DIRECT']
+    ROOT_DIRECT = threedhst.options['ROOT_DIRECT']
 
     other_bands = threedhst.options['OTHER_BANDS']
         
@@ -736,8 +761,8 @@ die()
 # step: %s
 asn_grism_file = threedhst.currentRun['asn_grism_file']
 asn_direct_file = threedhst.currentRun['asn_direct_file']
-ROOT_GRISM = threedhst.currentRun['ROOT_GRISM']
-ROOT_DIRECT = threedhst.currentRun['ROOT_DIRECT']
+ROOT_GRISM = threedhst.options['ROOT_GRISM']
+ROOT_DIRECT = threedhst.options['ROOT_DIRECT']
 sexCat = threedhst.sex.mySexCat(ROOT_DIRECT+'_drz.cat')
 if 'conf' in threedhst.currentRun.keys():
     conf = threedhst.currentRun['conf']

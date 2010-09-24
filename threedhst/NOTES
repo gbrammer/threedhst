@@ -24,7 +24,7 @@ else:
 
 ---------
 
-Add SVN keyword properties:
+To add SVN keyword properties:
 
 svn propset svn:keywords "Rev URL Author Date" combine_phot.py
 
@@ -51,12 +51,25 @@ dec = 'Y'
 Add link to CDS vizier catalog query from webpage: e.g. http://vizier.u-strasbg.fr/viz-bin/VizieR?-c=12:36:36.85+%2B62:06:58.7&-c.rs=1
 
 -----------
-
+[[[[[DONE]]]]]
 Pieter's 1D profile along dispersion axis
 
 ----------
-
+[[[[[DONE]]]]]
 Add FITS images to website
+
+--------
+[[[[[DONE]]]]]
+Make code more modular, e.g. easy regeneration of webpages and/or images, FITS files
+
+--------
+
+[[[[[The first part is done with wdrizzle, but the alignment to the spectral resolution isn't implemented yet]]]]]
+
+currently, plotting.plotThumb is stupid and just takes a square region out of the direct DRZ file centered on the object position in the catalog.  Since this image has an arbitrary orientation (N-up) w.r.t the grism throw, the thumbnails don't line up with the orientation of the spectra, i.e. 2D emission line profiles.  Can partly get around this by using wdrizzle to make a cutout of the DRZ image centered on the position of each object, rotated back to the original pixel orientation of the direct/grism images.
+
+Note that the thumbnail, in principle, needs separate scales for the spatial and spectral axes.  Can almost get by with a single scale of 0.12825443957361446 "/pix when using a drizzle wavelength resolution of 46.5A (corresponding to the center pixel), but the scale will be off by ~2% as you get towards the edge of the direct image.  Workaround could be providing two extensions of the thumbnail, one with the correct spatial scale and the other with the correct (perpendicular) wavelength pixel scale.  But ideally would have a single image 
+that you could cross-correlate with the spectrum.
 
 --------
 
@@ -65,16 +78,6 @@ Add segmentation image to 2D direct thumbnails.  Can wdrizzle it too (see below)
 --------
 
 Eventually, use aXe to extract 2D spectra and then model them by hand.
-
---------
-
-Make code more modular, e.g. easy regeneration of webpages and/or images, FITS files
-
---------
-
-currently, plotting.plotThumb is stupid and just takes a square region out of the direct DRZ file centered on the object position in the catalog.  Since this image has an arbitrary orientation (N-up) w.r.t the grism throw, the thumbnails don't line up with the orientation of the spectra, i.e. 2D emission line profiles.  Can partly get around this by using wdrizzle to make a cutout of the DRZ image centered on the position of each object, rotated back to the original pixel orientation of the direct/grism images.
-
-Note that the thumbnail, in principle, needs separate scales for the spatial and spectral axes.  Can almost get by with a single scale of 0.12825443957361446 "/pix when using a drizzle wavelength resolution of 46.5A (corresponding to the center pixel), but the scale will be off by ~2% as you get towards the edge of the direct image.  Workaround could be providing two extensions of the thumbnail, one with the correct spatial scale and the other with the correct (perpendicular) wavelength pixel scale.  But ideally would have a single image that you could cross-correlate with the spectrum.
 
 
 

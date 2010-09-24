@@ -970,7 +970,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     
             </script>
         """ %(center[1],lng_offset,mapParams['ZOOMLEVEL'],
-              threedhst.currentRun['ROOT_DIRECT'],
+              threedhst.options['ROOT_DIRECT'],
               llSW[0],llSW[1]-center[1]+lng_offset,
               llNE[0],llNE[1]-center[1]+lng_offset,
               center[0]))
@@ -987,8 +987,11 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         %s
         <a href="./%s_drz.cat" class="dl"> cat </a>
         <a href="./ascii/%s_spec.tar.gz" class="dl"> spec </a>
+        <a href="%s.threedhst.info" class="dl"> info </a>
     </div>
+    
     <img src="scripts/3dHST.png" id="logo">
+    
     <div onclick="javascript:switch_layout()" id="switchbox">
         ||
     </div>
@@ -1004,7 +1007,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         <a id="vizierLink" href="http://vizier.u-strasbg.fr/viz-bin/VizieR?-c=12:36:36.85+%%2B62:06:58.7&-c.rs=1"><img src="scripts/glass.png" style="width:12px; margin:0px; padding:0px"></a>
     </div>
     
-    """ %(title, title, title))
+    """ %(title, title, title, title))
     
     lines.append("""
     

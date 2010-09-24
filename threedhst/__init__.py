@@ -65,6 +65,16 @@ defaultOptions()
     options['DRZRESOLA'] = '46.5'
     options['DRZSCALE'] = '0.128254'
     
+    #### aXe extraction geometry
+    #### currently set slitless_geom=NO, orient=NO in aXecore
+    #### to get the 2D spectra to line up with the orientation
+    #### of the direct thumbnail.
+    options['FULL_EXTRACTION_GEOMETRY'] = False
+    #### aXe adjust sensitivity - convolve grism throughput with source profile
+    options['AXE_ADJ_SENS'] = "YES"
+    #### aXe extract with "optimal weights"
+    options['AXE_OPT_EXTR'] = "YES"
+
     #### Second drizzle to flag and remove cosmic rays
     options['RUN_DRZREJ'] = False
     
@@ -82,11 +92,27 @@ defaultOptions()
 #############################################
 defaultOptions()
 
-def showOptions():
+def showOptions(to_file=None):
     """
     printOptions()
     
     Show the current THREEDHST option set.
     """
-    for key in options.keys():
-        print '%s = %s' %(key,str(options[key]))
+    import time
+    
+    if to_file is None:
+        for key in options.keys():
+            print '%s = %s' %(key,str(options[key]))
+    else:
+        fp = open(to_file,"w")
+        fp.write('#######################################\n')
+        fp.write('###                                 ###\n')
+        fp.write('###    threedhst   %s      ###\n' %__version__)
+        fp.write('###                                 ###\n')
+        fp.write('###    %s     ###\n' %time.asctime())
+        fp.write('###                                 ###\n')
+        fp.write('#######################################\n')
+        for key in options.keys():
+            fp.write('%s = %s\n' %(key,str(options[key])))
+        fp.close()
+    
