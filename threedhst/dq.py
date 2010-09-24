@@ -35,7 +35,7 @@ myDS9(pysao.ds9)
     def scale(self, min, max):
         """
 scale(self, min, max)
-
+    
     ds9.set('scale limits min max')
         """
         self.set('scale limits %f %f' %(min,max))

@@ -18,6 +18,9 @@ import matplotlib.pyplot as pyplot
 import matplotlib.ticker as ticker
 import pylab
 
+from pyraf import iraf
+from iraf import dither
+
 import threedhst
 
 def defaultPlotParameters():
@@ -32,6 +35,111 @@ def defaultPlotParameters():
     pyplot.rcParams['text.usetex'] = True
     pyplot.rcParams['text.latex.preamble'] = ''
 
+def make_data_products(ROOT_DIRECT, ROOT_GRISM):
+    """
+make_data_products()
+    
+    Make the ascii spectra, thumbnails and HTML files.
+    """
+    import os
+    import shutil
+    
+    #### Check directory structure
+    if os.path.exists('../HTML/scripts') is False:
+        os.mkdir('../HTML/scripts')
+        print("""
+        WARNING: ../HTML/scripts/ not found.  Download from
+                 http://code.google.com/p/threedhst/
+              """)
+    
+    if os.path.exists('../HTML/images') is False:
+        os.mkdir('../HTML/images')
+        
+    #### Read the SExtractor catalog
+    sexCat = threedhst.sex.mySexCat(ROOT_DIRECT+'_drz.cat')
+    
+    #### Read the SPC file containing the 1D extractions
+    SPC = threedhst.plotting.SPCFile(ROOT_DIRECT+'_2_opt.SPC.fits',
+                    axe_drizzle_dir=os.environ['AXE_DRIZZLE_PATH'])
+    threedhst.currentRun['SPC'] = SPC
+    
+    #############################################
+    #### Direct image thumbnails
+    #############################################
+    print '\nmakeThumbs: Creating direct image ' + \
+          'thumbnails...\n\n'
+    threedhst.plotting.makeThumbs(SPC, sexCat, path='../HTML/images/')
+    
+    #############################################
+    #### 1D spectra images
+    #############################################
+    print '\nmakeSpec1dImages: Creating 1D spectra '+ \
+          'thumbnails...\n\n'
+    threedhst.plotting.makeSpec1dImages(SPC, path='../HTML/images/')
+
+    #############################################
+    #### 2D spectra images showing the Model, contamination, and G141 spectra
+    #############################################
+    print '\nmakeSpec1dImages: Creating 2D spectra '+ \
+          'thumbnails...\n\n'
+    threedhst.plotting.makeSpec2dImages(SPC, path='../HTML/images/')
+    
+    #### Done with thumbnails
+    threedhst.currentRun['step'] = 'MAKE_THUMBNAILS'
+    
+    #############################################
+    #### Make tiles for Google map layout   
+    #############################################
+    print '\nMaking GMap tiles in ./HTML\n\n'
+    
+    try:
+        os.mkdir('../HTML/tiles')
+    except:
+        pass
+    
+    #### Make XML file of the catalog, coordinates and ID number
+    threedhst.gmap.makeCatXML(catFile=ROOT_DIRECT.lower()+'_drz.cat',
+                              xmlFile='../HTML/'+ROOT_DIRECT+'.xml')
+    
+    threedhst.gmap.makeCirclePNG(outfile='../HTML/scripts/circle.php')            
+    
+    #### direct tiles
+    mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile=
+                                             ROOT_DIRECT.lower()+'_drz.fits',
+                                             outPath='../HTML/tiles/',
+                                             tileroot=ROOT_DIRECT+'_d')
+    #### grism tiles
+    mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile=
+                                             ROOT_GRISM.lower()+'_drz.fits',
+                                             outPath='../HTML/tiles/',
+                                             tileroot=ROOT_DIRECT+'_g')
+    #### model tiles                           
+    mapParamsM = threedhst.gmap.makeGMapTiles(fitsfile=
+                                             ROOT_GRISM.lower()+'CONT_drz.fits',
+                                             outPath='../HTML/tiles/',
+                                             tileroot=ROOT_DIRECT+'_m')
+    
+    #### Done making the map tiles
+    threedhst.currentRun['step'] = 'MAKE_GMAP_TILES'
+    
+    #############################################
+    #### Copy catalog to HTML directory
+    #############################################
+    shutil.copy(ROOT_DIRECT+'_drz.cat','../HTML/')
+    
+    #### Make the full HTML file
+    out_web = '../HTML/'+ROOT_DIRECT+'_index.html'
+    print '\nthreedhst.plotting.makeHTML: making webpage: %s\n' %out_web
+    threedhst.plotting.makeHTML(SPC, sexCat, mapParamsD, output=out_web)
+    threedhst.plotting.makeCSS()
+    
+    threedhst.currentRun['step'] = 'MAKE_HTML'
+    
+    #### Make ASCII spectra from the SPC file
+    print '\n Making ASCII spectra in ../HTML/ascii/\n'
+    threedhst.plotting.asciiSpec(SPC,root=ROOT_DIRECT,path='../HTML/ascii')
+    
+    
 def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128, 
               outfile='/tmp/thumb.png', close_window=False):
     """
@@ -106,6 +214,116 @@ def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128,
         status = pyplot.close()
     
     #pyplot.show()
+
+def plotThumbNew(object_number, mySexCat, SPCFile,
+                 outfile='/tmp/thumb.png', close_window=False):
+    """
+    plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128,
+              outfile='/tmp/thumb.png', close_window=False)
+    """
+    import os
+    import glob
+    
+    root = os.path.basename(SPCFile.filename).split('_2')[0]
+    
+    obj_str = str(object_number)
+    idx = -1
+    for i, number in enumerate(mySexCat.NUMBER):
+        if number == obj_str:
+            idx = i
+            break
+    
+    if idx < 0:
+        print 'Object \'%s\' not found in SExtractor catalog, %s.\n' %(obj_str,
+                             mySexCat.filename)
+        return False
+    
+    #### Match thumbnail size to size of 2D spectrum
+    mef = pyfits.open('../'+threedhst.options['DRIZZLE_PATH']+
+                      '/'+root+'_mef_ID'+str(object_number)+'.fits')
+    head = mef['SCI'].header
+    size = head['NAXIS2']
+    
+    drz_image = mySexCat.filename.split('.cat')[0]+'.fits'
+    drz = pyfits.open(drz_image)
+    drz_header = drz['SCI'].header
+    orient = drz_header['PA_APER']
+    pixel_scale = np.abs(drz_header['CD1_1']*3600.)
+    ra_ref = mySexCat.X_WORLD[idx]
+    dec_ref = mySexCat.Y_WORLD[idx]
+    
+    fitsfile = (os.path.dirname(outfile)+'/'+
+                os.path.basename(outfile).split('.png')[0]+'.fits')
+    
+    try:
+        os.remove(fitsfile+'.gz')
+        os.remove(fitsfile)
+    except:
+        pass
+        
+    status = iraf.wdrizzle(data = drz_image+"[1]", outdata = fitsfile, \
+       outweig = "", outcont = "", in_mask = drz_image+"[2]", 
+       wt_scl = 'exptime', \
+       outnx = size, outny = size, geomode = 'wcs', kernel = 'square', \
+       pixfrac = 1.0, coeffs = "", lamb = 555., xgeoim = "", ygeoim = "", \
+       align = 'center', scale = 1.0, xsh = 0.0, ysh = 0.0, rot = 0.0, \
+       shft_un = 'input', shft_fr = 'input', outscl = pixel_scale, \
+       raref = ra_ref, decref = dec_ref, xrefpix = size/2+0.5, yrefpix = size/2+0.5, \
+       orient = orient, dr2gpar = "", expkey = 'exptime', in_un = 'counts', \
+       out_un = 'counts', fillval = 'INDEF', mode = 'al', Stdout=1)
+        
+    ####  !!!!!!!!!!! Should do the same here for the segmentation image, but
+    ####  rotating the segmentation image doesn't work very well for fractional
+    ####  pixels.  Can do kernel='point', but then can get holes in the image
+    sub_im = pyfits.open(fitsfile)
+    sub = sub_im[0].data
+    
+    #### Look for a better platform-independent way to gzip
+    os.system('gzip '+fitsfile)
+    
+    interp = 'nearest'
+    asp = 'auto'
+    sub_max = np.max(sub)
+    if sub_max > 0:
+        #### Minmax scaling
+        vmin = -1.1*sub_max
+        vmax = 0.1*sub_max
+    else:
+        vmin = -0.5*0.8
+        vmax = 0.1*0.8
+    
+    #flux = np.round(np.float(mySexCat.FLUX_AUTO[idx]))
+    #vmin = -0.03*flux
+    #vmax = 0.003*flux
+    
+    defaultPlotParameters()
+    
+    pyplot.gray()
+    
+    fig = pyplot.figure(figsize=[3,3],dpi=100)
+    fig.subplots_adjust(wspace=0.2,hspace=0.02,left=0.02,
+                        bottom=0.02,right=0.98,top=0.98)
+    ax = fig.add_subplot(111)
+    ax.imshow(0-sub, interpolation=interp,aspect=asp,vmin=vmin,vmax=vmax)    
+    
+    asec_pix = 1./pixel_scale
+    nasec = int(size/asec_pix/2)
+    
+    #print nasec
+    
+    ax.set_yticklabels([])
+    xtick = ax.set_xticks(np.arange(-1*nasec,nasec+1,1)*asec_pix+size/2)
+    ax.set_xticklabels([])
+    ytick = ax.set_yticks(np.arange(-1*nasec,nasec+1,1)*asec_pix+size/2)
+    
+    ### Save to PNG
+    if outfile:
+        fig.savefig(outfile,dpi=100,transparent=False)
+    
+    if close_window:
+        status = pyplot.close()
+    
+    #pyplot.show()
     
 def makeThumbs(SPCFile, mySexCat, path='./HTML/'):
     """
@@ -123,7 +341,7 @@ def makeThumbs(SPCFile, mySexCat, path='./HTML/'):
     for id in ids:
         idstr = '%04d' %id
         print noNewLine+'plotting.makeThumbs: %s_%s_thumb.png' %(root, idstr)
-        plotThumb(id, mySexCat, in_image=dat, size= 20, scale =0.128,
+        plotThumbNew(id, mySexCat, SPCFile,
                   outfile=path+'/'+root+'_'+idstr+'_thumb.png',
                   close_window=True)
 
@@ -214,13 +432,15 @@ def plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
     if close_window:
         status = pyplot.close()
 
-def makeSpec2dImages(SPCFile, path='./HTML/'):
+def makeSpec2dImages(SPCFile, path='./HTML/', add_FITS=True):
     """
     makeSpec2dImages(SPCFile, path='./HTML')
     
     Run plotObject for each object in SPCFile
     """
     import os
+    import shutil
+    
     noNewLine = '\x1b[1A\x1b[1M'
     root = os.path.basename(SPCFile.filename).split('_2')[0]
     ids = SPCFile._ext_map+0
@@ -230,7 +450,15 @@ def makeSpec2dImages(SPCFile, path='./HTML/'):
         print noNewLine+'plotting.makeSpecImages: %s_%s_2D.png' %(root, idstr)
         plot2Dspec(SPCFile, id, outfile=path+'/'+root+'_'+idstr+'_2D.png',
                    close_window=True)
-
+        
+        if add_FITS:
+            mef_file = '../'+threedhst.options['DRIZZLE_PATH'] + \
+                       '/'+root+'_mef_ID'+str(id)+'.fits'
+            out_file = path+'/'+root+'_'+idstr+'_2D.fits'
+            shutil.copy(mef_file,out_file)
+            ### Gzip the result
+            os.system('gzip '+out_file)
+        
 def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
                close_window=False, show_test_lines=False):
     """
@@ -452,17 +680,17 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     
     	$("#title").css("width",1087);
     	
-    	$("#content").css("height",$(window).height()-60);
+    	$("#content").css("height",$(window).height()-60-5);
     	$("#content").css("width","840px");
-    	$("#content").css("top","55px");
+    	$("#content").css("top","60px");
     	$("#content").css("left","301px");
         
     	$("#map").css("height",$(window).height()-60);	
-    	$("#map").css("width","300px");	
+    	$("#map").css("width",300-5);	
         
         $("#coords").css("left",
     	    parseInt($("#map").css("width"))/2.-
-    	    parseInt($("#coords").css("width"))/2.);
+    	    parseInt($("#coords").css("width"))/2.+10);
     	    
     	c = $("#centerbox");
         c.css("left",parseFloat($("#map").css("left"))+
@@ -488,7 +716,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     	$("#content").css("top",$(window).height()-170);
         $("#content").css("left",$("#map").css("left"));
         
-    	$("#map").css("height",$(window).height()-60-170);
+    	$("#map").css("height",$(window).height()-60-170-11);
     	$("#map").css("width",$("#title").width()+
     	    parseFloat($("#title").css("padding-left"))+
     	    parseFloat($("#title").css("padding-right")));    
@@ -606,7 +834,11 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         var mapcenter = map.getCenter();
         var dec = mapcenter.lat();                       
         var dsign = "+";
-        if (dec < 0) {dsign = "-";}
+        var hex = "\%%2B"
+        if (dec < 0) {
+            dsign = "-";
+            hex = "\%%2D";
+        }
         dec = Math.abs(dec);
         var ded = parseInt(dec);
         var dem = parseInt((dec-ded)*60);
@@ -615,8 +847,8 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         if (ded < 10) {ded = "0"+ded;} 
         if (dem < 10) {dem = "0"+dem;} 
         if (des < 10) {des = "0"+des;} 
-        var decstr = dsign+ded+":"+dem+":"+des+"."+dess;
-        document.getElementById("decInput").value = decstr;
+        var decstr = ded+":"+dem+":"+des+"."+dess;
+        document.getElementById("decInput").value = dsign + decstr;
         
         var ra = (360-mapcenter.lng()+offset-centerLng)/360.*24;
         var rah = parseInt(ra);
@@ -628,30 +860,41 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         if (ras < 10) {ras = "0"+ras;} 
         if (rass < 10) {rass = "0"+rass;} 
         var rastr = rah+":"+ram+":"+ras+"."+rass;
-        document.getElementById("raInput").value = rastr;        
+        document.getElementById("raInput").value = rastr;   
+        
+        document.getElementById("vizierLink").href = "http://vizier.u-strasbg.fr/viz-bin/VizieR?-c=" + rastr + "+" + hex + decstr +  "&-c.rs=1";        
+             
     }
     
     function centerOnInput() {
         var rastr = document.getElementById("raInput").value;
         var rsplit = rastr.split(":");
+        if (rsplit.length != 3) rsplit = rastr.split(" ");
+        var ra = parseFloat(rastr);
         
-        var ra = (parseInt(rsplit[0])+
-              parseInt(rsplit[1])/60.+
-              parseFloat(rsplit[2])/3600.)/24.*360;
-    
+        if (rsplit.length == 3) {
+            ra = (parseInt(rsplit[0])+
+                parseInt(rsplit[1])/60.+
+                parseFloat(rsplit[2])/3600.)/24.*360;
+        } 
+        
         var decstr = document.getElementById("decInput").value;
         var dsplit = decstr.split(":");
-        var dec = Math.abs(parseInt(dsplit[0])+
-              Math.abs(parseInt(dsplit[1])/60.)+
-              Math.abs(parseFloat(dsplit[2])/3600.));
-
-        /// Don't know why, but need to do this twice
-        dec = Math.abs(parseInt(dsplit[0]))+
-        parseInt(dsplit[1])/60.+
-        parseFloat(dsplit[2])/3600.;
-        
-        if (parseFloat(dsplit[0]) < 0) {
-            dec *= -1;
+        if (dsplit.length != 3) dsplit = decstr.split(" ");
+        var dec = parseFloat(decstr);
+        if (rsplit.length == 3) {
+            dec = Math.abs(parseInt(dsplit[0])+
+                Math.abs(parseInt(dsplit[1])/60.)+
+                Math.abs(parseFloat(dsplit[2])/3600.));
+                
+            /// Don't know why, but need to do this twice
+            dec = Math.abs(parseInt(dsplit[0]))+
+            parseInt(dsplit[1])/60.+
+            parseFloat(dsplit[2])/3600.;
+            
+            if (parseFloat(dsplit[0]) < 0) {
+                dec *= -1;
+            }
         }
         
         recenter(ra,dec);
@@ -727,7 +970,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     
             </script>
         """ %(center[1],lng_offset,mapParams['ZOOMLEVEL'],
-              threedhst.currentRun['root_direct'],
+              threedhst.currentRun['ROOT_DIRECT'],
               llSW[0],llSW[1]-center[1]+lng_offset,
               llNE[0],llNE[1]-center[1]+lng_offset,
               center[0]))
@@ -753,11 +996,12 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     <div id="centerbox"></div>
     
     <div id="coords">
-    <form onsubmit="return false">
+    <form onsubmit="return false" style="display:inline;">
         <input type="text" value="#id" class="cinput" id="idInput" maxlength="4" onchange="centerOnID()"/>
         <input type="text" value="00:00:00.00" class="cinput" id="raInput" maxlength="11" onchange="centerOnInput()"/>
         <input type="text" value="+00:00:00.0" class="cinput" id="decInput" maxlength="11" onchange="centerOnInput()"/>
         </form>
+        <a id="vizierLink" href="http://vizier.u-strasbg.fr/viz-bin/VizieR?-c=12:36:36.85+%%2B62:06:58.7&-c.rs=1"><img src="scripts/glass.png" style="width:12px; margin:0px; padding:0px"></a>
     </div>
     
     """ %(title, title, title))
@@ -799,9 +1043,9 @@ def makeHTML(SPCFile, mySexCat, mapParams,
             <td>%13.6f</td> 
             <td>%13.6f</td> 
             <td>%6.2f</td> 
-            <td><a href='images/%s_thumb.png'><img src='images/%s_thumb.png' width=133px></a></td> 
+            <td><a href='images/%s_thumb.fits.gz'><img src='images/%s_thumb.png' width=133px></a></td> 
             <td><a href='ascii/%s.dat.gz'><img src='images/%s_1D.png' width=200px title='ascii'></a></td> 
-            <td><a href='images/%s_2D.png'><img src='images/%s_2D.png' width=200px></a></td> 
+            <td><a href='images/%s_2D.fits.gz'><img src='images/%s_2D.png' width=200px></a></td> 
         </tr> 
         """ %(id,np.float(ra),np.float(dec),id,
               np.float(ra),np.float(dec),np.float(mag),
@@ -819,6 +1063,173 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     fp = open(output,'w')
     fp.writelines(lines)
     fp.close()
+    
+def makeCSS(path="../HTML/scripts"):
+    """
+makeCSS(path="../HTML/scripts")
+    """
+    
+    fp = open(path+"/style.css","w")
+    fp.write("""
+    #title {
+        border: solid 1px black;
+        font-family:Verdana;
+        font-size: 18pt;
+        font-weight:bold;
+        position:absolute;
+        top:5px;
+        left:5px;
+        width:1087px;
+        padding:9px 0px 0px 49px;
+        height:45px;
+        vertical-align: middle;
+        background: #f6f6f6;
+    }
+
+    #logo {
+        position:absolute;
+        height:40px;
+        top:10px;
+        left:10px;
+    }
+
+    a.dl {
+        font-family:Verdana;
+        font-size:6pt;
+        color:black;
+        text-decoration: none;
+        padding-left:10px;
+    }
+
+    a.dl:hover {
+        color:red;
+        text-decoration: none;
+    }
+
+    #map {
+        position: absolute;
+        top:55px;
+        left:5px;
+        width: 300px;
+        height: 300px;
+        border: solid 1px black;
+        vertical-align: middle;
+        background: white;
+        text-align: center;
+    }
+
+    #switchbox {
+        background: white;
+        color: black;
+        font-family:Verdana;
+        font-size: 6pt;
+        border: 1px solid black;
+        opacity: 0.8;
+        position:absolute;
+        top:60px;
+        left:5px;
+        width: 10px;
+        padding-left:2px;
+        height: 12px;
+    }
+
+    #coords {
+        background: white;
+        color: black;
+        font-family:Verdana;
+        font-size: 8pt;
+        text-align: center;
+        border: 1px solid black;
+        opacity: 0.8;
+
+        position: absolute;
+        top:41px;
+        left:145px;
+        width: 214px;
+        height:16px;
+        padding-bottom:2px;
+
+        -moz-border-radius-topleft: 8px;
+        -webkit-border-top-left-radius: 8px;
+        -moz-border-radius-topright: 8px; 
+        -webkit-border-top-right-radius: 8px;
+    }
+
+    #centerbox {
+        width:20px;
+        height:20px;
+
+        position: absolute;
+        top:100px;
+        left:100px;
+        opacity:0.0;
+        border: 2px solid yellow;
+    }
+
+    .cinput {
+        border: none;
+        font-size:8pt;
+        font-family:Verdana;
+        width:75px;
+    }
+
+    #idInput {
+        width:32px;
+        text-align:right;
+    }
+
+    #content {
+        width:840px;
+        position:absolute;
+        top:55px;
+        left:301px;
+        height:100%%;
+        overflow:auto;
+        border: solid 1px black;
+    }
+
+
+    /* tables */
+    table.tablesorter {
+    	font-family:Verdana;
+    	background-color: #CDCDCD;
+    	font-size: 8pt;
+    /*  width: 70%%;
+    */	text-align: left;
+    }
+    table.tablesorter thead tr th, table.tablesorter tfoot tr th {
+    	background-color: #e6EEEE;
+    	border: 1px solid #FFF;
+    	font-size: 8pt;
+    	padding: 4px;
+    }
+    table.tablesorter thead tr .header {
+    	background-image: url(bg.gif);
+    	background-repeat: no-repeat;
+    	background-position: center right;
+    	cursor: pointer;
+    }
+    table.tablesorter tbody td {
+    	color: #3D3D3D;
+    	padding: 4px;
+    	background-color: #FFF;
+    	vertical-align: top;
+    }
+    table.tablesorter tbody tr.odd td {
+    	background-color:#F0F0F6;
+    }
+    table.tablesorter thead tr .headerSortUp {
+    	background-image: url(asc.gif);
+    }
+    table.tablesorter thead tr .headerSortDown {
+    	background-image: url(desc.gif);
+    }
+    table.tablesorter thead tr .headerSortDown, table.tablesorter thead tr .headerSortUp {
+    background-color: #8dbdd8;
+    }
+    """)
+    fp.close()
+    
     
 def asciiSpec(SPCFile, root="spec", path="../HTML/ascii"):
     """

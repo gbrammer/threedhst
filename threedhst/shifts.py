@@ -21,15 +21,27 @@ no = iraf.no
 yes = iraf.yes
 INDEF = iraf.INDEF
 
-def compute_shifts(asn_direct):
-    """compute_shifts(asn_direct)"""
-        
+def run_tweakshifts(asn_direct):
+    """
+run_tweakshifts(asn_direct)
+    
+    asn_direct - filename of ASN table of direct images [...]_asn.fits
+    
+    This routine only uses dither.tweakshifts to compute the relative shifts of 
+    the direct images
+    """
+    
     root = asn_direct.split('_asn.fits')[0].lower()
-    ### Get shifts with tweakshifts
+
+    try:
+        os.remove(root+'_tweak.fits')
+    except:
+        pass        
+
     iraf.flpr()
     iraf.flpr()
     iraf.flpr()
-    iraf.tweakshifts(input=asn_direct, shiftfile='',
+    status = iraf.tweakshifts(input=asn_direct, shiftfile='',
                      reference=root+'_tweak.fits',
                      output = root+'_shifts.txt', findmode = 'catalog',
                      gencatalog = 'daofind', sextractpars = '', 
@@ -41,24 +53,33 @@ def compute_shifts(asn_direct):
        refnbright = INDEF, minobj = 15, nmatch = 30, matching = 'tolerance', \
        xyxin = INDEF, xyyin = INDEF, tolerance = 1.0, fwhmpsf = 2.5, \
        sigma = 0.0, datamin = INDEF, datamax = INDEF, threshold = 4.0, \
-       nsigma = 1.5, fitgeometry = 'rscale', function = 'polynomial', \
+       nsigma = 1.5, fitgeometry = 'rxyscale', function = 'polynomial', \
        maxiter = 3, reject = 3.0, crossref = '', margin = 50, tapersz = 50, \
        pad = no, fwhm = 7.0, ellip = 0.05, pa = 45.0, fitbox = 7, \
-    )
-    ### !!! Need to add steps to match WCS to astrometric references (e.g. ACS)
-
-def find_align_images_that_overlap():
+    Stdout=1)
+    
+def find_align_images_that_overlap(ROOT_DIRECT, ALIGN_IMAGE):
     """
 align_img_list = find_align_images_that_overlap()
     
+    Look through the images defined in threedhst.options['ALIGN_IMAGE'] and 
+    return a list of only those that overlap.  
+    
+    This was written for the GOODS fields, where the multiple GOODS ACS tiles
+    can be used to align the F140W images.  ALIGN_IMAGE will be something like 
+    h_nz_sect*, but you don't want to waste time swarping large images that 
+    don't overlap with the target image.
     """
     import glob
     
-    root_direct = threedhst.currentRun['root_direct']
-    align_images = glob.glob(threedhst.options['ALIGN_IMAGE'])
+    #ROOT_DIRECT = threedhst.currentRun['ROOT_DIRECT']
+    align_images = glob.glob(ALIGN_IMAGE)
     
-    px, py = threedhst.regions.wcs_polygon(root_direct+'_drz.fits', extension=1)
+    #### Get polygon of the direct mosaic edges
+    px, py = threedhst.regions.wcs_polygon(ROOT_DIRECT+'_drz.fits', extension=1)
     
+    #### Loop through align_images and check if they overlap with the 
+    #### direct mosaic
     align_img_list = []
     for align_image in align_images:
         qx, qy = threedhst.regions.wcs_polygon(align_image, extension=0)
@@ -67,7 +88,7 @@ align_img_list = find_align_images_that_overlap()
     
     return align_img_list
     
-def align_to_reference():
+def align_to_reference(ROOT_DIRECT, ALIGN_IMAGE, fitgeometry="shift"):
     """
 xshift, yshift = align_to_reference()
     """        
@@ -75,29 +96,29 @@ xshift, yshift = align_to_reference()
     import glob
     import shutil
     
-    #### Clean slate
-    root_direct = threedhst.currentRun['root_direct']
-    
+    #### Clean slate    
     rmfiles = ['SCI.fits','align.cat',
                'align.map','align.match','align.reg','align.xy', 
-               root_direct+'_align.fits',
+               ROOT_DIRECT+'_align.fits',
                'direct.cat','direct.reg','direct.xy']
-               
+    
     for file in rmfiles:
         try:
             os.remove(file)
         except:
             pass
                 
-    # align_img_list = glob.glob(threedhst.options['ALIGN_IMAGE'])
-    align_img_list = find_align_images_that_overlap()
+    #### Get only images that overlap from the ALIGN_IMAGE list    
+    align_img_list = find_align_images_that_overlap(ROOT_DIRECT, ALIGN_IMAGE)
     if not align_img_list:
-        print '3dHST.shifts.align_to_reference: no alignment images overlap.'
+        print 'threedhst.shifts.align_to_reference: no alignment images overlap.'
         return 0,0
-        
+    
+    #### Use swarp to combine the alignment images to the same image 
+    #### dimensions as the direct mosaic
     matchImagePixels(input=align_img_list,
-                     matchImage=root_direct+'_drz.fits',
-                     output=root_direct+'_align.fits', match_extension = 1)
+                     matchImage=ROOT_DIRECT+'_drz.fits',
+                     output=ROOT_DIRECT+'_align.fits', match_extension = 1)
                      
     #### Run SExtractor on the direct image, with the WHT 
     #### extension as a weight image
@@ -113,50 +134,68 @@ xshift, yshift = align_to_reference()
     se.options['ANALYSIS_THRESH']  = '10' 
     se.options['MAG_ZEROPOINT'] = str(threedhst.options['MAG_ZEROPOINT'])
 
-    ## Run SExtractor on direct and alignment images
+    #### Run SExtractor on direct and alignment images
+    ## direct image
     se.options['CATALOG_NAME']    = 'direct.cat'
-    iraf.imcopy(root_direct+'_drz.fits[1]',"SCI.fits")
+    iraf.imcopy(ROOT_DIRECT+'_drz.fits[1]',"SCI.fits")
     status = se.sextractImage('SCI.fits')
     
+    ## alignment image
     se.options['CATALOG_NAME']    = 'align.cat'
-    status = se.sextractImage(root_direct+'_align.fits')
+    status = se.sextractImage(ROOT_DIRECT+'_align.fits')
     
+    ## Read the catalogs
     directCat = threedhst.sex.mySexCat('direct.cat')
     alignCat = threedhst.sex.mySexCat('align.cat')
     
     #### Get x,y coordinates of detected objects
-    # directCat.x = directCat.X_IMAGE
-    # directCat.y = directCat.Y_IMAGE
+    ## direct image
     fp = open('direct.xy','w')
     for i in range(len(directCat.X_IMAGE)):
         fp.write('%s  %s\n' %(directCat.X_IMAGE[i],directCat.Y_IMAGE[i]))
     fp.close()
     
-    # alignCat.x = alignCat.X_IMAGE
-    # alignCat.y = alignCat.Y_IMAGE
+    ## alignment image
     fp = open('align.xy','w')
     for i in range(len(alignCat.X_IMAGE)):
         fp.write('%s  %s\n' %(alignCat.X_IMAGE[i],alignCat.Y_IMAGE[i]))
     fp.close()
      
-    #### use IRAF to compute shifts
-    iraf.xyxymatch(input="direct.xy", reference="align.xy",
+    #### iraf.xyxymatch to find matches between the two catalogs
+    status1 = iraf.xyxymatch(input="direct.xy", reference="align.xy",
                    output="align.match",
-                   tolerance=8, separation=0, verbose=yes)
-    iraf.geomap(input="align.match", database="align.map",
-                fitgeometry="shift", interactive=no)
+                   tolerance=8, separation=0, verbose=yes, Stdout=1)
+    
+    #### Compute shifts with iraf.geomap
+    status2 = iraf.geomap(input="align.match", database="align.map",
+                fitgeometry=fitgeometry, interactive=no, Stdout=1)
+    
+    #fp = open(root+'.iraf.log','a')
+    #fp.writelines(status1)
+    #fp.writelines(status2)
+    #fp.close()
+    
+    xshift = 0
+    yshift = 0
+    rot = 0
+    scale = 0
     
     #### Parse geomap.output 
     fp = open("align.map","r")
     for line in fp.readlines():
         spl = line.split()
-        if spl[0] == 'xshift':
+        if spl[0].startswith('xshift'):
             xshift = float(spl[1])    
-        if spl[0] == 'yshift':
+        if spl[0].startswith('yshift'):
             yshift = float(spl[1])    
+        if spl[0].startswith('xrotation'):
+            rot = float(spl[1])    
+        if spl[0].startswith('xmag'):
+            scale = float(spl[1])    
+        
     fp.close()
     
-    shutil.copy('align.map',root_direct+'_align.map')
+    shutil.copy('align.map',ROOT_DIRECT+'_align.map')
     
     #### Cleanup
     rmfiles = ['SCI.fits','align.cat',
@@ -169,16 +208,16 @@ xshift, yshift = align_to_reference()
         except:
             pass
         
-    return xshift, yshift
+    return xshift, yshift, rot, scale
     
 def matchImagePixels(input=None,matchImage=None,output=None,
                      match_extension=0):
     """
-    matchImagePixels(input=None,matchImage=None,output=None,
-                     match_extension=0)
+matchImagePixels(input=None,matchImage=None,output=None,
+                 match_extension=0)
     
     SWarp input image to same size/scale as matchIMage.
-    Output is input_root+'.match.fits'
+    Output default is input_root+'.match.fits'
     
     """
     from threedhst.sex import SWarp
@@ -189,20 +228,24 @@ def matchImagePixels(input=None,matchImage=None,output=None,
     if not input:
         return False
     
+    if not output:
+        output = os.path.basename(input).split('.fits')[0]+'.match.fits'
+    
+    #### initialize SWarp
     sw = threedhst.sex.SWarp()
     sw._aXeDefaults()
     sw.overwrite = True
-    ### Get first guess coordinates
+    
+    #### Get first guess coordinates
     sw.swarpMatchImage(matchImage,extension=match_extension)
     status = sw.swarpImage(matchImage+'[%d]' %match_extension,mode='wait')
     os.remove('coadd.fits')
     os.remove('coadd.weight.fits')
-    ### Recenter
+    
+    #### Recenter
     sw.swarpRecenter()
     
-    if not output:
-        output = os.path.basename(input).split('.fits')[0]+'.match.fits'
-    
+    #### Make the final output image
     sw.options['IMAGEOUT_NAME'] = output
     #sw.options['WEIGHTOUT_NAME'] = base+'.match.weight.fits'
     status = sw.swarpImage(input,mode='direct')
@@ -210,24 +253,32 @@ def matchImagePixels(input=None,matchImage=None,output=None,
 
 
 def make_grism_shiftfile(asn_direct, asn_grism):
-    """make_grism_shiftfile(asn_direct, grism_direct)"""
+    """
+make_grism_shiftfile(asn_direct, grism_direct)
+    
+    Make a shiftfile for grism exposures to match
+    corresponding direct images
+    """
     from threedhst.utils import ASNFile
-    root_direct = asn_direct.split('_asn.fits')[0].lower()
-    root_grism  =  asn_grism.split('_asn.fits')[0].lower()
-    sf = ShiftFile(root_direct+'_shifts.txt')
+    ROOT_DIRECT = asn_direct.split('_asn.fits')[0].lower()
+    ROOT_GRISM  =  asn_grism.split('_asn.fits')[0].lower()
+    #### Read shiftfile and ASN table
+    sf = ShiftFile(ROOT_DIRECT+'_shifts.txt')
     asn = ASNFile(asn_grism)
+    
+    #### Change the image names in the shiftfile to the grism exposures
     for i,exp in enumerate(asn.exposures):
         sf.images[i] = exp+'_flt.fits'
-    #for i in range(sf.nrows):
-    #    sf.images[i] = asn.field('MEMNAME')[i].lower()+'_flt.fits'
-        
-    sf.print_shiftfile(root_grism+'_shifts.txt')
-    print "3d-HST / make_grism_shiftfile: %s_shifts.txt" %root_grism
+    
+    #### Write the new shiftfile
+    sf.print_shiftfile(ROOT_GRISM+'_shifts.txt')
+    
+    print "\n3DHST.shifts.make_grism_shiftfile: %s_shifts.txt\n" %ROOT_GRISM
 
 
 def checkShiftfile(asn_direct):
     """
-    checkShiftfile(asn_direct)
+checkShiftfile(asn_direct)
     
     Make sure that there is a line in the shiftfile for each exposure 
     in the ASN table.
@@ -240,11 +291,13 @@ def checkShiftfile(asn_direct):
     for exp in asn.exposures:
         if exp+'_flt.fits' not in sf.images:
             raise NameError('Exposure, %s, not in %s' %(exp,sf_file))
-    print '3DHST.shifts.checkShiftfile: %s looks OK.' %sf_file
+    print "\n3DHST.shifts.checkShiftfile: %s looks OK.\n" %sf_file
     
 class ShiftFile():
     """
-    ShiftFile(infile)
+ShiftFile(infile)
+    
+    Read and manipulate a shiftfile produced by, e.g., tweakshifts
     
     Based on aXe2html.sextractcat
     """
@@ -294,7 +347,6 @@ class ShiftFile():
             if (oneline[0] == "#") and (len(oneline)) > 2:
                 headerlines.append(oneline)
         return headerlines
-    
     
     def extractrows(self, linelist):
         """

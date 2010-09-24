@@ -20,9 +20,11 @@ import threedhst
 
 class SExtractor(object):
     """
+SExtractor()
+    
     This class is an adaptor to the Sextractor program 
     (Bertin & Arnouts 1996, http://astromatic.iap.fr/software/sextractor/).
-    Sextractor must be installed and on the path for this class to function.
+    Sextractor must be installed and in your $PATH for this class to function.
     
     options are set by changing values in the options dictionary
     
@@ -365,16 +367,15 @@ sexcat_regions(sexcat, regfile, format=1)
     import os,sys
     import aXe2html.sexcat.sextractcat
     
-    #sexcat = 'F140W_SCI.cat'
-    #regfile = 'test.reg'
-    #format = 1
     if os.access(sexcat, os.R_OK) is False:
         print "SExtractor catalog, %s, not found." %(sexcat)
         return False
     cat = aXe2html.sexcat.sextractcat.SexCat(sexcat)
+
     ## Force format=1 if out of range
     if format < 1 or format > 2:
         format = 1
+
     if format == 1:
         header = 'image'
         ext = '_IMAGE'
@@ -526,7 +527,8 @@ easy_columns()
         Populate self.column_names and add make column data easier to get out, 
         like:
         
-        >>> id = sexCat.ID
+        >>> id = sexCat.ID   (memory alias, changes to id also in sexCat.ID)
+        >>> id = sexCat.ID+0 (make a copy of the array)
         """
         self.column_names = []
         for col in self.columns:
@@ -648,8 +650,6 @@ class SWarp(object):
         self.options['SUBTRACT_BACK'] = 'N'
         self.options['WRITE_XML'] = 'N'
     
-    
-    #@staticmethod   
     def getOptInfo(self,aslist=False):
         """
         returns the  dictionary of input options and the associated information
@@ -660,8 +660,7 @@ class SWarp(object):
             return [(k,self._optinfo[k]) for k in self._optorder]
         else:
             return dict(self._optinfo)        
-    
-    
+        
     def __init__(self,swarpfile=None):
         from warnings import warn
         
@@ -699,7 +698,6 @@ class SWarp(object):
         
         self.overwrite = False
     
-    
     def _saveFiles(self,fnbase):
         import os
         
@@ -711,7 +709,6 @@ class SWarp(object):
         ostr = self._makeOptionStr()
         f = open(fnbase+'.swarp','w') #gbb
         f.write(ostr)                
-    
     
     def _makeOptionStr(self, maxlen=14):
         #### get longest number of characters of parameter names
@@ -726,7 +723,6 @@ class SWarp(object):
         ostr = '\n'.join(ostr)
         return ostr    
     
-    
     def getOptionList(self,incval=False):
         """
         returns a list of all options.  If incval is True, returns a list
@@ -736,7 +732,6 @@ class SWarp(object):
             return [(k,self.options[k]) for k in self._optorder]
         else:
             return [k for k in self._optorder]
-    
     
     @staticmethod
     def decimalToDMS(degrees, hours=False):
@@ -768,7 +763,7 @@ class SWarp(object):
                                        decimal_sec)
         else:
             out_str = []
-            print deg.shape, deg
+            # print deg.shape, deg
             for i in range(deg.shape[0]):
                 if deg[i] < 0:
                     out_i = '-'
@@ -780,7 +775,6 @@ class SWarp(object):
                                            decimal_sec[i])
                 out_str.append(out_i)
         return out_str
-    
     
     def swarpMatchImage(self, matchImage, extension=1, verbose=True):
         """
@@ -796,7 +790,7 @@ class SWarp(object):
         head = im[extension].header
         wcs = pywcs.WCS(head)
         coord = wcs.all_pix2sky([[head['NAXIS1']/2.,head['NAXIS1']/2.]],0)
-        print coord
+        # print coord
         ra0 = self.decimalToDMS(coord[0][0],hours=True)
         de0 = self.decimalToDMS(coord[0][1],hours=False)
         #iraf.xy2rd(infile=matchImage+'['+str(extension)+']', x=head['NAXIS1']/2., y = head['NAXIS2']/2.)
@@ -818,7 +812,6 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
                         IMAGE_SIZE=  %s
                             CENTER= %s\n""" %(self.options['PIXEL_SCALE'],
                             self.options['IMAGE_SIZE'],self.options['CENTER'])
-    
     
     def swarpImage(self,inputImage,mode='direct'):
         """
@@ -887,8 +880,6 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
             res = proc.wait()
         else:
             raise ValueError('unrecognized mode argument '+str(mode))
-            
-    
     
     def swarpRecenter(self):
         """
@@ -923,7 +914,5 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
             #self.swarpImage(self.swarpInputImage)
         else:
             print 'THREEDHST/Swarp.recenter: No SWarp output found\n'
-    
-
-
+            
 # End

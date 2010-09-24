@@ -74,8 +74,8 @@ make_zeroth(sexCat, outfile='zeroth.reg')
     pp = '"'
     theta_sign = -1
     
-    root_direct = os.path.basename(sexCat.filename).split('_drz.cat')[0]
-    asn_direct  = threedhst.utils.ASNFile(file=root_direct+'_asn.fits')
+    ROOT_DIRECT = os.path.basename(sexCat.filename).split('_drz.cat')[0]
+    asn_direct  = threedhst.utils.ASNFile(file=ROOT_DIRECT+'_asn.fits')
     
     flt_file = threedhst.utils.find_fits_gz(asn_direct.exposures[0]+
                                             '_flt.fits')
@@ -111,15 +111,15 @@ def trim_edge_objects(sexCat):
     beam_x = np.cast[float](np.array(conf.params['BEAMA'].split()))
     beam_width = 10
     
-    root_direct = os.path.basename(sexCat.filename).split('_drz.cat')[0]
-    asn_direct  = threedhst.utils.ASNFile(file=root_direct+'_asn.fits')
+    ROOT_DIRECT = os.path.basename(sexCat.filename).split('_drz.cat')[0]
+    asn_direct  = threedhst.utils.ASNFile(file=ROOT_DIRECT+'_asn.fits')
     
     flt_file = threedhst.utils.find_fits_gz(asn_direct.exposures[0]+
                                             '_flt.fits')                                        
     flt = pyfits.open(flt_file)
     wcs_flt = pywcs.WCS(flt[1].header)
     
-    drz = pyfits.open(root_direct+'_drz.fits')
+    drz = pyfits.open(ROOT_DIRECT+'_drz.fits')
     wcs_drz = pywcs.WCS(drz[1].header)
     drz_size = drz[1].data.shape
     

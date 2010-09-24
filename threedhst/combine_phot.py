@@ -91,9 +91,9 @@ init_CDFS
     cp = threedhst.combine_phot
     
     cp.phot_cat = threedhst.utils.ReadASCIICat('FIREWORKS/FIREWORKS_phot.cat')
-    root_direct = 'ib6o23020'
-    cp.grism_cat = threedhst.sex.mySexCat('DATA/'+root_direct+'_drz.cat')
-    cp.grism_SPC = threedhst.plotting.SPCFile(root_direct+'_2_opt.SPC.fits',
+    ROOT_DIRECT = 'ib6o23020'
+    cp.grism_cat = threedhst.sex.mySexCat('DATA/'+ROOT_DIRECT+'_drz.cat')
+    cp.grism_SPC = threedhst.plotting.SPCFile(ROOT_DIRECT+'_2_opt.SPC.fits',
                                                 axe_drizzle_dir=drz_dir)
     
     cp.get_sed = cp.sed_CDFS
