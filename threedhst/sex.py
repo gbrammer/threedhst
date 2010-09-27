@@ -789,7 +789,9 @@ class SWarp(object):
         im = pyfits.open(matchImage)
         head = im[extension].header
         wcs = pywcs.WCS(head)
-        coord = wcs.all_pix2sky([[head['NAXIS1']/2.,head['NAXIS1']/2.]],0)
+        # coord = wcs.all_pix2sky([[head['NAXIS1']/2.,head['NAXIS1']/2.]],0)
+        coord = wcs.all_pix2sky([[head['CRPIX1'], head['CRPIX2']]],1)
+        
         # print coord
         ra0 = self.decimalToDMS(coord[0][0],hours=True)
         de0 = self.decimalToDMS(coord[0][1],hours=False)
@@ -829,7 +831,7 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
         * 'proc': stars the processes but does not wait - returns the Popen 
           instance of the processes
         """
-        from subprocess import Popen,PIPE
+        from subprocess import Popen, PIPE
         from os.path import exists
         
         self.swarpInputImage = inputImage
@@ -862,10 +864,24 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
         print "\n3DHST.sex.swarp.swarpImage:\n\n %s\n" %clstr
         
         if mode == 'waiterror' or mode =='wait':
-            proc = Popen(clstr.split(),
-                         executable='swarp',stdout=PIPE,stderr=PIPE)
+            # proc = Popen(clstr.split(),
+            #              executable='swarp',stdout=PIPE,stderr=PIPE)
+            #### Send STDERR output to temporary file because 
+            #### swarp seems to spawn additional processed for large files
+            #### and proc.wait() never finishes
+            fp = open('/tmp/stderr','w')
+            proc = Popen(clstr.split(),executable='swarp', stdout=PIPE,
+                         stderr=fp)
             res = proc.wait()
-            sout,serr = proc.communicate()
+            fp.close()
+            
+            print 'Done.\n'
+            sout, serr = proc.communicate()
+            
+            ## Read stderr output
+            fp = open('/tmp/stderr','r')
+            serr = ' '.join(fp.readlines())
+            fp.close()
             
             self.lastout = sout
             self.lasterr = serr

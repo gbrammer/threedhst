@@ -73,11 +73,22 @@ that you could cross-correlate with the spectrum.
 
 --------
 
-Add segmentation image to 2D direct thumbnails.  Can wdrizzle it too (see below), but be careful of fractional pixel drizzles that turn the segmentation integer to some smaller float.
+Add segmentation image to 2D direct thumbnails.  Can wdrizzle it too (see above), but be careful of fractional pixel drizzles that turn the segmentation integer to some smaller float.
 
 --------
 
 Eventually, use aXe to extract 2D spectra and then model them by hand.
 
+--------
 
+If you subtract the model image from the grism image, you see that the model is frequently more spatially extended than the actual spectra, i.e. there is a narrow core in the residual image.  Is this the result of parameters to the aXe IRAF tasks or is it coming from somewhere deep within aXe?  I would think that it would get the profiles right if it's using the direct image segmentation map, though perhaps there's a smoothing term somewhere when it is translated to the grism exposures.
+
+--------
+
+Figure out why zeroth order spectra always come out too faint in the aXe models. 
+Possible causes:
+    1) problem with sensitivity curve in CONF
+    2) Something related to the fluxcube (e.g. zeropoints in other bands)
+    3) Bug in aXe somewhere
+    
 
