@@ -71,6 +71,7 @@ align_img_list = find_align_images_that_overlap()
     don't overlap with the target image.
     """
     import glob
+    import threedhst.regions
     
     #ROOT_DIRECT = threedhst.options['ROOT_DIRECT']
     align_images = glob.glob(ALIGN_IMAGE)
@@ -95,6 +96,7 @@ xshift, yshift = align_to_reference()
     import os
     import glob
     import shutil
+    import numpy as np
     
     #### Clean slate    
     rmfiles = ['SCI.fits','align.cat',
@@ -148,54 +150,76 @@ xshift, yshift = align_to_reference()
     directCat = threedhst.sex.mySexCat('direct.cat')
     alignCat = threedhst.sex.mySexCat('align.cat')
     
-    #### Get x,y coordinates of detected objects
-    ## direct image
-    fp = open('direct.xy','w')
-    for i in range(len(directCat.X_IMAGE)):
-        fp.write('%s  %s\n' %(directCat.X_IMAGE[i],directCat.Y_IMAGE[i]))
-    fp.close()
-    
-    ## alignment image
-    fp = open('align.xy','w')
-    for i in range(len(alignCat.X_IMAGE)):
-        fp.write('%s  %s\n' %(alignCat.X_IMAGE[i],alignCat.Y_IMAGE[i]))
-    fp.close()
-     
-    #### iraf.xyxymatch to find matches between the two catalogs
-    status1 = iraf.xyxymatch(input="direct.xy", reference="align.xy",
-                   output="align.match",
-                   tolerance=8, separation=0, verbose=yes, Stdout=1)
-    
-    #### Compute shifts with iraf.geomap
-    status2 = iraf.geomap(input="align.match", database="align.map",
-                fitgeometry=fitgeometry, interactive=no, Stdout=1)
-    
-    #fp = open(root+'.iraf.log','a')
-    #fp.writelines(status1)
-    #fp.writelines(status2)
-    #fp.close()
-    
     xshift = 0
     yshift = 0
     rot = 0
-    scale = 0
+    scale = 1.
     
-    #### Parse geomap.output 
-    fp = open("align.map","r")
-    for line in fp.readlines():
-        spl = line.split()
-        if spl[0].startswith('xshift'):
-            xshift = float(spl[1])    
-        if spl[0].startswith('yshift'):
-            yshift = float(spl[1])    
-        if spl[0].startswith('xrotation'):
-            rot = float(spl[1])    
-        if spl[0].startswith('xmag'):
-            scale = float(spl[1])    
+    NITER = 5
+    IT = 0
+    while (IT < NITER):
+        IT = IT+1
         
-    fp.close()
+        #### Get x,y coordinates of detected objects
+        ## direct image
+        fp = open('direct.xy','w')
+        for i in range(len(directCat.X_IMAGE)):
+            fp.write('%s  %s\n' %(directCat.X_IMAGE[i],directCat.Y_IMAGE[i]))
+        fp.close()
+
+        ## alignment image
+        fp = open('align.xy','w')
+        for i in range(len(alignCat.X_IMAGE)):
+            fp.write('%s  %s\n'
+                     %(np.float(alignCat.X_IMAGE[i])+xshift,
+                       np.float(alignCat.Y_IMAGE[i])+yshift))
+        fp.close()
+
+        iraf.flpr()
+        iraf.flpr()
+        iraf.flpr()
+        #### iraf.xyxymatch to find matches between the two catalogs
+        status1 = iraf.xyxymatch(input="direct.xy", reference="align.xy",
+                       output="align.match",
+                       tolerance=8, separation=0, verbose=yes, Stdout=1)
+
+        #### Compute shifts with iraf.geomap
+        iraf.flpr()
+        iraf.flpr()
+        iraf.flpr()
+        try:
+            os.remove("align.map")
+        except:
+            pass
+        status2 = iraf.geomap(input="align.match", database="align.map",
+                    fitgeometry=fitgeometry, interactive=no, 
+                    xmin=INDEF, xmax=INDEF, ymin=INDEF, ymax=INDEF,
+                    maxiter = 10, reject = 2.0, Stdout=1)
     
-    shutil.copy('align.map',ROOT_DIRECT+'_align.map')
+        #fp = open(root+'.iraf.log','a')
+        #fp.writelines(status1)
+        #fp.writelines(status2)
+        #fp.close()
+        
+        #### Parse geomap.output 
+        fp = open("align.map","r")
+        for line in fp.readlines():
+            spl = line.split()
+            if spl[0].startswith('xshift'):
+                xshift += float(spl[1])    
+            if spl[0].startswith('yshift'):
+                yshift += float(spl[1])    
+            if spl[0].startswith('xrotation'):
+                rot += float(spl[1])    
+            if spl[0].startswith('xmag'):
+                scale *= float(spl[1])    
+        
+        fp.close()
+        
+        #os.system('wc align.match')
+        print 'Shift iteration #%d, xshift=%f, yshift=%f' %(IT, xshift, yshift)
+        
+    # shutil.copy('align.map',ROOT_DIRECT+'_align.map')
     
     #### Cleanup
     rmfiles = ['SCI.fits','align.cat',
@@ -232,7 +256,7 @@ matchImagePixels(input=None,matchImage=None,output=None,
         output = os.path.basename(input).split('.fits')[0]+'.match.fits'
     
     #### initialize SWarp
-    sw = threedhst.sex.SWarp()
+    sw = SWarp()
     sw._aXeDefaults()
     sw.overwrite = True
     
@@ -290,7 +314,13 @@ checkShiftfile(asn_direct)
     sf = ShiftFile(sf_file)
     for exp in asn.exposures:
         if exp+'_flt.fits' not in sf.images:
-            raise NameError('Exposure, %s, not in %s' %(exp,sf_file))
+            print 'Exposure, %s, not in %s' %(exp,sf_file)
+            print sf.nrows
+            sf.append(exp+'_flt.fits')
+            print sf.nrows
+    
+    sf.print_shiftfile('/tmp/shifts')
+            
     print "\n3DHST.shifts.checkShiftfile: %s looks OK.\n" %sf_file
     
 class ShiftFile():
@@ -421,7 +451,7 @@ pop(self,idx)
         out = self.scale.pop(idx) 
         self.nrows -= 1
     
-    def append(self,image, xshift=0., yxhift=0.,
+    def append(self,image, xshift=0., yshift=0.,
                     rotate=0.0, scale=1.0):
         """
 append(self,image, xshift=0., yxhift=0.,

@@ -192,21 +192,28 @@ Pipeline to process a set of grism/direct exposures.
     asn_direct.writeToFile(asn_direct_file)
     
     #### Copy fresh FLT files from RAW
-    explist = []
-    explist.extend(asn_grism.exposures)
-    explist.extend(asn_direct.exposures)
-    for exp in explist:
-        fits_file = threedhst.utils.find_fits_gz('../RAW/'+exp+'_flt.fits')
-        fi = pyfits.open(fits_file)
-        try:
-            os.remove('./'+exp+'_flt.fits')
-        except:
-            dummy = 1
-        print exp
-        fi.writeto('./'+exp+'_flt.fits', clobber=True)
-        #### Apply DQ mask (.mask.reg), if it exists
-        if threedhst.options['PYSAO_INSTALLED']:
-            threedhst.dq.apply_dq_mask(os.path.basename(fits_file), addval=2048)
+    threedhst.process_grism.fresh_flt_files(asn_direct_file, 
+                                            from_path='../RAW/')
+                                            
+    threedhst.process_grism.fresh_flt_files(asn_grism_file, 
+                                            from_path='../RAW/')
+    
+    # #### Copy fresh FLT files from RAW
+    # explist = []
+    # explist.extend(asn_grism.exposures)
+    # explist.extend(asn_direct.exposures)
+    # for exp in explist:
+    #     fits_file = threedhst.utils.find_fits_gz('../RAW/'+exp+'_flt.fits')
+    #     fi = pyfits.open(fits_file)
+    #     try:
+    #         os.remove('./'+exp+'_flt.fits')
+    #     except:
+    #         dummy = 1
+    #     print exp
+    #     fi.writeto('./'+exp+'_flt.fits', clobber=True)
+    #     #### Apply DQ mask (.mask.reg), if it exists
+    #     if threedhst.options['PYSAO_INSTALLED']:
+    #         threedhst.dq.apply_dq_mask(os.path.basename(fits_file), addval=2048)
         
     threedhst.currentRun['step'] = 'COPY_FROM_RAW'
     
@@ -259,29 +266,62 @@ Pipeline to process a set of grism/direct exposures.
                              ROOT_DIRECT,threedhst.options['ALIGN_IMAGE'],
                              fitgeometry=threedhst.options['ALIGN_GEOMETRY'])
         
+        #### shifts measured in DRZ frame.  Translate to FLT frame
+        drz = pyfits.open(ROOT_DIRECT+'_drz.fits')
+        alpha = (180.-drz[1].header['PA_APER'])/360.*2*np.pi
+
+        xsh = xshift*np.cos(alpha)-yshift*np.sin(alpha)
+        ysh = xshift*np.sin(alpha)+yshift*np.cos(alpha)
+        
+        print 'Final shift:', xsh, ysh, drz[1].header['PA_APER']
         
         #### Read the shiftfile       
         shiftF = threedhst.shifts.ShiftFile(ROOT_DIRECT+'_shifts.txt')
         
         #### Apply the alignment shifts to the shiftfile
-        shiftF.xshift = list(np.array(shiftF.xshift)-xshift)
-        shiftF.yshift = list(np.array(shiftF.yshift)-yshift)
+        shiftF.xshift = list(np.array(shiftF.xshift)-xsh)
+        shiftF.yshift = list(np.array(shiftF.yshift)-ysh)
         shiftF.rotate = list(np.array(shiftF.rotate)+rot)
         shiftF.scale = list(np.array(shiftF.scale)*scale)
         
         shiftF.print_shiftfile(ROOT_DIRECT+'_shifts.txt')
         
-        print "\n3DHST.process_grism: MultiDrizzle detection image, refined shifts\n"
-        
-        #### Rerun multidrizzle with the new shifts
-        status = iraf.multidrizzle(input=asn_direct_file, \
-           shiftfile=ROOT_DIRECT + '_shifts.txt', \
-           output = '', final_scale = INDEF, final_pixfrac = 1.0, Stdout=1)
-        
         #### Make the grism shiftfile with the same shifts as 
         #### for the direct images
         threedhst.shifts.make_grism_shiftfile(asn_direct_file, asn_grism_file)
         
+        #### Update the header WCS to reflect the shifts.
+        #### !!! Need to turn updatewcs=no in Multidrizzle to use WCS updates
+        ## Direct
+        # shiftF = threedhst.shifts.ShiftFile(ROOT_DIRECT+'_shifts.txt')
+        # for j in range(shiftF.nrows):
+        #     im = pyfits.open(shiftF.images[j], mode='update')
+        #     for ext in range(1,6):
+        #         im[ext].header['CRPIX1'] += shiftF.xshift[j] 
+        #         im[ext].header['CRPIX2'] += shiftF.yshift[j] 
+        #     im.flush()
+        #     
+        # ## Grism
+        # shiftF = threedhst.shifts.ShiftFile(ROOT_GRISM+'_shifts.txt')
+        # for j in range(shiftF.nrows):
+        #     im = pyfits.open(shiftF.images[j], mode='update')
+        #     for ext in range(1,6):
+        #         im[ext].header['CRPIX1'] += shiftF.xshift[j] 
+        #         im[ext].header['CRPIX2'] += shiftF.yshift[j] 
+        #     im.flush()
+            
+        #### Rerun multidrizzle with the new shifts
+        print "\n3DHST.process_grism: MultiDrizzle detection image, refined shifts\n"
+        
+        status = iraf.multidrizzle(input=asn_direct_file, \
+           shiftfile=ROOT_DIRECT + '_shifts.txt', \
+           output = '', final_scale = INDEF, final_pixfrac = 1.0, Stdout=1)
+        
+        # ## No shiftfile, shifts contained in FLT WCS
+        # status = iraf.multidrizzle(input=asn_direct_file, \
+        #    shiftfile='', output = '', final_scale = INDEF, final_pixfrac = 1.0,
+        #    updatewcs=no, Stdout=1)
+                
         cleanMultidrizzleOutput()
         threedhst.currentRun['step'] = 'ALIGN_TO_REFERENCE'
         
@@ -404,6 +444,11 @@ Pipeline to process a set of grism/direct exposures.
                       shiftfile=ROOT_GRISM +  '_shifts.txt', 
                       output = '', final_scale = INDEF, 
                       final_pixfrac = 1.0, skysub = no, Stdout=1)
+                      
+    # #### Shifts incorporated in image headers
+    # status = iraf.multidrizzle(input=asn_grism_file, 
+    #                   shiftfile='', output = '', final_scale = INDEF, 
+    #                   final_pixfrac = 1.0, skysub = no, updatewcs=no, Stdout=1)
     cleanMultidrizzleOutput()
     threedhst.currentRun['step'] = 'MULTIDRIZZLE_GRISM'
     
@@ -598,6 +643,33 @@ Pipeline to process a set of grism/direct exposures.
     print '\nthreedhst: cleaned up and Done!\n'
     threedhst.currentRun['step'] = 'DONE'
 
+def fresh_flt_files(asn_filename, from_path="../RAW"):
+    """
+    """ 
+    import threedhst.dq
+    
+    ASN  = threedhst.utils.ASNFile(file=asn_filename)
+    
+    #### Copy fresh FLT files from RAW
+    explist = []
+    explist.extend(ASN.exposures)
+    for exp in explist:
+        fits_file = threedhst.utils.find_fits_gz(from_path+'/'+exp+'_flt.fits')
+        fi = pyfits.open(fits_file)
+        
+        try:
+            os.remove('./'+exp+'_flt.fits')
+        except:
+            pass
+        
+        print exp
+        
+        fi.writeto('./'+exp+'_flt.fits', clobber=True)
+        
+        #### Apply DQ mask (.mask.reg), if it exists
+        if threedhst.options['PYSAO_INSTALLED']:
+            threedhst.dq.apply_dq_mask(os.path.basename(fits_file), addval=2048)
+    
 def swarpOtherBands():
     """
 swarpOtherBands()

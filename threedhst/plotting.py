@@ -43,6 +43,8 @@ make_data_products()
     """
     import os
     import shutil
+    import tarfile
+    import glob
     
     #### Check directory structure
     if os.path.exists('../HTML/scripts') is False:
@@ -70,6 +72,15 @@ make_data_products()
           'thumbnails...\n\n'
     threedhst.plotting.makeThumbs(SPC, sexCat, path='../HTML/images/')
     
+    fptar = tarfile.open('../HTML/images/'+ROOT_DIRECT+'_thumbs.tar.gz','w|gz')
+    oldwd = os.getcwd()
+    os.chdir('../HTML/images/')
+    files = glob.glob('*thumb.fits.gz')
+    for file in files:
+        fptar.add(file)
+    fptar.close()
+    os.chdir(oldwd)
+    
     #############################################
     #### 1D spectra images
     #############################################
@@ -83,6 +94,15 @@ make_data_products()
     print '\nmakeSpec1dImages: Creating 2D spectra '+ \
           'thumbnails...\n\n'
     threedhst.plotting.makeSpec2dImages(SPC, path='../HTML/images/')
+    
+    fptar = tarfile.open('../HTML/images/'+ROOT_DIRECT+'_2D.tar.gz','w|gz')
+    oldwd = os.getcwd()
+    os.chdir('../HTML/images/')
+    files = glob.glob('*2D.fits.gz')
+    for file in files:
+        fptar.add(file)
+    fptar.close()
+    os.chdir(oldwd)
     
     #### Done with thumbnails
     threedhst.currentRun['step'] = 'MAKE_THUMBNAILS'
@@ -332,6 +352,8 @@ def makeThumbs(SPCFile, mySexCat, path='./HTML/'):
     Run plotThumbs for each object in SPCFile
     """
     import os
+    import tarfile
+    
     noNewLine = '\x1b[1A\x1b[1M'
     im = pyfits.open(mySexCat.filename.split('.cat')[0]+'.fits')
     dat = im[1].data
@@ -344,7 +366,7 @@ def makeThumbs(SPCFile, mySexCat, path='./HTML/'):
         plotThumbNew(id, mySexCat, SPCFile,
                   outfile=path+'/'+root+'_'+idstr+'_thumb.png',
                   close_window=True)
-
+                  
 def plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
                close_window=False):
     """
@@ -623,8 +645,12 @@ def makeHTML(SPCFile, mySexCat, mapParams,
 
     <script type="text/javascript" src="scripts/jquery.tablesorter.min.js"></script> 
 
-    <!--  www.astro.yale.edu/brammer/ ABQIAAAAzSrfHr_4F2D2YfSuYQD2ZBSRvJBsXGI3t4UH99Pp8ZgdgIZDpRQ9Pmiw1tbadMh-1wRrE07VYIPVOg -->
-
+    <!--  www.astro.yale.edu/brammer/ --> 
+    <!-- 
+    <script src="http://maps.google.com/maps?file=api&amp;v=3&amp;key=ABQIAAAAzSrfHr_4F2D2YfSuYQD2ZBSRvJBsXGI3t4UH99Pp8ZgdgIZDpRQ9Pmiw1tbadMh-1wRrE07VYIPVOg" type="text/javascript"></script> 
+    --> 
+    
+    <!-- localhost -->
     <script src="http://maps.google.com/maps?file=api&amp;v=3&amp;key=ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb_rzgcy5bqzSaTV8cyi2Bgsx3g" type="text/javascript"></script> 
     """]
     
@@ -986,7 +1012,9 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     <div id="title">
         %s
         <a href="./%s_drz.cat" class="dl"> cat </a>
-        <a href="./ascii/%s_spec.tar.gz" class="dl"> spec </a>
+        <a href="./images/%s_thumbs.tar.gz" class="dl"> thumbs </a>
+        <a href="./ascii/%s_spec.tar.gz" class="dl"> 1Dspec </a>
+        <a href="./images/%s_2D.tar.gz" class="dl"> 2Dspec </a>
         <a href="%s.threedhst.info" class="dl"> info </a>
     </div>
     
@@ -1004,10 +1032,10 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         <input type="text" value="00:00:00.00" class="cinput" id="raInput" maxlength="11" onchange="centerOnInput()"/>
         <input type="text" value="+00:00:00.0" class="cinput" id="decInput" maxlength="11" onchange="centerOnInput()"/>
         </form>
-        <a id="vizierLink" href="http://vizier.u-strasbg.fr/viz-bin/VizieR?-c=12:36:36.85+%%2B62:06:58.7&-c.rs=1"><img src="scripts/glass.png" style="width:12px; margin:0px; padding:0px"></a>
+        <a id="vizierLink" href="http://vizier.u-strasbg.fr/viz-bin/VizieR?-c=12:36:36.85+%%2B62:06:58.7&-c.rs=1" target="_blank"><img src="scripts/glass.png" style="width:12px; margin:0px; padding:0px"></a>
     </div>
     
-    """ %(title, title, title, title))
+    """ %(title, title, title, title, title, title))
     
     lines.append("""
     
