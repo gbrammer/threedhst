@@ -69,7 +69,7 @@ Now checkout the code with Subversion (svn):
 
 {{{
 cd $THREED_ROOT
-svn checkout https://threedhst.googlecode.com/svn/threedhst/ . --username YOUR_GOOGLE_USERNAME
+svn checkout https://threedhst.googlecode.com/svn/threedhst/ ./threedhst --username YOUR_GOOGLE_USERNAME
 }}}
 
 It will ask for a password the first time you try to checkout the code.  This can be found at your code.google [https://code.google.com/hosting/settings settings page].  Note that this password is different from your normal google account password for security reasons (SVN caches the password in an unsecure place so you don't have to enter the password every time you checkout or commit the code).
@@ -78,7 +78,7 @@ If you want to contribute to the development of the code, send an email to G. Br
 
 {{{
 cd $THREED_ROOT
-svn checkout http://threedhst.googlecode.com/svn/threedhst/ .
+svn checkout http://threedhst.googlecode.com/svn/threedhst/ ./threedhst
 }}}
 
 For an example of how to run the code, see the [Example] Wiki page.
