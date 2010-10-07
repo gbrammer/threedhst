@@ -80,7 +80,7 @@ aXe2html (v1.1) doesn't seem to work with the exact Python configuration as inst
 >>> import aXe2html.sexcat.sextractcat
 }}}
 
-If it dies with an "ImportError", it can be fixed as follows:
+If it dies with an *ImportError*, it can be fixed as follows:
 
 {{{
 cd $THREED_ROOT   # See below
