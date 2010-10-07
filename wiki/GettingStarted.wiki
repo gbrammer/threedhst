@@ -66,11 +66,12 @@ $ csh
 % pyraf --ipython
 }}}
 
-Next, download *aXe2html* from [http://www.stecf.org/software/slitless_software/axe/installation.php].  
+Next, download *aXe2html* from [http://www.stecf.org/software/slitless_software/axe/installation.php] and extract it.  
 
 {{{
 cd /tmp
-tar xzvf ~/Downloads/aXe2html-1.1.tar.gz
+wget http://www.stecf.org/software/slitless_software/axe/aXe2html/dist/aXe2html-1.1.tar.gz
+tar xzvf aXe2html-1.1.tar.gz
 mv aXe2html-1.1/aXe2html $THREED_ROOT
 }}}
 
