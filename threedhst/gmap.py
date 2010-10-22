@@ -17,9 +17,9 @@ MAP_SIZE = [TILE_SIZE,TILE_SIZE]
 MAP_KEY = 'ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb' \
     '_rzgcy5bqzSaTV8cyi2Bgsx3g'
 
-def makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct'):
+def makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1):
     """
-makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct')
+makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1)
     
     Make Google map tiles for an input FITS image, which is assumed to be
     North-up, East-left, like normal Multidrizzle output.
@@ -38,11 +38,10 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct')
     
     ### Read the FITS file
     fi = pyfits.open(fitsfile)
-    head = fi[1].header
-    data = fi[1].data
+    head = fi[extension].header
+    data = fi[extension].data
     #data = np.fliplr(fi[1].data)
-    xsize = data.shape[1]
-    ysize = data.shape[0]
+    xsize, ysize = data.shape #[1]
     
     ### Image corners in Lat/Lon
     wcs = pywcs.WCS(head)
@@ -55,6 +54,7 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct')
     # print llCenter
     
     lng_offset = 90
+    lng_offset = 0.
     
     params = {}
     params['LNG_OFFSET'] = lng_offset
@@ -70,11 +70,25 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct')
     llNE[1] += lng_offset-llCenter[1]
     llCenter[1] += lng_offset-llCenter[1]
     
+    cdelt = np.cos(llCenter[0]/360.*2*np.pi)
+    llSW[1] *= cdelt
+    llSE[1] *= cdelt
+    llNW[1] *= cdelt
+    llNE[1] *= cdelt
+    
+    llSW[0] -= llCenter[0]
+    llSE[0] -= llCenter[0]
+    llNW[0] -= llCenter[0]
+    llNE[0] -= llCenter[0]
+    llCenter[0] -= llCenter[0]
+    
     ### Get Google Map pixel/tile coordinates
     m = MercatorProjection()
     bounds = [llSW,llNE]
     view_size = [wcs.naxis1,wcs.naxis2]
     zoomLevel = m.CalculateBoundsZoomLevel(bounds, view_size)
+    pixScale = 1./np.array(m.pixels_per_lon_degree)-np.abs(head['CD2_2'])
+    zoomLevel = (np.where(np.abs(pixScale) == np.min(np.abs(pixScale))))[0][0]
     params['ZOOMLEVEL'] = zoomLevel
     
     pixSW = m.FromLatLngToPixel(llSW,zoomLevel)
@@ -104,10 +118,31 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct')
     dx = pixNE.x-pixSW.x
     dy = pixSW.y-pixNE.y
     
-    pixPerDeg = xsize/(llNE[1]-llSW[1])
+    pixPerDeg = ysize/(llNE[1]-llSW[1])
     pixRatio = m.pixels_per_lon_degree[zoomLevel]/pixPerDeg
     
-    data_copy = congrid(data,(dy,dx))
+    #data_copy = congrid(data,(dy,dx))
+    data_copy = data
+    print xsize-dy
+    fix_LR = (xsize-dy)/2.
+    if fix_LR == np.round(fix_LR):
+        padL+=fix_LR
+        padR+=fix_LR
+    else:
+        padL+=fix_LR
+
+    fix_TB = (ysize-dx)/2.
+    if fix_TB == np.round(fix_TB):
+        padT+=fix_TB
+        padB+=fix_TB
+    else:
+        padT+=fix_TB
+        
+    # padT+=(ysize-dx)/2.
+    # padB+=(ysize-dx)/2.
+    dx, dy = ysize, xsize
+    
+    print pixNE.tilex-pixSW.tilex, pixNE.tiley-pixSW.tiley, padL, padR, padT, padB, xsize, ysize, dx, dy
     
     #data_copy.resize((int(ysize*pixRatio),int(xsize*pixRatio)))
     #data_copy.resize((dy,dx))
@@ -129,8 +164,8 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct')
             #i,j = 0,0
             sub = full_image[fully-(j+1)*TILE_SIZE:fully-j*TILE_SIZE,
                              i*TILE_SIZE:(i+1)*TILE_SIZE]
-            subim = data2image(sub)
-            outfile = outPath+'%s_%d_%d_%d.jpg' %(tileroot,
+            subim = data2image(sub, zmin=-0.1, zmax=1)
+            outfile = outPath+'%s_%d_%d_%d.png' %(tileroot,
                             tileX0+i,tileY0+j,zoomLevel)
             subim.save(outfile)
             #print outfile
@@ -247,6 +282,8 @@ function plotXmlObjects(map, centerLng, offset) {
                   center[0],lng_offset)
     
     outfile = '/Users/gbrammer/Sites/map/ASTR/map.html'
+    outfile = './map.html'
+    
     fp = open(outfile,'w')
     fp.write(web)
     fp.close()
@@ -330,6 +367,7 @@ radec2latlon(radec)
     import numpy as np
     #latlon = np.zeros(2.)
     latlon = np.array([radec[1],360.-radec[0]])
+    #latlon = np.array([radec[1],(360.-radec[0])/np.cos(radec[1]/360.*2*np.pi)])
     #latlon = np.array([radec[1],radec[0]])
     return latlon
     

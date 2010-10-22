@@ -309,7 +309,7 @@ finish(self)
         self.master.destroy()
         del(self.ds9)
 
-def checkAllDQ(clobber=False):
+def checkAllDQ(clobber=False, path_to_flt='../RAW', copy_new_files=True):
     """
 checkAllDQ(clobber=False)
     
@@ -327,21 +327,24 @@ checkAllDQ(clobber=False)
     import shutil
     import os
     
-    os.chdir('../RAW')
-    asn_files = glob.glob('*asn.fits')
-    for file in asn_files:
-        if (clobber is True) | (not os.path.exists('../DATA/'+file)):
-            shutil.copy(file,'../DATA/')
-            print 'Copy %s ../DATA' %file
+    if copy_new_files:
+        os.chdir(path_to_flt)
+        asn_files = glob.glob('i*asn.fits')
+        for file in asn_files:
+            if (clobber is True) | (not os.path.exists('../DATA/'+file)):
+                shutil.copy(file,'../DATA/')
+                print 'Copy %s ../DATA' %file
             
-    os.chdir('../DATA')
+        os.chdir('../DATA')
+    
+    asn_files = glob.glob('i*asn.fits')
     
     direct_files = []
     grism_files = []
     for file in asn_files:
         print file
         asn = threedhst.utils.ASNFile(file)
-        fits = threedhst.utils.find_fits_gz('../RAW/'+asn.exposures[0]+
+        fits = threedhst.utils.find_fits_gz(path_to_flt+asn.exposures[0]+
                                             '_flt.fits')
         fi = pyfits.open(fits)
         head = fi[0].header
@@ -361,7 +364,7 @@ checkAllDQ(clobber=False)
     for i in range(Npairs):
         checkDQ(asn_grism_file=grism_files[i],
                 asn_direct_file=direct_files[i],
-                path_to_flt='../RAW/')
+                path_to_flt=path_to_flt)
                 
     
 def apply_dq_mask(flt_file, addval=2048):

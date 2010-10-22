@@ -325,14 +325,23 @@ SExtractor()
         else:
             # clstr = 'sex {0} -c {1}'.format(detectionImage,self.name+'.sex')
             clstr = 'sex %s -c %s' %(detectionImage,self.name+'.sex')
-        proc = Popen(clstr.split(),executable='sex',stdout=PIPE,stderr=PIPE)
         
         print 'THREEDHST/sex: %s' %clstr
         
         if mode == 'waiterror' or mode =='wait':
-            res = proc.wait()
-            sout,serr = proc.communicate()
             
+            fp = open('/tmp/stderr','w')
+            proc = Popen(clstr.split(),executable='sex', stdout=PIPE,stderr=fp)
+            res = proc.wait()
+            fp.close()
+            
+            sout, serr = proc.communicate()
+            
+            ## Read stderr output
+            fp = open('/tmp/stderr','r')
+            serr = ' '.join(fp.readlines())
+            fp.close()
+                        
             self.lastout = sout
             self.lasterr = serr
             
@@ -340,7 +349,11 @@ SExtractor()
                 raise SError(serr,sout)
             return res
         elif mode == 'proc':
+            proc = Popen(clstr.split(),executable='sex',stdout=PIPE,stderr=PIPE)
             return proc
+        elif mode == 'direct':
+            proc = Popen(clstr.split())
+            res = proc.wait()
         else:
             raise ValueError('unrecognized mode argument '+str(mode))
 
@@ -753,7 +766,7 @@ class SWarp(object):
         decimal_sec = (sec-np.floor(sec))*100
         
         if type(deg).__name__ == 'float64':
-            if deg < 0:
+            if degrees < 0:
                 out_str = '-'
             else:
                 out_str = ' '
@@ -861,7 +874,8 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
         
         clstr = 'swarp %s -c %s' %(imgList,self.name+'.swarp')
         
-        print "\n3DHST.sex.swarp.swarpImage:\n\n %s\n" %clstr
+        #print "\n3DHST.sex.swarp.swarpImage:\n\n %s\n" %clstr
+        threedhst.showMessage('Running swarp: %s' %clstr)
         
         if mode == 'waiterror' or mode =='wait':
             # proc = Popen(clstr.split(),

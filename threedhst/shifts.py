@@ -297,8 +297,9 @@ make_grism_shiftfile(asn_direct, grism_direct)
     #### Write the new shiftfile
     sf.print_shiftfile(ROOT_GRISM+'_shifts.txt')
     
-    print "\n3DHST.shifts.make_grism_shiftfile: %s_shifts.txt\n" %ROOT_GRISM
-
+    #print "\n3DHST.shifts.make_grism_shiftfile: %s_shifts.txt\n" %ROOT_GRISM
+    threedhst.showMessage('Making grism shiftfile, %s_shifts.txt' %ROOT_GRISM)
+    
 
 def checkShiftfile(asn_direct):
     """
@@ -321,7 +322,8 @@ checkShiftfile(asn_direct)
     
     sf.print_shiftfile('/tmp/shifts')
             
-    print "\n3DHST.shifts.checkShiftfile: %s looks OK.\n" %sf_file
+    #print "\n3DHST.shifts.checkShiftfile: %s looks OK.\n" %sf_file
+    threedhst.showMessage('Shiftfile, %s, looks OK' %sf_file)
     
 class ShiftFile():
     """

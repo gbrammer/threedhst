@@ -48,6 +48,7 @@ dec = 'Y'
 ------------------------------------------------------------------
 ------------------------------------------------------------------
 
+[[[[[DONE]]]]]
 Add link to CDS vizier catalog query from webpage: e.g. http://vizier.u-strasbg.fr/viz-bin/VizieR?-c=12:36:36.85+%2B62:06:58.7&-c.rs=1
 
 -----------
@@ -73,7 +74,7 @@ that you could cross-correlate with the spectrum.
 
 --------
 
-Add segmentation image to 2D direct thumbnails.  Can wdrizzle it too (see above), but be careful of fractional pixel drizzles that turn the segmentation integer to some smaller float.
+Add segmentation image to 2D direct thumbnails.  Can wdrizzle it too (see above), but be careful of fractional pixel drizzles that turn the segmentation integer to some smaller float value.
 
 --------
 
@@ -85,10 +86,27 @@ If you subtract the model image from the grism image, you see that the model is 
 
 --------
 
+****
+I have added a hack that scales the 0th order sensitivity curve by 
+a factor of 3.6, empirically determined to make the model images come out
+about right.  It's not clear where this error comes from, but the 
+0th order sensitivity curve defined in wfc3_abscal_IRg141_0th_sens.fits
+seems much to faint.  The aXe manual suggests that the G141 0th order differs by about 0.5 mag from the 1st order.  Plotting the two sensitivity curves indicates
+that the expected difference would be much larger (but also larger than the determined factor of 3.6)
+****
+
 Figure out why zeroth order spectra always come out too faint in the aXe models. 
 Possible causes:
     1) problem with sensitivity curve in CONF
     2) Something related to the fluxcube (e.g. zeropoints in other bands)
     3) Bug in aXe somewhere
     
+
+-------
+
+[[[[[ DONE ]]]]]
+
+Have figured out how to add zoom to google map outputs.  New coordinate reference is (0,0), so need to update the HTML script accordingly.
+
+Add latitude center for computing coordinates.
 

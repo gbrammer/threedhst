@@ -116,8 +116,9 @@ If makeDirs is True, then mkdir any that isn't found in ./
         raise IOError("options['CONFIG_FILE'] doesn't exist: CONF/" +
                       threedhst.options['CONFIG_FILE'])
     
-    if not os.path.exists('CONF/'+threedhst.options['SKY_BACKGROUND']):
-        raise IOError("options['SKY_BACKGROUND'] doesn't exist:" +   
+    if threedhst.options['SKY_BACKGROUND'] is not None:
+        if not os.path.exists('CONF/'+threedhst.options['SKY_BACKGROUND']):
+            raise IOError("options['SKY_BACKGROUND'] doesn't exist:" +   
                       "CONF/"+threedhst.options['SKY_BACKGROUND'])
 
 def write_to_log(lines, init=False):
@@ -133,7 +134,7 @@ write_to_log(lines, init=False)
         
     fp.writelines(lines)
     fp.close()
-         
+        
 ################################################################################
 ####    This is the main routine for running the grism data reduction
 ################################################################################
@@ -149,6 +150,7 @@ Pipeline to process a set of grism/direct exposures.
     import numpy as np
     import aXe2html.sexcat.sextractcat
     import threedhst.dq
+    from threedhst.TerminalController import TerminalController
     
     ############################################################################
     ####   Bookkeeping, set up DATA directory
@@ -176,11 +178,12 @@ Pipeline to process a set of grism/direct exposures.
     
     #### Copy ASN files from RAW, if they don't already exist
     if not os.path.exists(asn_grism_file):
-        shutil.copy('../RAW/'+asn_grism_file,'./')
+        shutil.copy(threedhst.options['PATH_TO_RAW']+asn_grism_file,'./')
     if not os.path.exists(asn_direct_file):
-        shutil.copy('../RAW/'+asn_direct_file,'./')
+        shutil.copy(threedhst.options['PATH_TO_RAW']+asn_direct_file,'./')
     
-    print "\n3DHST.process_grism: Fresh ASN and FLT files...\n"
+    #print "\n3DHST.process_grism: Fresh ASN and FLT files...\n"
+    threedhst.showMessage("Fresh ASN and FLT files...")
     
     #### Read ASN files
     asn_grism  = threedhst.utils.ASNFile(file=asn_grism_file)
@@ -193,28 +196,11 @@ Pipeline to process a set of grism/direct exposures.
     
     #### Copy fresh FLT files from RAW
     threedhst.process_grism.fresh_flt_files(asn_direct_file, 
-                                            from_path='../RAW/')
+                          from_path=threedhst.options['PATH_TO_RAW'])
                                             
     threedhst.process_grism.fresh_flt_files(asn_grism_file, 
-                                            from_path='../RAW/')
-    
-    # #### Copy fresh FLT files from RAW
-    # explist = []
-    # explist.extend(asn_grism.exposures)
-    # explist.extend(asn_direct.exposures)
-    # for exp in explist:
-    #     fits_file = threedhst.utils.find_fits_gz('../RAW/'+exp+'_flt.fits')
-    #     fi = pyfits.open(fits_file)
-    #     try:
-    #         os.remove('./'+exp+'_flt.fits')
-    #     except:
-    #         dummy = 1
-    #     print exp
-    #     fi.writeto('./'+exp+'_flt.fits', clobber=True)
-    #     #### Apply DQ mask (.mask.reg), if it exists
-    #     if threedhst.options['PYSAO_INSTALLED']:
-    #         threedhst.dq.apply_dq_mask(os.path.basename(fits_file), addval=2048)
-        
+                          from_path=threedhst.options['PATH_TO_RAW'])
+            
     threedhst.currentRun['step'] = 'COPY_FROM_RAW'
     
     ############################################################################
@@ -224,7 +210,9 @@ Pipeline to process a set of grism/direct exposures.
         threedhst.options['MAKE_SHIFTFILES'] = True
         
     if threedhst.options['MAKE_SHIFTFILES']:
-        print "\n3DHST.process_grism: Getting initial shifts...\n"
+        #print "\n3DHST.process_grism: Getting initial shifts...\n"
+        threedhst.showMessage("Getting initial shifts...")
+        
         #### Run iraf.tweakshifts on the diret images
         threedhst.shifts.run_tweakshifts(asn_direct_file)
         
@@ -244,11 +232,32 @@ Pipeline to process a set of grism/direct exposures.
     ############################################################################
     
     #### First Multidrizzle run on DIRECT images to create a detection image
-    print "\n3DHST.process_grism: Creating MultiDrizzled detection image\n"
+    #print "\n3DHST.process_grism: Creating MultiDrizzled detection image\n"
+    threedhst.showMessage('Creating MultiDrizzled detection image.')
+    
     iraf.unlearn('multidrizzle')
+    
+    if len(asn_direct.exposures) < threedhst.options['NFRAME_FOR_PIXFRAC']:
+        threedhst.options['USED_PIXFRAC']=1.0
+    else:
+        threedhst.options['USED_PIXFRAC'] = threedhst.options['PIXFRAC']
+        
+    if threedhst.options['SKY_BACKGROUND'] is None:
+        MDRIZ_SKYSUB=no
+    else:
+        MDRIZ_SKYSUB=yes
+        
     status = iraf.multidrizzle(input=asn_direct_file, \
-       shiftfile=ROOT_DIRECT + '_shifts.txt', \
-       output = '', final_scale = INDEF, final_pixfrac = 1.0, Stdout=1)
+       shiftfile=ROOT_DIRECT + '_shifts.txt', skysub=MDRIZ_SKYSUB, \
+       output = '', final_scale = threedhst.options['DRZSCALE'], 
+       final_pixfrac = threedhst.options['USED_PIXFRAC'], Stdout=1)
+    # status = iraf.multidrizzle(input=asn_direct_file, \
+    #    shiftfile=ROOT_DIRECT + '_shifts.txt', skysub=MDRIZ_SKYSUB, \
+    #    output = '', final_scale = iraf.INDEF, 
+    #    final_pixfrac = 1.0, Stdout=1)
+    
+    ### Read the '.run' file output by MultiDrizzle
+    mdrzRun = MultidrizzleRun(root=ROOT_DIRECT)
     
     cleanMultidrizzleOutput()
     threedhst.currentRun['step'] = 'DETECTION_IMAGE'
@@ -259,8 +268,9 @@ Pipeline to process a set of grism/direct exposures.
     #############################################
     if threedhst.options['ALIGN_IMAGE']:
         
-        print "\n3DHST.process_grism: Aligning WCS\n"
-        
+        #print "\n3DHST.process_grism: Aligning WCS\n"
+        threedhst.showMessage('Aligning WCS to %s'
+                  %threedhst.options['ALIGN_IMAGE'])
         #### Compute the alignment
         xshift, yshift, rot, scale = threedhst.shifts.align_to_reference(
                              ROOT_DIRECT,threedhst.options['ALIGN_IMAGE'],
@@ -270,10 +280,14 @@ Pipeline to process a set of grism/direct exposures.
         drz = pyfits.open(ROOT_DIRECT+'_drz.fits')
         alpha = (180.-drz[1].header['PA_APER'])/360.*2*np.pi
 
-        xsh = xshift*np.cos(alpha)-yshift*np.sin(alpha)
-        ysh = xshift*np.sin(alpha)+yshift*np.cos(alpha)
+        xsh = (xshift*np.cos(alpha)-yshift*np.sin(alpha))*np.float(mdrzRun.scl)
+        ysh = (xshift*np.sin(alpha)+yshift*np.cos(alpha))*np.float(mdrzRun.scl)
         
         print 'Final shift:', xsh, ysh, drz[1].header['PA_APER']
+        fp = open(ROOT_DIRECT+'_align.info','w')
+        fp.write('%s %8.3f %8.3f\n' 
+                  %(threedhst.options['ALIGN_IMAGE'], xsh, ysh)) 
+        fp.close()
         
         #### Read the shiftfile       
         shiftF = threedhst.shifts.ShiftFile(ROOT_DIRECT+'_shifts.txt')
@@ -311,11 +325,19 @@ Pipeline to process a set of grism/direct exposures.
         #     im.flush()
             
         #### Rerun multidrizzle with the new shifts
-        print "\n3DHST.process_grism: MultiDrizzle detection image, refined shifts\n"
+        # print "\n3DHST.process_grism: MultiDrizzle detection image, refined shifts\n"
+        threedhst.showMessage('MultiDrizzle detection image, refined shifts')
         
         status = iraf.multidrizzle(input=asn_direct_file, \
-           shiftfile=ROOT_DIRECT + '_shifts.txt', \
-           output = '', final_scale = INDEF, final_pixfrac = 1.0, Stdout=1)
+           shiftfile=ROOT_DIRECT + '_shifts.txt', skysub=MDRIZ_SKYSUB, \
+           output = '', final_scale = threedhst.options['DRZSCALE'],
+           final_pixfrac = threedhst.options['USED_PIXFRAC'],
+           Stdout=1)
+        # status = iraf.multidrizzle(input=asn_direct_file, \
+        #    shiftfile=ROOT_DIRECT + '_shifts.txt', skysub=MDRIZ_SKYSUB, \
+        #    output = '', final_scale = iraf.INDEF,
+        #    final_pixfrac = 1.0,
+        #    Stdout=1)
         
         # ## No shiftfile, shifts contained in FLT WCS
         # status = iraf.multidrizzle(input=asn_direct_file, \
@@ -332,7 +354,8 @@ Pipeline to process a set of grism/direct exposures.
     #### Make a catalog with SExtractor
     #############################################
     
-    print "\n3DHST.process_grism: Making the catalog\n"
+    #print "\n3DHST.process_grism: Making the catalog\n"
+    threedhst.showMessage('Making the catalog')
     
     #### Get out SCI and WHT extensions of the Multidrizzle mosaic, 
     #### SExtractor was choking on multi-extension FITS files
@@ -347,8 +370,14 @@ Pipeline to process a set of grism/direct exposures.
     #### Run SExtractor on the direct image, with the WHT 
     #### extension as a weight image
     se = threedhst.sex.SExtractor()
+    
+    ## Set the output parameters required for aXe 
+    ## (stored in [threedhst source]/data/aXe.param) 
     se.aXeParams()
+    
+    ## XXX add test for user-defined .conv file
     se.copyConvFile()
+    
     se.overwrite = True
     se.options['CATALOG_NAME']    = ROOT_DIRECT+'_drz.cat'
     se.options['CHECKIMAGE_NAME'] = ROOT_DIRECT+'_seg.fits'
@@ -400,9 +429,24 @@ Pipeline to process a set of grism/direct exposures.
     conf = Conf(threedhst.options['CONFIG_FILE'])
     threedhst.currentRun['conf'] = conf
     
+    #### Need to scale the 0th order sensitivity curve
+    if conf.params['SENSITIVITY_B'] == 'wfc3_abscal_IRg141_0th_sens.fits':
+        zeroth_file = pyfits.open(conf.path+'/'+conf.params['SENSITIVITY_B'])
+        zeroth_data = zeroth_file[1].data
+        sens = zeroth_data.field('SENSITIVITY')
+        err = zeroth_data.field('ERROR')
+        scale_factor = 3.6
+        sens *= scale_factor
+        err *= scale_factor
+        zeroth_file.writeto(conf.path+'/'+'WFC3_G141_0th_SCALED.fits',
+                            clobber=True)
+        conf.params['SENSITIVITY_B'] = 'WFC3_G141_0th_SCALED.fits'
+    
+    ##### Parameters for aXe
     conf.params['DRZROOT'] = ROOT_DIRECT
     conf.params['DRZRESOLA'] = threedhst.options['DRZRESOLA']
     conf.params['DRZSCALE'] = threedhst.options['DRZSCALE']
+    conf.params['DRZPFRAC'] = threedhst.options['PIXFRAC']
     
     #### Workaround to get 0th order contam. in the right place for the fluxcube
     conf.params['BEAMB'] = '-220 220'    
@@ -410,8 +454,17 @@ Pipeline to process a set of grism/direct exposures.
         
     CONFIG = ROOT_DIRECT+'_full.conf'
     #CONFIG = 'WFC3.IR.G141.V1.0.conf'
-    SKY = threedhst.options['SKY_BACKGROUND']
-    
+    if threedhst.options['SKY_BACKGROUND'] is None:
+        BACKGR = "NO"
+        SKY=""
+    else:
+        BACKGR = "YES"
+        SKY = threedhst.options['SKY_BACKGROUND']
+        if SKY == 'WFC3.IR.G141.sky.V1.0.fits':
+            threedhst.process_grism.fix_g141_sky_image(conf_path=conf.path,
+                verbose=True)
+            SKY = 'g141_fixed_sky.fits'
+        
     #### Set the aXe environment variables
     set_aXe_environment(grating=threedhst.options['GRISM_NAME'])
     
@@ -434,7 +487,7 @@ Pipeline to process a set of grism/direct exposures.
     os.chdir('../')
     flprMulti()
     status = iraf.axeprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
-        backgr="YES", backims=SKY, mfwhm=3.0,norm="NO", Stdout=1)
+        backgr=BACKGR, backims=SKY, mfwhm=3.0,norm="NO", Stdout=1)
     threedhst.currentRun['step'] = 'AXEPREP'
     
     #### Multidrizzle the grism images to flag cosmic rays
@@ -442,13 +495,15 @@ Pipeline to process a set of grism/direct exposures.
     flprMulti()
     status = iraf.multidrizzle(input=asn_grism_file, 
                       shiftfile=ROOT_GRISM +  '_shifts.txt', 
-                      output = '', final_scale = INDEF, 
-                      final_pixfrac = 1.0, skysub = no, Stdout=1)
-                      
-    # #### Shifts incorporated in image headers
+                      output = '', final_scale = threedhst.options['DRZSCALE'], 
+                      final_pixfrac = threedhst.options['USED_PIXFRAC'], 
+                      skysub = no, Stdout=1)
     # status = iraf.multidrizzle(input=asn_grism_file, 
-    #                   shiftfile='', output = '', final_scale = INDEF, 
-    #                   final_pixfrac = 1.0, skysub = no, updatewcs=no, Stdout=1)
+    #                   shiftfile=ROOT_GRISM +  '_shifts.txt', 
+    #                   output = '', final_scale = iraf.INDEF, 
+    #                   final_pixfrac = 1.0, 
+    #                   skysub = no, Stdout=1)
+    
     cleanMultidrizzleOutput()
     threedhst.currentRun['step'] = 'MULTIDRIZZLE_GRISM'
     
@@ -484,7 +539,9 @@ Pipeline to process a set of grism/direct exposures.
     fp.close()
     
     #### Run aXe.fcubeprep
-    print "\n3DHST.proces_grism: iraf.FCUBEPREP\n"
+    # print "\n3DHST.proces_grism: iraf.FCUBEPREP\n"
+    threedhst.showMessage('Prepare FLUXCUBE images with iraf.fcubeprep')
+    
     flprMulti()
     status = iraf.fcubeprep(grism_image = ROOT_GRISM+'_drz.fits',
        segm_image = ROOT_DIRECT+'_seg.fits',
@@ -497,7 +554,8 @@ Pipeline to process a set of grism/direct exposures.
     ####  aXe.axecore to produce the PETs and spectral models
     #############################################
     os.chdir('../')
-    print "\n3DHST.proces_grism: iraf.AXECORE\n"
+    # print "\n3DHST.proces_grism: iraf.AXECORE\n"
+    threedhst.showMessage('Running iraf.axecore')
     flprMulti()
     
     if threedhst.options['FULL_EXTRACTION_GEOMETRY'] is True:
@@ -506,7 +564,7 @@ Pipeline to process a set of grism/direct exposures.
         geom_yn = "NO"
         
     status = iraf.axecore(inlist=prep_name(asn_grism_file), configs=CONFIG,
-        back="NO",extrfwhm=4.1, drzfwhm=4.0, backfwhm=0.0,
+        back="NO",extrfwhm=5.0, drzfwhm=4.0, backfwhm=0.0,
         slitless_geom=geom_yn, orient=geom_yn, exclude="NO", lambda_mark=1392.0, 
         cont_model="fluxcube", model_scale=4.0, lambda_psf=1392.0,
         inter_type="linear", np=10, interp=-1, smooth_lengt=0, smooth_fwhm=0.0,
@@ -518,8 +576,21 @@ Pipeline to process a set of grism/direct exposures.
     #############################################
     #### aXe.tdrzprep - prepare for aXe drizzling
     #############################################
+    
+    # return 
+    # 
+    # #### Hack to correct for different scale used in MDRZ images
+    # BEAMA = np.round( np.cast[float](conf.params['BEAMA'].split())*
+    #         0.128254/np.float(threedhst.options['DRZSCALE']))
+    # 
+    # conf.params['BEAMA'] = '%d %d' %(BEAMA[0], BEAMA[1])
+    # conf.writeto(ROOT_DIRECT+'_drz_hack.conf')
+    # CONFIG_HACK = ROOT_DIRECT+'_drz_hack.conf'
+    
     flprMulti()
-    print "\n3DHST.proces_grism: iraf.DRZPREP\n"
+    #print "\n3DHST.proces_grism: iraf.DRZPREP\n"
+    threedhst.showMessage('Running iraf.drzprep')
+    
     status = iraf.drzprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
         opt_extr="YES", back="NO", Stdout=1)
     
@@ -530,10 +601,12 @@ Pipeline to process a set of grism/direct exposures.
     #### produces the 1D extraction
     #############################################
     threedhst.options['DRIZZLE_PATH'] = os.environ['AXE_DRIZZLE_PATH']
-    print "\n3DHST.proces_grism: iraf.AXEDRIZZLE (#1)\n"
+    #print "\n3DHST.proces_grism: iraf.AXEDRIZZLE (#1)\n"
+    threedhst.showMessage('Running iraf.axedrizzle')
+    
     flprMulti()
     status = iraf.axedrizzle(inlist=prep_name(asn_grism_file), configs=CONFIG,
-                    infwhm=4.1,outfwhm=4.0, back="NO", makespc="YES",
+                    infwhm=5.0,outfwhm=4.0, back="NO", makespc="YES",
                     opt_extr=threedhst.options['AXE_OPT_EXTR'],
                     adj_sens=threedhst.options['AXE_ADJ_SENS'], 
                     driz_separate='NO', Stdout=1)
@@ -554,10 +627,12 @@ Pipeline to process a set of grism/direct exposures.
         threedhst.options['DRIZZLE_PATH'] = os.environ['AXE_DRIZZLE_PATH']
         
         #### Run axedrizzle again
-        print "\n3DHST.proces_grism: iraf.AXEDRIZZLE (#2)\n"
+        #print "\n3DHST.proces_grism: iraf.AXEDRIZZLE (#2)\n"
+        threedhst.showMessage('Running iraf.axedrizzle, second pass.')
+        
         flprMulti()
         iraf.axedrizzle(inlist=prep_name(asn_grism_file), configs=CONFIG,
-                        infwhm=4.1,outfwhm=4, back="NO", makespc="YES",
+                        infwhm=5.0,outfwhm=4.0, back="NO", makespc="YES",
                         opt_extr=threedhst.options['AXE_OPT_EXTR'], 
                         adj_sens=threedhst.options['AXE_ADJ_SENS'], 
                         driz_separate='YES',
@@ -571,11 +646,15 @@ Pipeline to process a set of grism/direct exposures.
     
     threedhst.currentRun['step'] = 'AXEDRIZZLE'
     
+    #return
+    
     #############################################
     #### Make a multidrizzled contamination image, which can be 
     #### compared to the grism multidrizzle mosaic
     #############################################
-    print "\n3DHST.proces_grism: iraf.Multidrizzle GRISM mosaic\n"
+    #print "\n3DHST.proces_grism: iraf.Multidrizzle GRISM mosaic\n"
+    threedhst.showMessage('Run multidrizzle to create a mosaic of the grism exposures')
+    
     os.chdir('./DATA')
     for expi in asn_grism.exposures:
         ### copy ../OUTPUT_G141/CONT.fits into existing grism FLT files
@@ -588,8 +667,15 @@ Pipeline to process a set of grism/direct exposures.
     flprMulti()
     status = iraf.multidrizzle(input = ROOT_GRISM+'CONT_asn.fits', \
        output = '', shiftfile = ROOT_GRISM + '_shifts.txt', \
-       final_scale = INDEF, final_pixfrac = 1.0, skysub = no,
+       final_scale = threedhst.options['DRZSCALE'], 
+       final_pixfrac = threedhst.options['USED_PIXFRAC'], skysub = no,
        static=no, driz_separate=no,median=no, blot=no, driz_cr=no, Stdout=1)
+    # status = iraf.multidrizzle(input = ROOT_GRISM+'CONT_asn.fits', \
+    #    output = '', shiftfile = ROOT_GRISM + '_shifts.txt', \
+    #    final_scale = iraf.INDEF, 
+    #    final_pixfrac = 1.0, skysub = no,
+    #    static=no, driz_separate=no,median=no, blot=no, driz_cr=no, Stdout=1)
+
     cleanMultidrizzleOutput()
     
     threedhst.currentRun['step'] = 'MULTIDRIZZLE_CONTAMINATION'
@@ -605,7 +691,7 @@ Pipeline to process a set of grism/direct exposures.
         rmfiles.extend(glob.glob('*flt_1.cat'))
         rmfiles.extend(glob.glob(ROOT_DIRECT+'*[SW][CH]?.fits'))
         #rmfiles.extend(glob.glob('*coeffs1.dat'))
-        rmfiles.extend(glob.glob('threedhst_auto.*'))
+        #rmfiles.extend(glob.glob('threedhst_auto.*'))
         rmfiles.extend(glob.glob('zeropoints.lis'))
         rmfiles.extend(glob.glob('default.conv'))
         #for expi in asn_grism.exposures:
@@ -776,10 +862,15 @@ def make_aXe_lis(asn_grism_file, asn_direct_file):
     
     #### Check that grism and direct ASN tables have same # of entries
     if len(asn_grism.exposures) != len(asn_direct.exposures):
-        print """
-3D-HST / make_aXe_lis: Number of grism exposures (%d) in %s is different from
+#         print """
+# 3D-HST / make_aXe_lis: Number of grism exposures (%d) in %s is different from
+#                        the number of direct images (%d) in %s.
+#               """ %(len(grism_files), asn_grism, len(direct_files), asn_direct)
+        
+        threedhst.showMessage("""Number of grism exposures (%d) in %s is different from
                        the number of direct images (%d) in %s.
-              """ %(len(grism_files), asn_grism, len(direct_files), asn_direct)
+                      """ %(len(grism_files), asn_grism, len(direct_files), asn_direct))
+        
         return False
     
     #### Make the lis file
@@ -791,7 +882,9 @@ def make_aXe_lis(asn_grism_file, asn_direct_file):
               %(asn_grism.exposures[i], asn_direct.exposures[i], 
                 asn_direct.exposures[i]))
     fp.close()
-    print "3D-HST / make_aXe_lis: Created %s\n" %outfile
+    # print "3D-HST / make_aXe_lis: Created %s\n" %outfile
+    threedhst.showMessage('Created .list file, %s.' %outfile)
+    
     return True
 
 def cleanMultidrizzleOutput():
@@ -810,6 +903,70 @@ def cleanMultidrizzleOutput():
     if len(rmfiles) > 0:
         for rmfile in rmfiles:
             os.remove(rmfile)
+            
+class MultidrizzleRun():
+    """
+MultidrizzleRun(root='IB3728050')
+    
+    Read a .run output file created by MultiDrizzle.
+    """
+    def __init__(self, root='IB3728050'):
+        import numpy as np
+        
+        runfile = root+'.run'
+        self.root = root
+        
+        self.flt = []
+        self.xsh = []
+        self.ysh = []
+        self.rot = []
+        self.scl = 1.
+        
+        for line in open(runfile,'r'):
+            if line.startswith('drizzle.scale'):
+                self.scl = line.split()[2]
+                
+            if line.startswith('drizzle '):
+                spl = line.split()
+                self.flt.append(spl[1].split('.fits')[0])
+                for tag in spl:
+                    if tag.startswith('xsh'):
+                        self.xsh.append(np.float(tag.split('=')[1]))
+                    if tag.startswith('ysh'):
+                        self.ysh.append(np.float(tag.split('=')[1]))
+                    if tag.startswith('rot'):
+                        self.rot.append(np.float(tag.split('=')[1]))
+                        
+    def blot_back(self, ii=0, SCI=True, WHT=True, orig_path='./'):
+        """
+blot_back(ii=0, SCI=True, WHT=True)
+        
+    `blot` the final multidrizzle DRZ file to the pixels of
+    frame #ii as listed in the run file.
+        """
+        flt_orig = pyfits.open(orig_path+self.flt[ii]+'.fits.gz')
+        exptime = flt_orig[0].header.get('EXPTIME')
+        
+        iraf.delete(self.flt[ii]+'.BLOT.*.fits')
+        if SCI:
+            iraf.blot(data=self.root+'_drz.fits[1]',
+                outdata=self.flt[ii]+'.BLOT.SCI.fits', scale=self.scl,
+                coeffs=self.flt[ii]+'_coeffs1.dat', xsh=self.xsh[ii], 
+                ysh=self.ysh[ii], 
+                rot=self.rot[ii], outnx=1014, outny=1014, align='center', 
+                shft_un='input', shft_fr='input', in_un='cps', out_un='cps', 
+                interpol='poly5', sinscl='1.0', expout=exptime, 
+                expkey='EXPTIME',fillval=0.0)
+        
+        if WHT:
+            iraf.blot(data=self.root+'_drz.fits[2]',
+                outdata=self.flt[ii]+'.BLOT.WHT.fits', scale=0.46,
+                coeffs=self.flt[ii]+'_coeffs1.dat', xsh=self.xsh[ii], 
+                ysh=self.ysh[ii], 
+                rot=self.rot[ii], outnx=1014, outny=1014, align='center', 
+                shft_un='input', shft_fr='input', in_un='cps', out_un='cps', 
+                interpol='poly5', sinscl='1.0', expout=exptime, 
+                expkey='EXPTIME',fillval=0.0)
 
 def flprMulti(n=3):
     """
@@ -874,12 +1031,47 @@ multridrizzle_defaults():
        final_fillval = 'INDEF', final_bits = 0, final_units = 'cps', \
        gain = INDEF, gnkeyword = INDEF, rdnoise = INDEF, rnkeyword = INDEF,
        exptime = INDEF)
+
+def fix_g141_sky_image(conf_path='./', verbose=True):
+    """
+fix_g141_sky_image(conf_path='./', verbose=True)
     
+    The G141 average sky image, WFC3.IR.G141.sky.V1.0.fits,  has lots of 
+    holes with pixel value = 0,  apparently more than pixels flagged in the BPM.
+    
+    Fill these in by taking the median of (nonzero) neighboring pixels.
+    
+    The result is an image, g141_fixed_sky.fits, put in the directory defined
+    by `conf_path` (WFC3.IR.G141.sky.V1.0.fits is read from `conf_path`).
+    
+    """
+    import pyfits
+    import numpy as np
+    
+    if verbose:
+        threedhst.showMessage("""Filling holes in G141 sky image.
+Updated sky image in %s/g141_fixed_sky.fits""" %conf_path)
+    
+    im = pyfits.open(conf_path+'/'+'WFC3.IR.G141.sky.V1.0.fits')
+    sky = im[0].data
+    
+    x,y = np.where(sky == 0)
+    N = len(x)
+    pad = 1
+    for i in range(N):
+        xi = x[i]
+        yi = y[i]
+        sub = sky[xi-pad:xi+pad+1,yi-pad:yi+pad+1]
+        if (np.sum(sub) != 0.0):
+            sky[xi,yi] = np.median(sub[sub != 0.0])
+    
+    im.writeto(conf_path+'/'+'g141_fixed_sky.fits', clobber=True)
+  
 class Conf(object):
     """
     Conf(infile='WFC3.IR.G141.V1.0.conf')
     
-    Read an aXe configuration file for easily manipulation of the parameters.
+    Read an aXe configuration file for easy manipulation of the parameters.
     
     """            
     def _getPath(self):
@@ -931,8 +1123,19 @@ class Conf(object):
         
         Apply parameter values to self.lines
         """
+        import numpy as np
         for key in self.params.keys():
-            self.lines[self._pline[key]] = key + ' ' + self.params[key]+'\n'
+            param = self.params[key]
+            if type(param) is not type('xxx'):
+                param = np.str(param)
+            
+            #### New parameter?
+            if self._pline.has_key(key):
+                self.lines[self._pline[key]] = key + ' ' + param +'\n'
+            else:
+                self.lines.append(key + ' ' + param +'\n')
+        
+        self._processLines()
     
     def writeto(self, output='tmp.conf'):
         """

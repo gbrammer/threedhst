@@ -46,6 +46,9 @@ make_data_products()
     import tarfile
     import glob
     
+    threedhst.showMessage('Making output data products (1D/2D thumbnails,\n'+
+        'webpages, etc.)')
+    
     #### Check directory structure
     if os.path.exists('../HTML/scripts') is False:
         os.mkdir('../HTML/scripts')
@@ -123,21 +126,77 @@ make_data_products()
     
     threedhst.gmap.makeCirclePNG(outfile='../HTML/scripts/circle.php')            
     
-    #### direct tiles
-    mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile=
-                                             ROOT_DIRECT.lower()+'_drz.fits',
-                                             outPath='../HTML/tiles/',
-                                             tileroot=ROOT_DIRECT+'_d')
-    #### grism tiles
-    mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile=
-                                             ROOT_GRISM.lower()+'_drz.fits',
-                                             outPath='../HTML/tiles/',
-                                             tileroot=ROOT_DIRECT+'_g')
-    #### model tiles                           
-    mapParamsM = threedhst.gmap.makeGMapTiles(fitsfile=
-                                             ROOT_GRISM.lower()+'CONT_drz.fits',
-                                             outPath='../HTML/tiles/',
-                                             tileroot=ROOT_DIRECT+'_m')
+    #### Need to swarp the drz images to the correct pixel scale for 
+    #### the pixel size of the google map tiles
+    m = threedhst.gmap.MercatorProjection()
+    aperpix = 1./np.array(m.pixels_per_lon_degree)*3600
+    sw = threedhst.sex.SWarp()
+    sw.swarpMatchImage(ROOT_DIRECT.lower()+'_drz.fits')
+    
+    ########### Prepare map tiles for different zoom levels:
+    ########### 0.07 x [1,2,4,8] arcsec/pix
+    first=True
+    for aper in range(13,17):
+        ### base image
+        sw.options['IMAGE_SIZE']='0'
+        sw.options['PIXELSCALE_TYPE']='MANUAL'
+        sw.options['PIXEL_SCALE']='%10.6f' %aperpix[aper]
+        
+        #### Direct
+        sw.swarpImage(ROOT_DIRECT.lower()+'_drz.fits[1]', mode='direct')
+        im = pyfits.open('coadd.fits')
+        #im[0].data *= 4**(aper-15)
+        if aper <= 14:
+            im[0].data /= 2
+        im.writeto('scale.fits', clobber=True)
+        mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
+                                                 outPath='../HTML/tiles/',
+                                                 tileroot=ROOT_DIRECT+'_d',
+                                                 extension=0)
+        
+        if first:
+            mapParams=mapParamsD.copy()
+            first=False
+            
+        #### Grism
+        sw.swarpImage(ROOT_GRISM.lower()+'_drz.fits[1]', mode='direct')
+        im = pyfits.open('coadd.fits')
+        #im[0].data *= 4**(aper-15)
+        if aper <= 14:
+            im[0].data /= 2
+        im.writeto('scale.fits', clobber=True)
+        mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
+                                                 outPath='../HTML/tiles/',
+                                                 tileroot=ROOT_DIRECT+'_g',
+                                                 extension=0)
+        
+        #### Model
+        sw.swarpImage(ROOT_GRISM.lower()+'CONT_drz.fits[1]', mode='direct')
+        im = pyfits.open('coadd.fits')
+        #im[0].data *= 4**(aper-15)
+        if aper <= 14:
+            im[0].data /= 2
+        im.writeto('scale.fits', clobber=True)
+        mapParamsM = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
+                                                 outPath='../HTML/tiles/',
+                                                 tileroot=ROOT_DIRECT+'_m',
+                                                 extension=0)
+        
+    # #### direct tiles
+    # mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile=
+    #                                          ROOT_DIRECT.lower()+'_drz.fits',
+    #                                          outPath='../HTML/tiles/',
+    #                                          tileroot=ROOT_DIRECT+'_d')
+    # #### grism tiles
+    # mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile=
+    #                                          ROOT_GRISM.lower()+'_drz.fits',
+    #                                          outPath='../HTML/tiles/',
+    #                                          tileroot=ROOT_DIRECT+'_g')
+    # #### model tiles                           
+    # mapParamsM = threedhst.gmap.makeGMapTiles(fitsfile=
+    #                                          ROOT_GRISM.lower()+'CONT_drz.fits',
+    #                                          outPath='../HTML/tiles/',
+    #                                          tileroot=ROOT_DIRECT+'_m')
     
     #### Done making the map tiles
     threedhst.currentRun['step'] = 'MAKE_GMAP_TILES'
@@ -147,10 +206,11 @@ make_data_products()
     #############################################
     shutil.copy(ROOT_DIRECT+'_drz.cat','../HTML/')
     
+    mapParams['ZOOMLEVEL']=15
     #### Make the full HTML file
     out_web = '../HTML/'+ROOT_DIRECT+'_index.html'
     print '\nthreedhst.plotting.makeHTML: making webpage: %s\n' %out_web
-    threedhst.plotting.makeHTML(SPC, sexCat, mapParamsD, output=out_web)
+    threedhst.plotting.makeHTML(SPC, sexCat, mapParams, output=out_web)
     threedhst.plotting.makeCSS()
     
     threedhst.currentRun['step'] = 'MAKE_HTML'
@@ -271,30 +331,70 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     pixel_scale = np.abs(drz_header['CD1_1']*3600.)
     ra_ref = mySexCat.X_WORLD[idx]
     dec_ref = mySexCat.Y_WORLD[idx]
+
+    xpix = np.round(np.float(mySexCat.X_IMAGE[idx]))
+    ypix = np.round(np.float(mySexCat.Y_IMAGE[idx]))
     
+    data_img = drz_image+'[1]'
+    mask_img = drz_image+'[2]'
+    
+    #### Imcopy a subimage, necessary for very large input DRZ files
+    data_img = '/tmp/subSCI.fits'
+    mask_img = '/tmp/subWHT.fits'
+    
+    old_files = glob.glob('/tmp/sub[SW]??.fits')
+    for old_file in old_files:
+        #print old_file
+        os.remove(old_file)
+            
+    iraf.imcopy(drz_image+'[SCI][%d:%d,%d:%d]' %(xpix-3*size, xpix+3*size, 
+                  ypix-3*size, ypix+3*size), '/tmp/subSCI.fits',
+                  verbose=iraf.no)
+    # iraf.imcopy(drz_image+'[WHT][%d:%d,%d:%d]' %(xpix-3*size, xpix+3*size, 
+    #               ypix-3*size, ypix+3*size), '/tmp/subWHT.fits',
+    #               verbose=iraf.no)
+    
+    #### Imcopy misses a few WCS keywords (that are zero)
+    iraf.hedit('/tmp/subSCI.fits','CD1_2',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
+    iraf.hedit('/tmp/subSCI.fits','CD2_1',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
+    # iraf.hedit('/tmp/subWHT.fits','CD1_2',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
+    # iraf.hedit('/tmp/subWHT.fits','CD2_1',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
+    # 
+    # iraf.wcscopy(images='/tmp/tmpWHT.fits',refimages='/tmp/subSCI.fits',
+    #      verbose=iraf.no)
     fitsfile = (os.path.dirname(outfile)+'/'+
                 os.path.basename(outfile).split('.png')[0]+'.fits')
     
-    try:
-        os.remove(fitsfile+'.gz')
-        os.remove(fitsfile)
-    except:
-        pass
-        
-    status = iraf.wdrizzle(data = drz_image+"[1]", outdata = fitsfile, \
-       outweig = "", outcont = "", in_mask = drz_image+"[2]", 
+    sci = pyfits.open('/tmp/subSCI.fits')
+    sci[0].data = sci[0].data*0+1
+    sci.writeto('/tmp/subWHT.fits', clobber=True)
+    
+    old_files = glob.glob(fitsfile+'*')
+    for old_file in old_files:
+        #print old_file
+        os.remove(old_file)
+    
+    # print fitsfile, data_img, mask_img, size, ra_ref, dec_ref, pixel_scale, orient
+    
+    threedhst.process_grism.flprMulti()
+    
+    status = iraf.wdrizzle(data = data_img, outdata = fitsfile, \
+       outweig = "", outcont = "", in_mask = mask_img, 
        wt_scl = 'exptime', \
        outnx = size, outny = size, geomode = 'wcs', kernel = 'square', \
-       pixfrac = 1.0, coeffs = "", lamb = 555., xgeoim = "", ygeoim = "", \
+       pixfrac = 1.0, coeffs = "", lamb = 1392., xgeoim = "", ygeoim = "", \
        align = 'center', scale = 1.0, xsh = 0.0, ysh = 0.0, rot = 0.0, \
        shft_un = 'input', shft_fr = 'input', outscl = pixel_scale, \
        raref = ra_ref, decref = dec_ref, xrefpix = size/2+0.5, yrefpix = size/2+0.5, \
-       orient = orient, dr2gpar = "", expkey = 'exptime', in_un = 'counts', \
-       out_un = 'counts', fillval = 'INDEF', mode = 'al', Stdout=1)
-        
+       orient = orient, dr2gpar = "", expkey = 'exptime', in_un = 'cps', \
+       out_un = 'cps', fillval = '0', mode = 'al', Stdout=1)
+    
+    # print status[-1]+'\n'
+    
     ####  !!!!!!!!!!! Should do the same here for the segmentation image, but
     ####  rotating the segmentation image doesn't work very well for fractional
-    ####  pixels.  Can do kernel='point', but then can get holes in the image
+    ####  pixels.  Can do kernel='point', but then get holes in the image where
+    ####  pixels don't line up.
     sub_im = pyfits.open(fitsfile)
     sub = sub_im[0].data
     
@@ -308,9 +408,14 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
         #### Minmax scaling
         vmin = -1.1*sub_max
         vmax = 0.1*sub_max
+        vmin = -0.8*sub_max
+        vmax = 0.08*sub_max
     else:
         vmin = -0.5*0.8
         vmax = 0.1*0.8
+    
+    # vmin = -0.5
+    # vmax = 0.1
     
     #flux = np.round(np.float(mySexCat.FLUX_AUTO[idx]))
     #vmin = -0.03*flux
@@ -366,7 +471,10 @@ def makeThumbs(SPCFile, mySexCat, path='./HTML/'):
         plotThumbNew(id, mySexCat, SPCFile,
                   outfile=path+'/'+root+'_'+idstr+'_thumb.png',
                   close_window=True)
-                  
+        # plotThumb(id, mySexCat, SPCFile,
+        #           outfile=path+'/'+root+'_'+idstr+'_thumb.png',
+        #           close_window=True)
+        
 def plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
                close_window=False):
     """
@@ -407,7 +515,10 @@ def plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
     else:
         vmin = -0.5*0.8
         vmax = 0.1*0.8
-        
+    
+    #vmin *= (np.float(threedhst.options['DRZSCALE'])/0.128254)**1
+    #vmax *= (np.float(threedhst.options['DRZSCALE'])/0.128254)**1
+    
     ax = fig.add_subplot(311)
     ax.imshow(0-mef['SCI'].data, interpolation=interp,aspect=asp,
               vmin=vmin,vmax=vmax)    
@@ -479,6 +590,8 @@ def makeSpec2dImages(SPCFile, path='./HTML/', add_FITS=True):
             out_file = path+'/'+root+'_'+idstr+'_2D.fits'
             shutil.copy(mef_file,out_file)
             ### Gzip the result
+            if os.path.exists(out_file+'.gz'):
+                os.remove(out_file+'.gz')
             os.system('gzip '+out_file)
         
 def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
@@ -527,6 +640,7 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     
     #### Search for lines
     lines = threedhst.spec1d.findLines(SPCFile, idx=object_number)
+    out_lines = []
     if lines:
         sdss_lines = threedhst.spec1d.readLinelist()
         #sdss_lines.gal_weight = sdss_lines.gal_weight+1
@@ -563,7 +677,8 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
                     ax.plot(lam,ygauss+scl*ymax*iz,alpha=1,color=colors[iline])
                 
                 iline += 1
-                    
+                out_lines.append(line)
+                
             if (line.flag == 'contam') & (line.type=='em'):
                 ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),'--',
                         color='orange',linewidth=2,alpha=0.1)
@@ -573,7 +688,8 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
                         color='black',linewidth=2,alpha=0.2)
                 ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),'--',
                         color='green',linewidth=2,alpha=0.7)
-
+                out_lines.append(line)
+                
             if (line.flag == 'artifact') & (line.type=='abs'):
                 ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),'--',
                         color='green',linewidth=2,alpha=0.1)
@@ -605,7 +721,9 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     
     if close_window:
         pyplot.close()
-
+    
+    return out_lines
+    
 def makeSpec1dImages(SPCFile, path='./HTML/'):
     """
     makeSpec1dImages(SPCFile, path='./HTML')
@@ -617,11 +735,26 @@ def makeSpec1dImages(SPCFile, path='./HTML/'):
     root = os.path.basename(SPCFile.filename).split('_2')[0]
     ids = SPCFile._ext_map+0
     ids.sort()
+    
+    fp = open(path+'/'+root+'_1D_lines.info','w')
+    
     for id in ids:
         idstr = '%04d' %id
         print noNewLine+'plotting.makeSpec1dImages: %s_%s_1D.png' %(root, idstr)
-        plot1Dspec(SPCFile, id, outfile=path+'/'+root+'_'+idstr+'_1D.png',
+        lines = plot1Dspec(SPCFile, id,
+                   outfile=path+'/'+root+'_'+idstr+'_1D.png',
                    close_window=True)
+        
+        str = '%5d' %id
+        for line in lines:
+            if line.type == 'em':
+                str+='  %8.1f' %line.wave
+            if line.type == 'abs':
+                str+='  %8.1f' %(-1*line.wave)
+                
+        fp.write(str+'\n')
+    
+    fp.close()
     
 def makeHTML(SPCFile, mySexCat, mapParams,
              output='./HTML/index.html', title=None):
@@ -702,6 +835,23 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         }
     }
     
+    var markers_on=1;
+	function toggle_markers() {
+		if (markers_on == 0) {
+		    $("#markerbox").css("border","2px solid #00FF03");  
+            markers_on = 1;
+            for (var i = 0; i < marker_list.length; i++) {
+				marker_list[i].show();
+		    }
+		} else {
+		    $("#markerbox").css("border","2px solid #AAAAAA");  
+		    markers_on=0
+            for (var i = 0; i < marker_list.length; i++) {
+				marker_list[i].hide();
+		    }
+		}
+	}
+	
     function vertical_layout() {
     
     	$("#title").css("width",1087);
@@ -783,16 +933,20 @@ def makeHTML(SPCFile, mySexCat, mapParams,
             <script type="text/javascript"> 
     
     var map = 0; // Global
+    var centerLat = %f;
     var centerLng = %f;
-    var offset = %f;
+    // var offset = %f;
+    offset = 0.0;
     var zoomLevel = %f;
     var root = '%s';
     
     function initialize() {        
         if (GBrowserIsCompatible()) {
             map = new GMap2(document.getElementById("map"));
-            map.addControl(new GScaleControl());
-            // map.addControl(new GSmallMapControl());
+            // map.addControl(new GScaleControl());
+            var topLeft = new GControlPosition(G_ANCHOR_TOP_LEFT,
+                                                 new GSize(10,40));
+            map.addControl(new GSmallMapControl(), topLeft);
             // map.addControl(new GMapTypeControl());
             var copyright = new GCopyright(1,
                  new GLatLngBounds(new GLatLng(%f,%f),
@@ -803,35 +957,35 @@ def makeHTML(SPCFile, mySexCat, mapParams,
 
             // Direct image tiles
             CustomGetDirectTileUrl=function(a,b){
-                return "tiles/"+root+"_d_"+a.x+"_"+a.y+"_"+b+".jpg"
+                return "tiles/"+root+"_d_"+a.x+"_"+a.y+"_"+b+".png"
             }
             var tilelayersDirect = [new GTileLayer(copyrightCollection,
-                                          zoomLevel,zoomLevel)];
+                                          zoomLevel-2,zoomLevel+1)];
             tilelayersDirect[0].getTileUrl = CustomGetDirectTileUrl;
             var custommapDirect = new GMapType(tilelayersDirect, 
-                   new GMercatorProjection(zoomLevel+1), "Direct");
+                   new GMercatorProjection(zoomLevel+2), "Direct");
             map.addMapType(custommapDirect);
 
             // Grism image tiles
             CustomGetGrismTileUrl=function(a,b){
-                return "tiles/"+root+"_g_"+a.x+"_"+a.y+"_"+b+".jpg"
+                return "tiles/"+root+"_g_"+a.x+"_"+a.y+"_"+b+".png"
             }
             var tilelayersGrism = [new GTileLayer(copyrightCollection,
-                                          zoomLevel,zoomLevel)];
+                                          zoomLevel-2,zoomLevel+1)];
             tilelayersGrism[0].getTileUrl = CustomGetGrismTileUrl;
             var custommapGrism = new GMapType(tilelayersGrism, 
-                   new GMercatorProjection(zoomLevel+1), "Grism");
+                   new GMercatorProjection(zoomLevel+2), "Grism");
             map.addMapType(custommapGrism);
             
             // Model image tiles
             CustomGetModelTileUrl=function(a,b){
-                return "tiles/"+root+"_m_"+a.x+"_"+a.y+"_"+b+".jpg"
+                return "tiles/"+root+"_m_"+a.x+"_"+a.y+"_"+b+".png"
             }
             var tilelayersModel = [new GTileLayer(copyrightCollection,
-                                          zoomLevel,zoomLevel)];
+                                          zoomLevel-2,zoomLevel+1)];
             tilelayersModel[0].getTileUrl = CustomGetModelTileUrl;
             var custommapModel = new GMapType(tilelayersModel, 
-                   new GMercatorProjection(zoomLevel+1), "Model");
+                   new GMercatorProjection(zoomLevel+2), "Model");
             map.addMapType(custommapModel);
             
             // Can't remove all three for some reason
@@ -842,7 +996,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
             map.addControl(new GMapTypeControl());
             
             // Set map center
-            map.setCenter(new GLatLng(%f, offset), zoomLevel,
+            map.setCenter(new GLatLng(0.0, offset), zoomLevel,
              custommapDirect);
             
             latLng2raDec();
@@ -858,7 +1012,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     
     function latLng2raDec() {
         var mapcenter = map.getCenter();
-        var dec = mapcenter.lat();                       
+        var dec = mapcenter.lat()+centerLat;                       
         var dsign = "+";
         var hex = "\%%2B"
         if (dec < 0) {
@@ -876,7 +1030,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         var decstr = ded+":"+dem+":"+des+"."+dess;
         document.getElementById("decInput").value = dsign + decstr;
         
-        var ra = (360-mapcenter.lng()+offset-centerLng)/360.*24;
+        var ra = ((360-mapcenter.lng()/Math.cos(centerLat/360.*2*3.14159)+offset-centerLng)/360.*24);
         var rah = parseInt(ra);
         var ram = parseInt((ra-rah)*60);
         var ras = parseInt(((ra-rah)*60-ram)*60);
@@ -940,21 +1094,23 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     var lngs = [];
     var ids = [];
     var nObject = 0;
-
+    var marker_list = [];
+    
     // Read objects from XML file and plot regions
     function plotXmlObjects() {
         GDownloadUrl(root+".xml", function(data) {
             var xml = GXml.parse(data);
             var markers = xml.documentElement.getElementsByTagName("marker");
             nObject = markers.length;
-
+                        
             for (var i = 0; i < markers.length; i++) {
                 // Read from XML
                 var id = markers[i].getAttribute("id");
                 var ra = markers[i].getAttribute("ra");
                 var dec = markers[i].getAttribute("dec");
-                var lat = dec;
-                var lng = (360-ra)-centerLng+offset;
+                var lat = dec-centerLat;
+                var lng = ((360-ra)-centerLng+offset)*Math.cos(centerLat/360.*2*3.14159);
+                
                 lats.push(lat);
                 lngs.push(lng);
                 ids.push(id);
@@ -983,23 +1139,23 @@ def makeHTML(SPCFile, mySexCat, mapParams,
                     //alert(matchID);
                     window.location = '#i'+matchID;
                 });
+                marker_list.push(marker);
                 map.addOverlay(marker);            
             }
         });
     }
     
     function recenter(ra,dec) {
-        var lat = dec;
-        var lng = (360-ra)-centerLng+offset
-        map.setCenter(new GLatLng(lat,lng), zoomLevel);
+        var lat = dec-centerLat;
+        var lng = ((360-ra)-centerLng+offset)*Math.cos(centerLat/360.*2*3.14159)
+        map.setCenter(new GLatLng(lat,lng)); //, zoomLevel);
     }
     
             </script>
-        """ %(center[1],lng_offset,mapParams['ZOOMLEVEL'],
+        """ %(center[0],center[1],lng_offset,mapParams['ZOOMLEVEL'],
               threedhst.options['ROOT_DIRECT'],
-              llSW[0],llSW[1]-center[1]+lng_offset,
-              llNE[0],llNE[1]-center[1]+lng_offset,
-              center[0]))
+              llSW[0]-center[0],llSW[1]-center[1]+lng_offset,
+              llNE[0]-center[0],llNE[1]-center[1]+lng_offset))
     
     #### HTML Body   
     lines.append("""
@@ -1015,6 +1171,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         <a href="./images/%s_thumbs.tar.gz" class="dl"> thumbs </a>
         <a href="./ascii/%s_spec.tar.gz" class="dl"> 1Dspec </a>
         <a href="./images/%s_2D.tar.gz" class="dl"> 2Dspec </a>
+        <a href="./images/%s_1D_lines.info" class="dl"> lines </a>
         <a href="%s.threedhst.info" class="dl"> info </a>
     </div>
     
@@ -1023,6 +1180,8 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     <div onclick="javascript:switch_layout()" id="switchbox">
         ||
     </div>
+    
+    <div onclick="javascript:toggle_markers()" id="markerbox"> </div>
     
     <div id="centerbox"></div>
     
@@ -1035,7 +1194,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         <a id="vizierLink" href="http://vizier.u-strasbg.fr/viz-bin/VizieR?-c=12:36:36.85+%%2B62:06:58.7&-c.rs=1" target="_blank"><img src="scripts/glass.png" style="width:12px; margin:0px; padding:0px"></a>
     </div>
     
-    """ %(title, title, title, title, title, title))
+    """ %(title, title, title, title, title, title, title))
     
     lines.append("""
     
@@ -1157,13 +1316,24 @@ makeCSS(path="../HTML/scripts")
         border: 1px solid black;
         opacity: 0.8;
         position:absolute;
-        top:60px;
-        left:5px;
+        top:63px;
+        left:28px;
         width: 10px;
         padding-left:2px;
         height: 12px;
     }
-
+    
+    #markerbox {
+        border: 2px solid #00FF03;
+        opacity: 0.8;
+        position:absolute;
+        top:80px;
+        left:28px;
+        width: 8px;
+        padding-left:2px;
+        height: 10px;
+    }
+    
     #coords {
         background: white;
         color: black;
@@ -1292,6 +1462,8 @@ asciiSpec(SPCFile, root="spec", path="../HTML/ascii")
         print noNewLine+out
         
         fp = gzip.open(path+'/'+out+'.gz','wb')
+        fp.write('# lambda flux error contam\n')
+        
         NL = len(lam)
         for i in range(NL):
             fp.write('%11.5e %10.3e %10.3e %10.3e\n' %(lam[i],flux[i],ferr[i],contam[i]))

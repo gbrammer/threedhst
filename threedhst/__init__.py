@@ -38,7 +38,8 @@ defaultOptions()
     #### Delete all keywords and reset
     for key in options.keys():
         pop = options.popitem()
-        
+    
+    options['PATH_TO_RAW'] = '../RAW/'
     options['DETECT_THRESH'] = 5.     ## Default 1.5
     options['ANALYSIS_THRESH']  = 5.  ## Default 1.5
     options['GRISM_NAME'] = 'G141'
@@ -65,6 +66,14 @@ defaultOptions()
     options['DRZRESOLA'] = '46.5'
     options['DRZSCALE'] = '0.128254'
     
+    #### Use higher-resolution drizzle
+    options['DRZSCALE'] = '0.06'
+    options['PIXFRAC'] = '0.8'
+    #### If the number of frames in an ASN table
+    #### is < NFRAME_FOR_PIXFRAC, use PIXFRAC=1.0
+    options['NFRAME_FOR_PIXFRAC'] = 4
+    options['USED_PIXFRAC'] = '1.0'
+    
     #### aXe extraction geometry
     #### currently set slitless_geom=NO, orient=NO in aXecore
     #### to get the 2D spectra to line up with the orientation
@@ -85,12 +94,18 @@ defaultOptions()
     options['MAKE_WEBPAGE'] = True
     ## Image format for webpage
     options['WEB_IMAGE_FORMAT'] = 'png'
-    # options['IMAGE_FORMAT'] = 'svgz'
 
 #############################################
 #### Set the default options    
 #############################################
 defaultOptions()
+
+try:
+    import pysao
+    options['PYSAO_INSTALLED'] = True
+except:
+    print 'No pysao installation found.'
+    options['PYSAO_INSTALLED'] = False
 
 def showOptions(to_file=None):
     """
@@ -115,4 +130,44 @@ def showOptions(to_file=None):
         for key in options.keys():
             fp.write('%s = %s\n' %(key,str(options[key])))
         fp.close()
+
+def showMessage(msg):
+    """
+showMessage(msg)
+    
+    Print a system message formatted like:
+    
+    ***********************************
+    *  THREEDHST.`module`.`function`  *
+    ***********************************
+    
+    `msg`
+    
+    ***********************************
+    """       
+    import os
+    import sys
+    import inspect
+     
+    from threedhst.TerminalController import TerminalController
+    
+    calling_function_name = sys._getframe(1).f_code.co_name    
+    module_name =  os.path.basename(inspect.stack()[1][1]).split('.py')[0]
+    
+    term = TerminalController()
+    
+    char = '='
+    substr = 'THREEDHST.'+module_name+'.'+calling_function_name
+    
+    substr = char+'  '+substr+'  '+char
+    
+    NL = len(substr)
+    bar = char*NL
+    
+    print (term.BG_WHITE+term.BLUE+term.BOLD+'\n'+bar+
+           '\n'+substr+'\n'+bar+'\n\n'+term.NORMAL+
+           msg+'\n\n'+
+           term.BG_WHITE+term.BLUE+term.BOLD+bar+'\n'+term.NORMAL)
+    
+    
     

@@ -48,12 +48,13 @@ Create a DS9 region file for the exposures defined in an ASN file.
         fp.write(line+' # color=magenta\n')
         
     ##### Text label with ASN filename
-    fp.write('# text(%10.6f,%10.6f) text={%s} color=magenta\n' \
+    fp.write('# text(%10.6f,%10.6f) text={%s} font="Helvetica 14 normal" color=magenta\n' \
         %(np.mean(RAcenters),np.mean(DECcenters),
           asn_file.split('_asn.fits')[0]))
     fp.close()
-    print '3D-HST / ASN_REGION: %s\n' %(output_file)
-
+    #print '3D-HST / ASN_REGION: %s\n' %(output_file)
+    threedhst.showMessage('Create region file, %s.' %output_file)
+    
 
 def make_zeroth(sexCat, outfile='zeroth.reg'):
     """
