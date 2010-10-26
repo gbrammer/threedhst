@@ -821,6 +821,9 @@ class SWarp(object):
         self.options['CENTER_TYPE'] = 'MANUAL'
         self.options['PIXELSCALE_TYPE'] = 'MANUAL'
         
+        self.NX = head['NAXIS1']
+        self.NY = head['NAXIS2']
+
         if verbose:
             print """
 SWarp.swarpMatchImage: PIXEL_SCALE=  %s
@@ -828,9 +831,9 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
                             CENTER= %s\n""" %(self.options['PIXEL_SCALE'],
                             self.options['IMAGE_SIZE'],self.options['CENTER'])
     
-    def swarpImage(self,inputImage,mode='direct'):
+    def swarpImage(self,inputImage,mode='direct', verbose=True):
         """
-        swarpImage(self,inputImage,mode='waiterror')
+        swarpImage(self,inputImage,mode='waiterror', verbose=True)
         
         Writes configuration files and runs swarp on the input image
         
@@ -875,7 +878,8 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
         clstr = 'swarp %s -c %s' %(imgList,self.name+'.swarp')
         
         #print "\n3DHST.sex.swarp.swarpImage:\n\n %s\n" %clstr
-        threedhst.showMessage('Running swarp: %s' %clstr)
+        if verbose:
+            threedhst.showMessage('Running swarp: %s' %clstr)
         
         if mode == 'waiterror' or mode =='wait':
             # proc = Popen(clstr.split(),
@@ -889,7 +893,9 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
             res = proc.wait()
             fp.close()
             
-            print 'Done.\n'
+            if verbose: 
+                print 'Done.\n'
+            
             sout, serr = proc.communicate()
             
             ## Read stderr output

@@ -78,7 +78,7 @@ setup_matrices()
         yi = (yi-self.y0*1.)/NY
         
         #### 0th order, `grism` is False, is median F140W image
-        medF = pyfits.open('/research/HST/GRISM/3DHST/CONF/F140W_GOODSN_median.fits')
+        medF = pyfits.open('/research/HST/GRISM/CONF/F140W_GOODSN_median.fits')
         med = medF[0].data
         medF.close()
 
@@ -266,7 +266,9 @@ make_grism_shiftfiles(direct_files='ib*050_asn.fits',
         threedhst.shifts.make_grism_shiftfile(asn_direct_file, asn_grism_file)
     
 def prep_all(asn_files='ib*050_asn.fits', get_shift=True, 
-             redo_background=True, bg_only=False, grism=False):
+             redo_background=True, bg_only=False, grism=False,
+             ALIGN_IMAGE='../ACS/h_nz_sect*img.fits',
+             final_scale=0.06, pixfrac=0.8):
     """
 prep_all(asn_files='ib*050_asn.fits', get_shift=True, 
          redo_background=True, bg_only=False, grism=False)
@@ -286,11 +288,13 @@ prep_all(asn_files='ib*050_asn.fits', get_shift=True,
     for file in asn_files:
         prep_flt(asn_file=file, get_shift=get_shift,
                     redo_background=redo_background,
-                    bg_only=bg_only, grism=grism)
+                    bg_only=bg_only, grism=grism, ALIGN_IMAGE=ALIGN_IMAGE,
+                    final_scale=final_scale, pixfrac=pixfrac)
 
 def prep_flt(asn_file=None, get_shift=True, bg_only=False,
                 redo_background=True, grism=False,
-                ALIGN_IMAGE='../ACS/h_nz_sect*img.fits'):
+                ALIGN_IMAGE='../ACS/h_nz_sect*img.fits',
+                final_scale=0.06, pixfrac=0.8):
     """
 prep_flt(asn_file=None, get_shift=True, bg_only=False,
             redo_background=True, grism=False)
@@ -331,7 +335,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
     
     
     """
-    import fit_2d_poly
+    #import fit_2d_poly
     import threedhst
     import threedhst.dq
     
@@ -347,7 +351,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
     asn = threedhst.utils.ASNFile(asn_file)
     
     #### Set up matrix for fitting
-    fit = fit_2d_poly.fit_2D_background(ORDER=2, grism=grism)#, x0=507, y0=507)
+    fit = fit_2D_background(ORDER=0, grism=grism)#, x0=507, y0=507)
     
     #### First pass background subtraction
     for exp in asn.exposures:
@@ -360,10 +364,11 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
         
     #### First guess at shifts
     if get_shift:
-        threedhst.shifts.run_tweakshifts(asn_file)
-    
+        threedhst.shifts.run_tweakshifts(asn_file, verbose=True)
+        threedhst.shifts.checkShiftfile(asn_file)
+        
     startMultidrizzle(asn_file, use_shiftfile=True, 
-        skysub=redo_background)
+        skysub=redo_background, final_scale=final_scale, pixfrac=pixfrac)
         
     #### Blot combined images back to reference frame and make a 
     #### segmentation mask
@@ -397,21 +402,23 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
         #### Apply the alignment shifts to the shiftfile
         shiftF.xshift = list(np.array(shiftF.xshift)-xsh)
         shiftF.yshift = list(np.array(shiftF.yshift)-ysh)
-        shiftF.rotate = list(np.array(shiftF.rotate)+rot)
+        shiftF.rotate = list((np.array(shiftF.rotate)+rot) % 360)
         shiftF.scale = list(np.array(shiftF.scale)*scale)
         
         shiftF.print_shiftfile(ROOT_DIRECT+'_shifts.txt')
         
     #### Run BG subtraction with improved mask and run multidrizzle again
     if redo_background:
+        fit = fit_2D_background(ORDER=2, grism=grism)#, x0=507, y0=507)
         for exp in asn.exposures:
             fit.fit_image(exp, A=fit.A, show=False, overwrite=True)
         
-        startMultidrizzle(asn_file, use_shiftfile=True, skysub=False)
+        startMultidrizzle(asn_file, use_shiftfile=True, skysub=False,
+            final_scale=final_scale, pixfrac=pixfrac)
     
 #
 def startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
-    skysub=True, final_scale=0.06):
+    skysub=True, final_scale=0.06, pixfrac=0.8):
     """
 startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
                   skysub=True, final_scale=0.06)
@@ -443,9 +450,7 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
     
     #### If fewer than 4 exposures in the asn list, use
     #### a larger `pixfrac`.
-    if len(asn_direct.exposures) == 4:
-        pixfrac = 0.8
-    else:
+    if len(asn_direct.exposures) < 4:
         pixfrac = 1.0
     
     if skysub:
@@ -549,8 +554,10 @@ blot_back(self, ii=0, SCI=True, WHT=True)
         blot weight extension to FLT+'.BLOT.WHT.fits'
         
         """
-        flt_orig = pyfits.open('../RAW/'+self.flt[ii]+'.fits.gz')
+        #flt_orig = pyfits.open('../RAW/'+self.flt[ii]+'.fits.gz')
+        flt_orig = pyfits.open(self.flt[ii]+'.fits')
         exptime = flt_orig[0].header.get('EXPTIME')
+        flt_orig.close()
         
         iraf.delete(self.flt[ii]+'.BLOT.*.fits')
         if SCI:

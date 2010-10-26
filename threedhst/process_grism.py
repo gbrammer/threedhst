@@ -267,14 +267,18 @@ Pipeline to process a set of grism/direct exposures.
     #### e.g. threedhst.options['ALIGN_IMAGE'] = '../ACS/h_sz*drz_img.fits'
     #############################################
     if threedhst.options['ALIGN_IMAGE']:
-        
-        #print "\n3DHST.process_grism: Aligning WCS\n"
-        threedhst.showMessage('Aligning WCS to %s'
-                  %threedhst.options['ALIGN_IMAGE'])
+      #### Have to run this twice because I'm note sure 
+      #### how to translate the reference point for rotation
+      #### into the FLT frame
+      for geom in ['rxyscale','shift']:  
+
+        threedhst.showMessage('Aligning WCS to %s (%s)'
+                  %(threedhst.options['ALIGN_IMAGE'], geom))
+                  
         #### Compute the alignment
         xshift, yshift, rot, scale = threedhst.shifts.align_to_reference(
                              ROOT_DIRECT,threedhst.options['ALIGN_IMAGE'],
-                             fitgeometry=threedhst.options['ALIGN_GEOMETRY'])
+                             fitgeometry=geom)                       #threedhst.options['ALIGN_GEOMETRY'])
         
         #### shifts measured in DRZ frame.  Translate to FLT frame
         drz = pyfits.open(ROOT_DIRECT+'_drz.fits')
@@ -283,7 +287,7 @@ Pipeline to process a set of grism/direct exposures.
         xsh = (xshift*np.cos(alpha)-yshift*np.sin(alpha))*np.float(mdrzRun.scl)
         ysh = (xshift*np.sin(alpha)+yshift*np.cos(alpha))*np.float(mdrzRun.scl)
         
-        print 'Final shift:', xsh, ysh, drz[1].header['PA_APER']
+        print 'Shift in FLT frame:', xsh, ysh, drz[1].header['PA_APER']
         fp = open(ROOT_DIRECT+'_align.info','w')
         fp.write('%s %8.3f %8.3f\n' 
                   %(threedhst.options['ALIGN_IMAGE'], xsh, ysh)) 
@@ -345,7 +349,8 @@ Pipeline to process a set of grism/direct exposures.
         #    updatewcs=no, Stdout=1)
                 
         cleanMultidrizzleOutput()
-        threedhst.currentRun['step'] = 'ALIGN_TO_REFERENCE'
+      
+      threedhst.currentRun['step'] = 'ALIGN_TO_REFERENCE'
         
     
     direct_mosaic = ROOT_DIRECT+'_drz.fits'
@@ -475,6 +480,8 @@ Pipeline to process a set of grism/direct exposures.
     #############################################
     #### Run aXe.iolprep to process the catalog as needed [[ in DATA directory]]
     #############################################
+    
+    threedhst.showMessage('Running aXe.iolprep')
     flprMulti()
     status = iraf.iolprep(mdrizzle_ima=ROOT_DIRECT+'_drz.fits',
                  input_cat=ROOT_DIRECT+'_drz.cat', Stdout=1)
@@ -486,6 +493,7 @@ Pipeline to process a set of grism/direct exposures.
     #############################################
     os.chdir('../')
     flprMulti()
+    threedhst.showMessage('Running aXe.axeprep')
     status = iraf.axeprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
         backgr=BACKGR, backims=SKY, mfwhm=3.0,norm="NO", Stdout=1)
     threedhst.currentRun['step'] = 'AXEPREP'
@@ -493,6 +501,8 @@ Pipeline to process a set of grism/direct exposures.
     #### Multidrizzle the grism images to flag cosmic rays
     os.chdir('./DATA')
     flprMulti()
+    threedhst.showMessage('Running MultiDrizzle on the grism exposures to flag cosmic rays\nand make grism mosaic.')
+    
     status = iraf.multidrizzle(input=asn_grism_file, 
                       shiftfile=ROOT_GRISM +  '_shifts.txt', 
                       output = '', final_scale = threedhst.options['DRZSCALE'], 
@@ -542,6 +552,10 @@ Pipeline to process a set of grism/direct exposures.
     # print "\n3DHST.proces_grism: iraf.FCUBEPREP\n"
     threedhst.showMessage('Prepare FLUXCUBE images with iraf.fcubeprep')
     
+    FLX_files = glob.glob('*FLX.fits')
+    for file in FLX_files:
+        os.remove(file)
+        
     flprMulti()
     status = iraf.fcubeprep(grism_image = ROOT_GRISM+'_drz.fits',
        segm_image = ROOT_DIRECT+'_seg.fits',
@@ -686,7 +700,7 @@ Pipeline to process a set of grism/direct exposures.
     
     if threedhst.options['CLEAN_UP']:
         rmfiles = glob.glob('*FLX.fits')
-        rmfiles = glob.glob('flux?.fits')
+        rmfiles.extend(glob.glob('flux?.fits'))
         rmfiles.extend(glob.glob('*_flt.fits'))
         rmfiles.extend(glob.glob('*flt_1.cat'))
         rmfiles.extend(glob.glob(ROOT_DIRECT+'*[SW][CH]?.fits'))

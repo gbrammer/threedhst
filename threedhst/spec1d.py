@@ -425,6 +425,7 @@ class spLineNew:
     ewMin = 0.
     continuum = 0.
     nsigma = 0.
+    sn = 0.
     restwave = 0.
     scale = 0.
     type = ''

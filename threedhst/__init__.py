@@ -19,6 +19,7 @@ import plotting
 import gmap
 import regions
 import spec1d   
+import TerminalController
 
 options = {}
 currentRun = {}
@@ -39,6 +40,7 @@ defaultOptions()
     for key in options.keys():
         pop = options.popitem()
     
+    options['DRIZZLE_PATH'] = './DRIZZLE_G141/'
     options['PATH_TO_RAW'] = '../RAW/'
     options['DETECT_THRESH'] = 5.     ## Default 1.5
     options['ANALYSIS_THRESH']  = 5.  ## Default 1.5

@@ -71,14 +71,14 @@ make_data_products()
     #############################################
     #### Direct image thumbnails
     #############################################
-    print '\nmakeThumbs: Creating direct image ' + \
+    print '\nTHREEDHST.plotting.makeThumbs: Creating direct image ' + \
           'thumbnails...\n\n'
     threedhst.plotting.makeThumbs(SPC, sexCat, path='../HTML/images/')
     
     fptar = tarfile.open('../HTML/images/'+ROOT_DIRECT+'_thumbs.tar.gz','w|gz')
     oldwd = os.getcwd()
     os.chdir('../HTML/images/')
-    files = glob.glob('*thumb.fits.gz')
+    files = glob.glob(ROOT_DIRECT+'*thumb.fits.gz')
     for file in files:
         fptar.add(file)
     fptar.close()
@@ -87,7 +87,7 @@ make_data_products()
     #############################################
     #### 1D spectra images
     #############################################
-    print '\nmakeSpec1dImages: Creating 1D spectra '+ \
+    print '\nTHREEDHST.plotting.makeSpec1dImages: Creating 1D spectra '+ \
           'thumbnails...\n\n'
     threedhst.plotting.makeSpec1dImages(SPC, path='../HTML/images/')
 
@@ -101,7 +101,7 @@ make_data_products()
     fptar = tarfile.open('../HTML/images/'+ROOT_DIRECT+'_2D.tar.gz','w|gz')
     oldwd = os.getcwd()
     os.chdir('../HTML/images/')
-    files = glob.glob('*2D.fits.gz')
+    files = glob.glob(ROOT_DIRECT+'*2D.fits.gz')
     for file in files:
         fptar.add(file)
     fptar.close()
@@ -120,84 +120,75 @@ make_data_products()
     except:
         pass
     
-    #### Make XML file of the catalog, coordinates and ID number
-    threedhst.gmap.makeCatXML(catFile=ROOT_DIRECT.lower()+'_drz.cat',
-                              xmlFile='../HTML/'+ROOT_DIRECT+'.xml')
+    mapParams = threedhst.gmap.makeAllTiles(ROOT_DIRECT, ROOT_GRISM)
     
-    threedhst.gmap.makeCirclePNG(outfile='../HTML/scripts/circle.php')            
-    
-    #### Need to swarp the drz images to the correct pixel scale for 
-    #### the pixel size of the google map tiles
-    m = threedhst.gmap.MercatorProjection()
-    aperpix = 1./np.array(m.pixels_per_lon_degree)*3600
-    sw = threedhst.sex.SWarp()
-    sw.swarpMatchImage(ROOT_DIRECT.lower()+'_drz.fits')
-    
-    ########### Prepare map tiles for different zoom levels:
-    ########### 0.07 x [1,2,4,8] arcsec/pix
-    first=True
-    for aper in range(13,17):
-        ### base image
-        sw.options['IMAGE_SIZE']='0'
-        sw.options['PIXELSCALE_TYPE']='MANUAL'
-        sw.options['PIXEL_SCALE']='%10.6f' %aperpix[aper]
-        
-        #### Direct
-        sw.swarpImage(ROOT_DIRECT.lower()+'_drz.fits[1]', mode='direct')
-        im = pyfits.open('coadd.fits')
-        #im[0].data *= 4**(aper-15)
-        if aper <= 14:
-            im[0].data /= 2
-        im.writeto('scale.fits', clobber=True)
-        mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
-                                                 outPath='../HTML/tiles/',
-                                                 tileroot=ROOT_DIRECT+'_d',
-                                                 extension=0)
-        
-        if first:
-            mapParams=mapParamsD.copy()
-            first=False
+    # #### Make XML file of the catalog, coordinates and ID number
+    # threedhst.gmap.makeCatXML(catFile=ROOT_DIRECT.lower()+'_drz.cat',
+    #                           xmlFile='../HTML/'+ROOT_DIRECT+'.xml')
+    # 
+    # threedhst.gmap.makeCirclePNG(outfile='../HTML/scripts/circle.php')            
+    # 
+    # #### Need to swarp the drz images to the correct pixel scale for 
+    # #### the pixel size of the google map tiles
+    # m = threedhst.gmap.MercatorProjection()
+    # aperpix = 1./np.array(m.pixels_per_lon_degree)*3600
+    # sw = threedhst.sex.SWarp()
+    # sw.swarpMatchImage(ROOT_DIRECT.lower()+'_drz.fits')
+    # 
+    # ########### Prepare map tiles for different zoom levels:
+    # ########### 0.07 x [1,2,4,8] arcsec/pix
+    # for aper in range(13,17):
+    #     ### base image
+    #     sw.options['IMAGE_SIZE']='0'
+    #     sw.options['PIXELSCALE_TYPE']='MANUAL'
+    #     sw.options['PIXEL_SCALE']='%10.6f' %aperpix[aper]
+    #     
+    #     zmin = -0.1
+    #     zmax = 1
+    #     
+    #     if aper == 16:
+    #         zmin*=0.2
+    #         zmax*=0.2
+    #     
+    #     #### Direct
+    #     sw.swarpImage(ROOT_DIRECT.lower()+'_drz.fits[1]', mode='direct')
+    #     im = pyfits.open('coadd.fits')
+    #     #im[0].data *= 4**(aper-15)
+    #     if aper <= 14:
+    #         im[0].data /= 2
+    #     im.writeto('scale.fits', clobber=True)
+    #     mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
+    #                                              outPath='../HTML/tiles/',
+    #                                              tileroot=ROOT_DIRECT+'_d',
+    #                                              extension=0)
+    #     
+    #     if (aper == 16):
+    #         mapParams=mapParamsD.copy()
+    #         
+    #     #### Grism
+    #     sw.swarpImage(ROOT_GRISM.lower()+'_drz.fits[1]', mode='direct')
+    #     im = pyfits.open('coadd.fits')
+    #     #im[0].data *= 4**(aper-15)
+    #     if aper <= 14:
+    #         im[0].data /= 2
+    #     im.writeto('scale.fits', clobber=True)
+    #     mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
+    #                                              outPath='../HTML/tiles/',
+    #                                              tileroot=ROOT_DIRECT+'_g',
+    #                                              extension=0)
+    #     
+    #     #### Model
+    #     sw.swarpImage(ROOT_GRISM.lower()+'CONT_drz.fits[1]', mode='direct')
+    #     im = pyfits.open('coadd.fits')
+    #     #im[0].data *= 4**(aper-15)
+    #     if aper <= 14:
+    #         im[0].data /= 2
+    #     im.writeto('scale.fits', clobber=True)
+    #     mapParamsM = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
+    #                                              outPath='../HTML/tiles/',
+    #                                              tileroot=ROOT_DIRECT+'_m',
+    #                                              extension=0)
             
-        #### Grism
-        sw.swarpImage(ROOT_GRISM.lower()+'_drz.fits[1]', mode='direct')
-        im = pyfits.open('coadd.fits')
-        #im[0].data *= 4**(aper-15)
-        if aper <= 14:
-            im[0].data /= 2
-        im.writeto('scale.fits', clobber=True)
-        mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
-                                                 outPath='../HTML/tiles/',
-                                                 tileroot=ROOT_DIRECT+'_g',
-                                                 extension=0)
-        
-        #### Model
-        sw.swarpImage(ROOT_GRISM.lower()+'CONT_drz.fits[1]', mode='direct')
-        im = pyfits.open('coadd.fits')
-        #im[0].data *= 4**(aper-15)
-        if aper <= 14:
-            im[0].data /= 2
-        im.writeto('scale.fits', clobber=True)
-        mapParamsM = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
-                                                 outPath='../HTML/tiles/',
-                                                 tileroot=ROOT_DIRECT+'_m',
-                                                 extension=0)
-        
-    # #### direct tiles
-    # mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile=
-    #                                          ROOT_DIRECT.lower()+'_drz.fits',
-    #                                          outPath='../HTML/tiles/',
-    #                                          tileroot=ROOT_DIRECT+'_d')
-    # #### grism tiles
-    # mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile=
-    #                                          ROOT_GRISM.lower()+'_drz.fits',
-    #                                          outPath='../HTML/tiles/',
-    #                                          tileroot=ROOT_DIRECT+'_g')
-    # #### model tiles                           
-    # mapParamsM = threedhst.gmap.makeGMapTiles(fitsfile=
-    #                                          ROOT_GRISM.lower()+'CONT_drz.fits',
-    #                                          outPath='../HTML/tiles/',
-    #                                          tileroot=ROOT_DIRECT+'_m')
-    
     #### Done making the map tiles
     threedhst.currentRun['step'] = 'MAKE_GMAP_TILES'
     
@@ -327,6 +318,8 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     drz_image = mySexCat.filename.split('.cat')[0]+'.fits'
     drz = pyfits.open(drz_image)
     drz_header = drz['SCI'].header
+    drz_y, drz_x = drz['SCI'].data.shape
+    
     orient = drz_header['PA_APER']
     pixel_scale = np.abs(drz_header['CD1_1']*3600.)
     ra_ref = mySexCat.X_WORLD[idx]
@@ -346,9 +339,22 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     for old_file in old_files:
         #print old_file
         os.remove(old_file)
-            
-    iraf.imcopy(drz_image+'[SCI][%d:%d,%d:%d]' %(xpix-3*size, xpix+3*size, 
-                  ypix-3*size, ypix+3*size), '/tmp/subSCI.fits',
+    
+    # print xpix, ypix, 3*size, '\n\n'
+    
+    #return
+    
+    # print 'pix\n\n',drz_x, drz_y, xpix+3*size, ypix+3*size, 3*size
+    # print (np.max([xpix-3*size,1]),
+    #               np.min([xpix+3*size, drz_x]),
+    #               np.max([ypix-3*size,1]),
+    #               np.min([ypix+3*size, drz_y]))
+    # print '\n\ntest'
+                  
+    iraf.imcopy(drz_image+'[SCI][%d:%d,%d:%d]' %(np.max([xpix-3*size,1]),
+                  np.min([xpix+3*size, drz_x-5]),
+                  np.max([ypix-3*size,1]),
+                  np.min([ypix+3*size, drz_y-5])), '/tmp/subSCI.fits',
                   verbose=iraf.no)
     # iraf.imcopy(drz_image+'[WHT][%d:%d,%d:%d]' %(xpix-3*size, xpix+3*size, 
     #               ypix-3*size, ypix+3*size), '/tmp/subWHT.fits',
@@ -389,7 +395,27 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
        orient = orient, dr2gpar = "", expkey = 'exptime', in_un = 'cps', \
        out_un = 'cps', fillval = '0', mode = 'al', Stdout=1)
     
-    # print status[-1]+'\n'
+    #### Sometimes imcopy/wdrizzle breaks.  Run from larger DRZ file
+    #### directly if it does
+    if not status[-1].startswith('-Writing output'):
+        #print 'HERE\n\n'
+        data_img = drz_image+'[1]'
+        mask_img = drz_image+'[2]'
+        status = iraf.wdrizzle(data = data_img, outdata = fitsfile, \
+           outweig = "", outcont = "", in_mask = mask_img, 
+           wt_scl = 'exptime', \
+           outnx = size, outny = size, geomode = 'wcs', kernel = 'square', \
+           pixfrac = 1.0, coeffs = "", lamb = 1392., xgeoim = "", ygeoim = "", \
+           align = 'center', scale = 1.0, xsh = 0.0, ysh = 0.0, rot = 0.0, \
+           shft_un = 'input', shft_fr = 'input', outscl = pixel_scale, \
+           raref = ra_ref, decref = dec_ref, xrefpix = size/2+0.5, yrefpix = size/2+0.5, \
+           orient = orient, dr2gpar = "", expkey = 'exptime', in_un = 'cps', \
+           out_un = 'cps', fillval = '0', mode = 'al', Stdout=1)
+        
+        if not status[-1].startswith('-Writing output'):
+            return 
+            
+    #print status[-1]+'\n'
     
     ####  !!!!!!!!!!! Should do the same here for the segmentation image, but
     ####  rotating the segmentation image doesn't work very well for fractional
@@ -601,6 +627,9 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
                close_window=False, show_test_lines=False)
     """
     import os
+    import scipy.optimize
+    from scipy.interpolate import interp1d
+    
     #import threedhst.plotting as pl
     #reload pl
     #self = pl.SPCFile('ib3721050_2_opt.SPC.fits')
@@ -609,7 +638,8 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     #object_number = 42
     spec = SPCFile.getSpec(object_number)
     flux = spec.field('FLUX')
-    ferr = spec.field('FERROR')
+    ferr = spec.field('FERROR')*np.float(threedhst.options['DRZSCALE'])/0.128254
+    
     contam = spec.field('CONTAM')
     lam  = spec.field('LAMBDA')
         
@@ -650,15 +680,44 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
         weight = sdss_lines.gal_weight
         #weight = sdss_lines.qso_weight
         sdss_use = np.where(np.array(weight) > -10)[0]
-        
+                
         iline=0
-        for line in lines:
-            if (line.flag == 'ok') & (line.type=='em'):
-                #print iline
+        for il, line in enumerate(lines):
+            if (line.flag == 'ok') & (line.type.startswith('em')):
+
                 ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),
                         color='black',linewidth=2,alpha=0.2)
                 ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),'--',
                         color='orange',linewidth=2,alpha=0.7)
+                
+                ### Fit a gaussian to the line position
+                near = np.where(np.abs(lam-line.wave) < 800)[0]                                         
+                if len(near) > 2:                    
+                    p0 = np.array([np.max(flux[near]), line.wave,
+                         50, np.median(flux[sub]), 0.])
+                    fi = interp1d(lam[near], (flux-contam)[near], kind='cubic')       
+                    xnew = np.linspace(lam[near[0]], lam[near[-1]], len(near)*3)
+                    pout = threedhst.plotting.gaussfit(xnew, fi(xnew), p0)
+                    #print p0, pout[2][0]
+                    #print pout[2][4]
+                    
+                    #### If gaussian fit successful, update line parameters
+                    #### with fit results
+                    if pout[2][4] <= 4:
+                        line.wave = pout[2][0][1]
+                        line.sigma = pout[2][0][2]
+                        line.ew = pout[1]
+
+                        # S/N at line peak
+                        npeak = np.where(np.abs(lam-line.wave) ==
+                                         np.min(np.abs(lam-line.wave)))[0]
+                        line.sn = pout[2][0][0]/ferr[npeak]
+                        line.type = 'emgauss'
+
+                        #lines[il] = line
+
+                        ax.plot(xnew,pout[0], color='green', linewidth=4, alpha=0.3)
+                    
                 ### show assuming line is OII, OIII, Ha
                 compare_lines = np.array([3727., 5007, 6563.])
                 if show_test_lines: 
@@ -688,7 +747,7 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
                         color='black',linewidth=2,alpha=0.2)
                 ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),'--',
                         color='green',linewidth=2,alpha=0.7)
-                out_lines.append(line)
+                #out_lines.append(line)
                 
             if (line.flag == 'artifact') & (line.type=='abs'):
                 ax.plot(line.wave*np.array([1,1]),np.array([-1,1]),'--',
@@ -723,6 +782,50 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
         pyplot.close()
     
     return out_lines
+
+def test_gaussfit():
+    import numpy as np
+    import matplotlib.pyplot as plt
+    
+    fitfunc = lambda p, x: p[0]*np.exp(-(x-p[1])**2/(2.0*p[2]**2))+p[3]+p[4]*(x-p[1])/1.e4
+    continuum = lambda p, x: p[3]+p[4]*(x-p[1])/1.e4
+    
+    x = np.arange(-10,10,0.1)
+    pp = np.array([3, 0, 0.5, 1., 0.])
+    yin = fitfunc(pp, x)+np.random.normal(size=len(x))*0.4
+    
+    pfit = threedhst.plotting.gaussfit(x,yin,pp*0.1)
+    
+    plt.plot(x,yin,color='red',marker='o')
+    plt.plot(x,fitfunc(pfit[2][0], x),color='blue')
+    plt.plot(x,continuum(pfit[2][0], x),color='green')
+    
+    
+def gaussfit(x,y,p0):
+    import scipy
+    import scipy.optimize
+    import numpy as np
+    
+    # define a gaussian fitting function where
+    # p[0] = amplitude
+    # p[1] = mean
+    # p[2] = sigma
+    fitfunc = lambda p, x: p[0]*np.exp(-(x-p[1])**2/(2.0*p[2]**2))+p[3]+p[4]*(x-p[1])/1.e4
+    #fitfunc = lambda p, x: p[0]*x+p[1]
+    continuum = lambda p, x: p[3]+p[4]*(x-p[1])/1.e4
+    
+    errfunc = lambda p, x, y: (fitfunc(p,x)-y)
+    
+    output = scipy.optimize.leastsq(errfunc, p0.copy(),
+                     args=(x,y),
+                     full_output=True)
+    
+    yfit = fitfunc(output[0], x)
+    cont = continuum(output[0], x)
+    eqwidth = np.trapz(1-yfit/cont, x)
+    
+    #print output
+    return [yfit, eqwidth, output]
     
 def makeSpec1dImages(SPCFile, path='./HTML/'):
     """
@@ -737,7 +840,7 @@ def makeSpec1dImages(SPCFile, path='./HTML/'):
     ids.sort()
     
     fp = open(path+'/'+root+'_1D_lines.info','w')
-    
+    fp.write('# id lambda sigma eqw snpeak\n# 4 parameters for each detected em. line\n')
     for id in ids:
         idstr = '%04d' %id
         print noNewLine+'plotting.makeSpec1dImages: %s_%s_1D.png' %(root, idstr)
@@ -747,10 +850,10 @@ def makeSpec1dImages(SPCFile, path='./HTML/'):
         
         str = '%5d' %id
         for line in lines:
-            if line.type == 'em':
-                str+='  %8.1f' %line.wave
+            if line.type == 'emgauss':
+                str+='   %8.1f %8.1f %9.1e %7.1f' %(line.wave, line.sigma, line.ew, line.sn)
             if line.type == 'abs':
-                str+='  %8.1f' %(-1*line.wave)
+                str+='   %8.1f' %(-1*line.wave)
                 
         fp.write(str+'\n')
     
@@ -1451,11 +1554,16 @@ asciiSpec(SPCFile, root="spec", path="../HTML/ascii")
     ids.sort()
     noNewLine = '\x1b[1A\x1b[1M'
     
+    #### hack: errors seem too large when you use 
+    #### drizzle with updated DRZSCALE parameter.
+    #### scale by DRZSCALE/0.128254
+    ERROR_SCALE = np.float(threedhst.options['DRZSCALE'])/0.128254
+    
     for id in ids:
         spec = SPCFile.getSpec(id)
         lam  = spec.field('LAMBDA')
         flux = spec.field('FLUX')
-        ferr = spec.field('FERROR')
+        ferr = spec.field('FERROR')*ERROR_SCALE
         contam = spec.field('CONTAM')
     
         out = root+'_%04d.dat' %id

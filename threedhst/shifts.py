@@ -21,7 +21,7 @@ no = iraf.no
 yes = iraf.yes
 INDEF = iraf.INDEF
 
-def run_tweakshifts(asn_direct):
+def run_tweakshifts(asn_direct, verbose=False):
     """
 run_tweakshifts(asn_direct)
     
@@ -51,12 +51,16 @@ run_tweakshifts(asn_direct)
        nbright = INDEF, refcat = '', refxcol = 1, refycol = 2, rfluxcol = 3, \
        rfluxmax = INDEF, rfluxmin = INDEF, rfluxunits = 'counts', \
        refnbright = INDEF, minobj = 15, nmatch = 30, matching = 'tolerance', \
-       xyxin = INDEF, xyyin = INDEF, tolerance = 1.0, fwhmpsf = 2.5, \
+       xyxin = INDEF, xyyin = INDEF, tolerance = 4.0, fwhmpsf = 1.5, \
        sigma = 0.0, datamin = INDEF, datamax = INDEF, threshold = 4.0, \
        nsigma = 1.5, fitgeometry = 'rxyscale', function = 'polynomial', \
        maxiter = 3, reject = 3.0, crossref = '', margin = 50, tapersz = 50, \
        pad = no, fwhm = 7.0, ellip = 0.05, pa = 45.0, fitbox = 7, \
     Stdout=1)
+    
+    if verbose:
+        for line in status:
+            print line
     
 def find_align_images_that_overlap(ROOT_DIRECT, ALIGN_IMAGE):
     """
@@ -89,9 +93,10 @@ align_img_list = find_align_images_that_overlap()
     
     return align_img_list
     
-def align_to_reference(ROOT_DIRECT, ALIGN_IMAGE, fitgeometry="shift"):
+def align_to_reference(ROOT_DIRECT, ALIGN_IMAGE, fitgeometry="shift",
+    clean=True, verbose=False):
     """
-xshift, yshift = align_to_reference()
+xshift, yshift, rot, scale = align_to_reference()
     """        
     import os
     import glob
@@ -99,7 +104,7 @@ xshift, yshift = align_to_reference()
     import numpy as np
     
     #### Clean slate    
-    rmfiles = ['SCI.fits','align.cat',
+    rmfiles = ['SCI.fits','WHT.fits','align.cat',
                'align.map','align.match','align.reg','align.xy', 
                ROOT_DIRECT+'_align.fits',
                'direct.cat','direct.reg','direct.xy']
@@ -129,7 +134,8 @@ xshift, yshift = align_to_reference()
     se.copyConvFile()
     se.overwrite = True
     se.options['CHECKIMAGE_TYPE'] = 'NONE'
-    se.options['WEIGHT_TYPE']     = 'NONE'
+    se.options['WEIGHT_TYPE']     = 'MAP_WEIGHT'
+    se.options['WEIGHT_IMAGE']    = 'WHT.fits'
     se.options['FILTER']    = 'Y'
     ## Detect thresholds (default = 1.5)
     se.options['DETECT_THRESH']    = '10' 
@@ -140,6 +146,7 @@ xshift, yshift = align_to_reference()
     ## direct image
     se.options['CATALOG_NAME']    = 'direct.cat'
     iraf.imcopy(ROOT_DIRECT+'_drz.fits[1]',"SCI.fits")
+    iraf.imcopy(ROOT_DIRECT+'_drz.fits[2]',"WHT.fits")
     status = se.sextractImage('SCI.fits')
     
     ## alignment image
@@ -182,7 +189,11 @@ xshift, yshift = align_to_reference()
         status1 = iraf.xyxymatch(input="direct.xy", reference="align.xy",
                        output="align.match",
                        tolerance=8, separation=0, verbose=yes, Stdout=1)
-
+        
+        if verbose:
+            for line in status1:
+                print line
+                
         #### Compute shifts with iraf.geomap
         iraf.flpr()
         iraf.flpr()
@@ -195,7 +206,10 @@ xshift, yshift = align_to_reference()
                     fitgeometry=fitgeometry, interactive=no, 
                     xmin=INDEF, xmax=INDEF, ymin=INDEF, ymax=INDEF,
                     maxiter = 10, reject = 2.0, Stdout=1)
-    
+        if verbose:
+            for line in status2:
+                print line
+        
         #fp = open(root+'.iraf.log','a')
         #fp.writelines(status1)
         #fp.writelines(status2)
@@ -210,27 +224,29 @@ xshift, yshift = align_to_reference()
             if spl[0].startswith('yshift'):
                 yshift += float(spl[1])    
             if spl[0].startswith('xrotation'):
-                rot += float(spl[1])    
+                rot = float(spl[1])    
             if spl[0].startswith('xmag'):
-                scale *= float(spl[1])    
+                scale = float(spl[1])    
         
         fp.close()
         
         #os.system('wc align.match')
-        print 'Shift iteration #%d, xshift=%f, yshift=%f' %(IT, xshift, yshift)
+        print 'Shift iteration #%d, xshift=%f, yshift=%f, rot=%f, scl=%f' %(IT,
+            xshift, yshift, rot, scale)
         
     # shutil.copy('align.map',ROOT_DIRECT+'_align.map')
     
     #### Cleanup
-    rmfiles = ['SCI.fits','align.cat',
+    if clean:
+        rmfiles = ['SCI.fits','align.cat',
                'align.map','align.match','align.reg','align.xy',
                'direct.cat','direct.reg','direct.xy']
-    
-    for file in rmfiles:
-        try:
-            os.remove(file)
-        except:
-            pass
+        
+        for file in rmfiles:
+            try:
+                os.remove(file)
+            except:
+                pass
         
     return xshift, yshift, rot, scale
     
@@ -313,17 +329,20 @@ checkShiftfile(asn_direct)
     
     sf_file = asn_direct.split('_asn.fits')[0]+'_shifts.txt'
     sf = ShiftFile(sf_file)
+    flag=False
     for exp in asn.exposures:
         if exp+'_flt.fits' not in sf.images:
+            flag=True
             print 'Exposure, %s, not in %s' %(exp,sf_file)
-            print sf.nrows
+            #print sf.nrows
             sf.append(exp+'_flt.fits')
-            print sf.nrows
-    
-    sf.print_shiftfile('/tmp/shifts')
+            #print sf.nrows
             
-    #print "\n3DHST.shifts.checkShiftfile: %s looks OK.\n" %sf_file
-    threedhst.showMessage('Shiftfile, %s, looks OK' %sf_file)
+    if flag:
+        sf.print_shiftfile(sf_file)
+    else:       
+        #print "\n3DHST.shifts.checkShiftfile: %s looks OK.\n" %sf_file
+        threedhst.showMessage('Shiftfile, %s, looks OK' %sf_file)
     
 class ShiftFile():
     """
