@@ -15,7 +15,6 @@ import utils
 import shifts
 import sex
 import process_grism
-import process_grism_old
 import plotting
 import gmap
 import regions
