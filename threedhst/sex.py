@@ -462,27 +462,30 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         #### populate columns
         self._easy_columns()
         
-    def popItem(self, number, verbose=False):
+    def popItem(self, number_out, verbose=False):
         """
-        popItem(self, number, verbose=False)
+        popItem(self, NUMBER[s], verbose=False)
         
-        Pop an item from a SExtractor catalog.
+        Pop item id#NUMBER from a SExtractor catalog.
         """
         import numpy as np
         
         #### search for line with object NUMBER itself and pop it. 
-        #### Return message if number not found
-        numbers = self.columns[self.searchcol('NUMBER')].entry
-        if str(number) not in numbers:
-            return False
+        #### Return message if number not found)
+        numbers = list(np.cast[int](self.columns[self.searchcol('NUMBER')].entry))
         
-        #idx = np.where(numbers == str(number).strip()) #+len(self.headerlines)
-        for idx, ni in enumerate(numbers):
-            if ni == str(number):
-                break             
-        lineOut = self.rowlines.pop(idx)
-        if verbose:
-            print lineOut
+        for number in number_out:
+            if number not in numbers:
+                continue
+        
+            idx = np.where(numbers == number)[0]
+            
+            lineOut = self.rowlines.pop(idx)
+            num = numbers.pop(idx)
+            
+            if verbose:
+                print lineOut
+        
         
         allheads    = self.makeheads(self.headerlines)
         self.ncols  = len(allheads)

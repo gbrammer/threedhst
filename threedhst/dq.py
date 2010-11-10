@@ -327,15 +327,17 @@ checkAllDQ(clobber=False)
     import shutil
     import os
     
+    old_pwd = os.getcwd()+''
+    
     if copy_new_files:
         os.chdir(path_to_flt)
         asn_files = glob.glob('i*asn.fits')
         for file in asn_files:
             if (clobber is True) | (not os.path.exists('../DATA/'+file)):
-                shutil.copy(file,'../DATA/')
-                print 'Copy %s ../DATA' %file
+                shutil.copy(file,old_pwd)
+                print 'Copy %s to %s' %(file, old_pwd)
             
-        os.chdir('../DATA')
+        os.chdir(old_pwd)
     
     asn_files = glob.glob('i*asn.fits')
     

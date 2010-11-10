@@ -84,6 +84,9 @@ Eventually, use aXe to extract 2D spectra and then model them by hand.
 
 If you subtract the model image from the grism image, you see that the model is frequently more spatially extended than the actual spectra, i.e. there is a narrow core in the residual image.  Is this the result of parameters to the aXe IRAF tasks or is it coming from somewhere deep within aXe?  I would think that it would get the profiles right if it's using the direct image segmentation map, though perhaps there's a smoothing term somewhere when it is translated to the grism exposures.
 
+[[[[[[UPDATE 11/9/10]]]]]]
+  I found that lowering the SExtractor detection threshold helps to mitigate the problem that the observed spectra are more extended than the model spectra.  The model is only as extended as the segmentation image, which can miss faint wings with high values of the detection threshold.  I added a parameter "LIMITING_MAGNITUDE" to allow you to set a low detection threshold and then exclude many of the faintest objects you would find from the spectral analysis.
+
 --------
 
 ****
@@ -101,7 +104,6 @@ Possible causes:
     2) Something related to the fluxcube (e.g. zeropoints in other bands)
     3) Bug in aXe somewhere
     
-
 -------
 
 [[[[[ DONE ]]]]]
@@ -109,4 +111,10 @@ Possible causes:
 Have figured out how to add zoom to google map outputs.  New coordinate reference is (0,0), so need to update the HTML script accordingly.
 
 Add latitude center for computing coordinates.
+
+--------
+
+I have figured out in principle how to use a pre-computed direct image that is larger than the grism footprint in order to generate a contamination model that includes objects at the edge of the field.  In practice, there seems to be a bug, however in that the model spectra have a shift with respect to the grism exposures.  The shift is proportional to, but not equal to the size of the "dimension_info" extended boundaries.  Note also that "dimension_info" also appear to work contrary to the description in the aXe manual, i.e. dimension_info = 200,200,0,0 will include sources within 200 pix beyond the grism edges, rather than 200 < x < x_max+200.
+
+I can't find a hack fix for this (e.g. I tried forcing the FLX image WCS to be the same as the grism FLT images), so will need to check with the aXe people since the mode where you don't have a direct image for each grism exposure seems to be an important way to analyze the grism spectra (i.e. PEARS or the Riess program)
 

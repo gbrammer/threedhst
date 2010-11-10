@@ -21,7 +21,7 @@ no = iraf.no
 yes = iraf.yes
 INDEF = iraf.INDEF
 
-def run_tweakshifts(asn_direct, verbose=False):
+def run_tweakshifts(asn_direct, verbose=False, clean=True):
     """
 run_tweakshifts(asn_direct)
     
@@ -41,12 +41,17 @@ run_tweakshifts(asn_direct)
     iraf.flpr()
     iraf.flpr()
     iraf.flpr()
+    if clean:
+        clean=iraf.yes
+    else:
+        clean=iraf.no
+        
     status = iraf.tweakshifts(input=asn_direct, shiftfile='',
                      reference=root+'_tweak.fits',
                      output = root+'_shifts.txt', findmode = 'catalog',
                      gencatalog = 'daofind', sextractpars = '', 
                      undistort = yes, computesig = yes, idckey = 'idctab', \
-       clean = yes, verbose = no, catfile = '', xcol = 1, ycol = 2, \
+       clean = clean, verbose = no, catfile = '', xcol = 1, ycol = 2, \
        fluxcol = 3, fluxmax = INDEF, fluxmin = INDEF, fluxunits = 'counts', \
        nbright = INDEF, refcat = '', refxcol = 1, refycol = 2, rfluxcol = 3, \
        rfluxmax = INDEF, rfluxmin = INDEF, rfluxunits = 'counts', \
@@ -62,7 +67,7 @@ run_tweakshifts(asn_direct)
         for line in status:
             print line
     
-def find_align_images_that_overlap(ROOT_DIRECT, ALIGN_IMAGE):
+def find_align_images_that_overlap(DIRECT_MOSAIC, ALIGN_IMAGE):
     """
 align_img_list = find_align_images_that_overlap()
     
@@ -81,7 +86,7 @@ align_img_list = find_align_images_that_overlap()
     align_images = glob.glob(ALIGN_IMAGE)
     
     #### Get polygon of the direct mosaic edges
-    px, py = threedhst.regions.wcs_polygon(ROOT_DIRECT+'_drz.fits', extension=1)
+    px, py = threedhst.regions.wcs_polygon(DIRECT_MOSAIC, extension=1)
     
     #### Loop through align_images and check if they overlap with the 
     #### direct mosaic
@@ -92,6 +97,52 @@ align_img_list = find_align_images_that_overlap()
             align_img_list.append(align_image)
     
     return align_img_list
+
+def refine_shifts(ROOT_DIRECT='f160w',
+                  ALIGN_IMAGE='../../ACS/h_sz*drz_img.fits',
+                  fitgeometry='shift', clean=True):
+    """
+refine_shifts(ROOT_DIRECT='f160w',
+              ALIGN_IMAGE='../../ACS/h_sz*drz_img.fits',
+              fitgeometry='shift', clean=True)
+                
+    Refine shifts by catalog matching an input multidrizzle image, 
+    ROOT_DIRECT+'_drz.fits' to one or more alignment images
+    """
+    import numpy as np
+    
+    threedhst.showMessage('Aligning WCS to %s (%s)'
+              %(threedhst.options['ALIGN_IMAGE'], fitgeometry))
+    
+    run = threedhst.process_grism.MultidrizzleRun(ROOT_DIRECT.upper())
+    
+    xshift, yshift, rot, scale = threedhst.shifts.align_to_reference(
+                        ROOT_DIRECT,
+                        ALIGN_IMAGE,
+                        fitgeometry=fitgeometry, clean=clean)
+
+    #### shifts measured in DRZ frame.  Translate to FLT frame
+    drz = pyfits.open(ROOT_DIRECT+'_drz.fits')
+    alpha = (180.-drz[1].header['PA_APER'])/360.*2*np.pi
+    
+    xsh = (xshift*np.cos(alpha)-yshift*np.sin(alpha))*np.float(run.scl)
+    ysh = (xshift*np.sin(alpha)+yshift*np.cos(alpha))*np.float(run.scl)
+
+    print 'Final shift:', xsh, ysh, drz[1].header['PA_APER']
+    fp = open(ROOT_DIRECT+'_align.info','w')
+    fp.write('%s %8.3f %8.3f %8.3f\n' %(ALIGN_IMAGE, xsh, ysh, rot)) 
+    fp.close()
+    
+    #### Read the shiftfile       
+    shiftF = threedhst.shifts.ShiftFile(ROOT_DIRECT+'_shifts.txt')
+    
+    #### Apply the alignment shifts to the shiftfile
+    shiftF.xshift = list(np.array(shiftF.xshift)-xsh)
+    shiftF.yshift = list(np.array(shiftF.yshift)-ysh)
+    shiftF.rotate = list((np.array(shiftF.rotate)+rot) % 360)
+    shiftF.scale = list(np.array(shiftF.scale)*scale)
+    
+    shiftF.print_shiftfile(ROOT_DIRECT+'_shifts.txt')
     
 def align_to_reference(ROOT_DIRECT, ALIGN_IMAGE, fitgeometry="shift",
     clean=True, verbose=False):
@@ -116,7 +167,8 @@ xshift, yshift, rot, scale = align_to_reference()
             pass
                 
     #### Get only images that overlap from the ALIGN_IMAGE list    
-    align_img_list = find_align_images_that_overlap(ROOT_DIRECT, ALIGN_IMAGE)
+    align_img_list = find_align_images_that_overlap(ROOT_DIRECT+'_drz.fits',
+                                                    ALIGN_IMAGE)
     if not align_img_list:
         print 'threedhst.shifts.align_to_reference: no alignment images overlap.'
         return 0,0
@@ -233,6 +285,8 @@ xshift, yshift, rot, scale = align_to_reference()
         #os.system('wc align.match')
         print 'Shift iteration #%d, xshift=%f, yshift=%f, rot=%f, scl=%f' %(IT,
             xshift, yshift, rot, scale)
+    
+    im = pyfits.open('SCI.fits')
         
     # shutil.copy('align.map',ROOT_DIRECT+'_align.map')
     
@@ -291,7 +345,32 @@ matchImagePixels(input=None,matchImage=None,output=None,
     status = sw.swarpImage(input,mode='direct')
     os.remove('coadd.weight.fits')
 
-
+def make_blank_shiftfile(asn_file='ib3721050_asn.fits',
+    xshift=0, yshift=0, rot=0., scale=1.0):
+    """
+make_blank_shiftfile(asn_file='ib3721050_asn.fits',
+        xshift=0, yshift=0, rot=0., scale=1.0)
+    
+    Make a shiftfile with empty shifts and rotations for all exposures defined
+    in an ASN file.
+    """
+    import threedhst
+    
+    asn = threedhst.utils.ASNFile(asn_file)
+    root = asn_file.split('_asn.fits')[0]
+    out = root+'_shifts.txt'
+    
+    fp = open(out,'w')
+    fp.write("""# frame: output
+# refimage: %s_flt.fits[1]
+# form: delta 
+# units: pixels\n""" %(asn.exposures[0]))
+    
+    for exp in asn.exposures:
+        fp.write("%s_flt.fits %10.4f %10.4f %10.4f %10.4f\n" %(exp, xshift, yshift, rot, scale))
+    
+    fp.close()
+    
 def make_grism_shiftfile(asn_direct, asn_grism):
     """
 make_grism_shiftfile(asn_direct, grism_direct)

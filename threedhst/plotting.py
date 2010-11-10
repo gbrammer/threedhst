@@ -315,7 +315,9 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     head = mef['SCI'].header
     size = head['NAXIS2']
     
-    drz_image = mySexCat.filename.split('.cat')[0]+'.fits'
+    #drz_image = mySexCat.filename.split('.cat')[0]+'.fits'
+    drz_image = threedhst.options['DIRECT_MOSAIC']
+    
     drz = pyfits.open(drz_image)
     drz_header = drz['SCI'].header
     drz_y, drz_x = drz['SCI'].data.shape
@@ -335,7 +337,7 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     data_img = '/tmp/subSCI.fits'
     mask_img = '/tmp/subWHT.fits'
     
-    old_files = glob.glob('/tmp/sub[SW]??.fits')
+    old_files = glob.glob('/tmp/sub[SW]*.fits')
     for old_file in old_files:
         #print old_file
         os.remove(old_file)
@@ -354,26 +356,53 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     iraf.imcopy(drz_image+'[SCI][%d:%d,%d:%d]' %(np.max([xpix-3*size,1]),
                   np.min([xpix+3*size, drz_x-5]),
                   np.max([ypix-3*size,1]),
-                  np.min([ypix+3*size, drz_y-5])), '/tmp/subSCI.fits',
+                  np.min([ypix+3*size, drz_y-5])), '/tmp/subSCIa.fits',
                   verbose=iraf.no)
     # iraf.imcopy(drz_image+'[WHT][%d:%d,%d:%d]' %(xpix-3*size, xpix+3*size, 
     #               ypix-3*size, ypix+3*size), '/tmp/subWHT.fits',
     #               verbose=iraf.no)
     
     #### Imcopy misses a few WCS keywords (that are zero)
-    iraf.hedit('/tmp/subSCI.fits','CD1_2',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
-    iraf.hedit('/tmp/subSCI.fits','CD2_1',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
+    iraf.hedit('/tmp/subSCIa.fits','CD1_2',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
+    iraf.hedit('/tmp/subSCIa.fits','CD2_1',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
     # iraf.hedit('/tmp/subWHT.fits','CD1_2',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
     # iraf.hedit('/tmp/subWHT.fits','CD2_1',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
     # 
     # iraf.wcscopy(images='/tmp/tmpWHT.fits',refimages='/tmp/subSCI.fits',
     #      verbose=iraf.no)
+    
+    sci = pyfits.open('/tmp/subSCIa.fits')
+    sci[0].data = sci[0].data*0+1
+    sci.writeto('/tmp/subWHTa.fits', clobber=True)
+
     fitsfile = (os.path.dirname(outfile)+'/'+
                 os.path.basename(outfile).split('.png')[0]+'.fits')
     
-    sci = pyfits.open('/tmp/subSCI.fits')
-    sci[0].data = sci[0].data*0+1
-    sci.writeto('/tmp/subWHT.fits', clobber=True)
+    ### NEED TO STRIP FITS HEADER
+    im = pyfits.open('/tmp/subSCIa.fits')
+    sci = im[0].data
+                
+    s_hdu = pyfits.PrimaryHDU(sci)
+    s_list = pyfits.HDUList([s_hdu])
+    copy_keys = ['CTYPE1','CTYPE2','CRVAL1','CRVAL2','CRPIX1','CRPIX2','CD1_1','CD1_2','CD2_1','CD2_2','LTM1_1','LTM2_2']
+    s_list[0].header.update('EXPTIME',im[0].header.get('EXPTIME'))
+    s_list[0].header.update('CDELT1',im[0].header.get('CD1_1'))
+    s_list[0].header.update('CDELT2',im[0].header.get('CD2_2'))
+    for key in copy_keys:
+        s_list[0].header.update(key, im[0].header.get(key))
+    s_list.writeto('/tmp/subSCI.fits', clobber=True)
+    
+    im = pyfits.open('/tmp/subWHTa.fits')
+    sci = im[0].data
+    w_hdu = pyfits.PrimaryHDU(sci)
+    w_list = pyfits.HDUList([w_hdu])
+    copy_keys = ['CTYPE1','CTYPE2','CRVAL1','CRVAL2','CRPIX1','CRPIX2','CD1_1','CD1_2','CD2_1','CD2_2','LTM1_1','LTM2_2']
+    w_list[0].header.update('EXPTIME',im[0].header.get('EXPTIME'))
+    w_list[0].header.update('CDELT1',im[0].header.get('CD1_1'))
+    w_list[0].header.update('CDELT2',im[0].header.get('CD2_2'))
+    for key in copy_keys:
+        w_list[0].header.update(key, im[0].header.get(key))
+    w_list.writeto('/tmp/subWHT.fits', clobber=True)
     
     old_files = glob.glob(fitsfile+'*')
     for old_file in old_files:
@@ -384,7 +413,9 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     
     threedhst.process_grism.flprMulti()
     
-    status = iraf.wdrizzle(data = data_img, outdata = fitsfile, \
+    wdrizzle_fail=False
+    try:
+      status = iraf.wdrizzle(data = data_img, outdata = fitsfile, \
        outweig = "", outcont = "", in_mask = mask_img, 
        wt_scl = 'exptime', \
        outnx = size, outny = size, geomode = 'wcs', kernel = 'square', \
@@ -394,11 +425,16 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
        raref = ra_ref, decref = dec_ref, xrefpix = size/2+0.5, yrefpix = size/2+0.5, \
        orient = orient, dr2gpar = "", expkey = 'exptime', in_un = 'cps', \
        out_un = 'cps', fillval = '0', mode = 'al', Stdout=1)
-    
+      
+      wdrizzle_fail = not status[-1].startswith('-Writing output')
+      
+    except:
+        wdrizzle_fail=True
+        
     #### Sometimes imcopy/wdrizzle breaks.  Run from larger DRZ file
     #### directly if it does
-    if not status[-1].startswith('-Writing output'):
-        #print 'HERE\n\n'
+    if wdrizzle_fail:
+        print 'Redo WDRIZZLE\n\n'
         data_img = drz_image+'[1]'
         mask_img = drz_image+'[2]'
         status = iraf.wdrizzle(data = data_img, outdata = fitsfile, \
@@ -486,7 +522,9 @@ def makeThumbs(SPCFile, mySexCat, path='./HTML/'):
     import tarfile
     
     noNewLine = '\x1b[1A\x1b[1M'
-    im = pyfits.open(mySexCat.filename.split('.cat')[0]+'.fits')
+    # im = pyfits.open(mySexCat.filename.split('.cat')[0]+'.fits')
+    im = pyfits.open(threedhst.options['DIRECT_MOSAIC'])
+    
     dat = im[1].data
     root = os.path.basename(SPCFile.filename).split('_2')[0]
     ids = SPCFile._ext_map+0
@@ -502,10 +540,14 @@ def makeThumbs(SPCFile, mySexCat, path='./HTML/'):
         #           close_window=True)
         
 def plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
-               close_window=False):
+               close_window=False, clean=True):
     """
-    plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png', 
-               close_window=False)
+plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png', 
+    close_window=False, clean=True)
+    
+    Make plot of 2D spectrum comparing observed, model and contamination 
+    spectra.  If clean=True, then plot the cleaned-spectrum rather than the 
+    contamination in the bottom panel.
     """
     import os
     root = os.path.basename(SPCFile.filename).split('_2')[0]
@@ -568,8 +610,13 @@ def plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
     pyplot.ylabel('Model')
 
     ax = fig.add_subplot(313)
-    ax.imshow(0-mef['CON'].data, interpolation=interp, aspect=asp,
-              vmin=vmin,vmax=vmax)
+    if clean:
+        ax.imshow(0-(mef['SCI'].data-mef['CON'].data), interpolation=interp,    
+              aspect=asp, vmin=vmin,vmax=vmax)
+    else:
+        ax.imshow(0-mef['CON'].data, interpolation=interp, aspect=asp,
+               vmin=vmin,vmax=vmax)
+
     ax.set_xlim(xmin,xmax)
     ax.set_yticklabels([])
     ax.set_xticks((np.arange(np.ceil(lmin/1000.)*1000,
@@ -881,9 +928,10 @@ def makeHTML(SPCFile, mySexCat, mapParams,
 
     <script type="text/javascript" src="scripts/jquery.tablesorter.min.js"></script> 
 
-    <!--  www.astro.yale.edu/brammer/ --> 
+    <!--  www.astro.yale.edu/ --> 
     <!-- 
-    <script src="http://maps.google.com/maps?file=api&amp;v=3&amp;key=ABQIAAAAzSrfHr_4F2D2YfSuYQD2ZBSRvJBsXGI3t4UH99Pp8ZgdgIZDpRQ9Pmiw1tbadMh-1wRrE07VYIPVOg" type="text/javascript"></script> 
+    <script src="http://maps.google.com/maps?file=api&amp;v=3&amp;key=ABQIAAAAzSrfHr_4F2D2YfSuYQD2ZBTGxfEdj5ixTzExLHeue1TdBmBBTxSo_kKvXxnIoUhPTW743ryzjWdouQ"
+     type="text/javascript"></script> 
     --> 
     
     <!-- localhost -->
@@ -1299,6 +1347,12 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     
     """ %(title, title, title, title, title, title, title))
     
+    MAG_COLUMN = 'MAG_F1392W'
+    for col in mySexCat.column_names:
+        if col.startswith('MAG_F'):
+            MAG_COLUMN = col
+    MAG_COL_ID = mySexCat.searchcol(MAG_COLUMN)
+    
     lines.append("""
     
     <div id="content" style="width:840px;height:100%%;overflow:auto">
@@ -1309,14 +1363,14 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         <th width=50px>ID</th>
         <th width=100px>R.A.</th> 
         <th width=100px>Dec.</th> 
-        <th width=50px>Mag</th> 
+        <th width=50px>mag %s</th> 
         <th width=180px>Thumb</th> 
         <th width=260px>1D Spec</th> 
         <th width=260px>2D Spec</th> 
     </tr> 
     </thead> 
     <tbody> 
-    """)
+    """ %(MAG_COLUMN.split('MAG_')[1]))
         
     for id in SPCFile._ext_map:
         for idx,num in enumerate(mySexCat.NUMBER):
@@ -1325,7 +1379,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         
         ra  = mySexCat.X_WORLD[idx]
         dec = mySexCat.Y_WORLD[idx]
-        mag = mySexCat.MAG_F1392W[idx]
+        mag = mySexCat.getcol(MAG_COL_ID)[idx]
         
         img = '%s_%04d' %(root,id)
         lines.append("""

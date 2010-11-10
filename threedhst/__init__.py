@@ -15,6 +15,7 @@ import utils
 import shifts
 import sex
 import process_grism
+import process_grism_old
 import plotting
 import gmap
 import regions
@@ -40,13 +41,30 @@ defaultOptions()
     for key in options.keys():
         pop = options.popitem()
     
+    #### Optionally supply a ready-made direct image
+    #### that you will match the grism image to.  Useful
+    #### for when you have an existing mosaic that extends
+    #### beyond the coverage of a few simple direct images.
+    options['PREFAB_DIRECT_IMAGE'] = None
+    options['PREFAB_GRISM_IMAGE'] = None
+    
+    #### Use the direct mosaic as a reference for making the catalog.
+    #### Assumes one-to-one grism/direct exposures.  Set to 'GRISM'
+    #### if you want to use the grism mosaic as a reference for splitting
+    #### the individual exposures, i.e. with PREFAB direct/images
+    options['CATALOG_MODE'] = 'DIRECT'
+    
+    #### Directories
     options['DRIZZLE_PATH'] = './DRIZZLE_G141/'
     options['PATH_TO_RAW'] = '../RAW/'
+    
+    #### General detection parameters
     options['DETECT_THRESH'] = 5.     ## Default 1.5
     options['ANALYSIS_THRESH']  = 5.  ## Default 1.5
     options['GRISM_NAME'] = 'G141'
     options['MAG_ZEROPOINT'] = 26.46
-            
+    options['FILTWAVE'] = 1392.
+    
     #### Make shiftfiles (required for multidrizzle)
     options['MAKE_SHIFTFILES'] = True
     #### WCS alignment image
@@ -76,13 +94,19 @@ defaultOptions()
     options['NFRAME_FOR_PIXFRAC'] = 4
     options['USED_PIXFRAC'] = '1.0'
     
+    #### Limiting (direct) magnitude for objects run through the grism 
+    #### reduction.  This is useful for cases where you want a very low 
+    #### DETECT_THRESH to get good segmentation images but don't want to
+    #### extract spectra for all of the faint sources.
+    options['LIMITING_MAGNITUDE'] = 99.
+    
     #### aXe extraction geometry
     #### currently set slitless_geom=NO, orient=NO in aXecore
     #### to get the 2D spectra to line up with the orientation
     #### of the direct thumbnail.
     options['FULL_EXTRACTION_GEOMETRY'] = False
     #### aXe adjust sensitivity - convolve grism throughput with source profile
-    options['AXE_ADJ_SENS'] = "YES"
+    options['AXE_ADJ_SENS'] = "NO"
     #### aXe extract with "optimal weights"
     options['AXE_OPT_EXTR'] = "YES"
 
@@ -133,7 +157,7 @@ def showOptions(to_file=None):
             fp.write('%s = %s\n' %(key,str(options[key])))
         fp.close()
 
-def showMessage(msg):
+def showMessage(msg, warn=False):
     """
 showMessage(msg)
     
@@ -166,10 +190,17 @@ showMessage(msg)
     NL = len(substr)
     bar = char*NL
     
-    print (term.BG_WHITE+term.BLUE+term.BOLD+'\n'+bar+
+    if warn:
+        text_color = term.WHITE
+        bg_color = term.BG_RED
+    else:
+        text_color = term.BLUE
+        bg_color = term.BG_WHITE
+        
+    print (bg_color+text_color+term.BOLD+'\n'+bar+
            '\n'+substr+'\n'+bar+'\n\n'+term.NORMAL+
            msg+'\n\n'+
-           term.BG_WHITE+term.BLUE+term.BOLD+bar+'\n'+term.NORMAL)
+           bg_color+text_color+term.BOLD+bar+'\n'+term.NORMAL)
     
     
     

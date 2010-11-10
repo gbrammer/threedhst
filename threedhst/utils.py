@@ -331,7 +331,10 @@ writeToFile(self,out_file=None, clobber=True)
                 tbhdu.data[i] = (self.exposures[i].upper(), 'EXP-DTH', True)
             if nprod > 0:
                 tbhdu.data[i+1] = (self.product, 'PROD-DTH', True)
+            
             tbhdu.header = self.in_fits[1].header.copy()
+            tbhdu.header.update('ASN_ID',out_file.split('_asn.fits')[0])
+            tbhdu.header.update('ASN_TAB',out_file)
             #### Create HDUList and write it to output file
             self.out_fits = pyfits.HDUList([hdu,tbhdu])
             self.out_fits.writeto(out_file, clobber=clobber)
@@ -368,8 +371,102 @@ append(self, new)
             self.exposures.extend(new.exposures)
     
 
+def combine_asn_shifts(asn_list, out_root='combined', path_to_FLT='./', 
+                       run_multidrizzle=False):
+    """
+combine_asn_shifts(asn_list, out_root='combined', path_to_FLT='./', 
+                   run_multidrizzle=False)
+                   
+    Combine a list of ASN tables and their associated shiftfiles into a single 
+    output, suitable for making a mosaic across visits with different
+    orientations.  The shifts determined by, e.g. `tweakshifts` are all relative
+    to the output WCS defined for the exposures in a given visit.  This 
+    reference frame will be different for different values of "PA_V3", so to 
+    combine the shifts into a single file, the different orientation angles
+    need to be taken into account.
+    
+    This routine combines the ASN tables and the shiftfiles, with the 
+    "reference" WCS taken from the first exposure of the first input ASN table.
+    Assuming that the shiftfiles all produce images registered to some *fixed*
+    reference WCS, this local reference doesn't really matter.
+    
+    The script looks for FLT images (gzipped or not) in the relative path
+    defined by ``path_to_FLT``.
+    
+    EXAMPLE: 
+    
+    $ ls *shifts.txt *asn.fits
+    ib3725050_asn.fits
+    ib3725050_shifts.txt
+    ib3726050_asn.fits
+    ib3726050_shifts.txt
+    ib3727050_asn.fits
+    ib3727050_shifts.txt
+    ib3728050_asn.fits
+    ib3728050_shifts.txt
+        
+    $ python
+    >>> import glob
+    >>> asn_files = glob.glob()
+    >>> combine_asn_shifts(asn_files, out_root='combined',
+                           run_multidrizzle=False)
+    """
+    import numpy as np
+    import pyfits
+    import threedhst.utils
+    import threedhst.shifts
+    
+    #### "Reference WCS is the first set of exposures"
+    asn_ref = threedhst.utils.ASNFile(asn_list[0])
+    shift_ref = threedhst.shifts.ShiftFile(asn_list[0].split('_asn.fits')[0]+'_shifts.txt')
+    
+    #### Set WCS reference to first image rather than 'tweak.fits'
+    shift_ref.headerlines[1] = '# refimage: %s_flt.fits[1]\n' %(asn_ref.exposures[0])
+    
+    #### Get PA_V3 angle of reference
+    fits = threedhst.utils.find_fits_gz('%s/%s_flt.fits' %(path_to_FLT, asn_ref.exposures[0]))
+    angle_ref = pyfits.getheader(fits).get('PA_V3')
+    
+    #### Loop through other ASN files
+    for asn_file in asn_list[1:]:
+        print asn_file
+        
+        #### Read the ASN file
+        asn = threedhst.utils.ASNFile(asn_file)
+        asn_ref.exposures.extend(asn.exposures)
+        
+        #### Get the PA_V3 angle of the first exposures in this ASN file
+        fits = threedhst.utils.find_fits_gz('%s/%s_flt.fits' %(path_to_FLT, asn.exposures[0]))
+        angle = pyfits.getheader(fits).get('PA_V3')
+        #### Difference angle between current and reference
+        alpha = (angle-angle_ref)/360.*2*np.pi
+                
+        #### Read the shifts and rotate them into reference frame
+        shift = threedhst.shifts.ShiftFile(asn_file.split('_asn.fits')[0]+'_shifts.txt')
+        for i,im in enumerate(shift.images):
+            xshift = shift.xshift[i]
+            yshift = shift.yshift[i]
+            xsh = (xshift*np.cos(alpha)-yshift*np.sin(alpha))
+            ysh = (xshift*np.sin(alpha)+yshift*np.cos(alpha))
+            shift_ref.append(im, xshift=xsh, yshift=ysh,
+                             rotate=shift.rotate[i], scale=shift.scale[i])
+    
+    #### Write ASN and shiftfiles
+    shift_ref.print_shiftfile('%s_shifts.txt' %(out_root))
+    asn_ref.product = out_root
+    asn_ref.writeToFile('%s_asn.fits' %(out_root))
+    
+    #### Run Multidrizzle with combined ASN and shifts
+    if run_multidrizzle:
+        run_asn = out_root+'_asn.fits'
+        threedhst.process_grism.fresh_flt_files(run_asn,
+            from_path='../../RAW')
+        
+        threedhst.prep_flt_files.startMultidrizzle(root=run_asn, 
+            use_shiftfile=True, skysub=True, final_scale=0.06, updatewcs=True, 
+            pixfrac=0.8)
 
-def asn_file_info(asn_file, verbose=1):
+def asn_file_info(asn_file, verbose=1, path_to_FLT = './'):
     """
 asn_file_info(asn_file, verbose=1)
     
@@ -391,7 +488,7 @@ asn_file_info(asn_file, verbose=1)
        '# flt_file  filter  exptime  date_obs  time_obs pos_targ1 pos_targ2')
     ##### Loop through flt files in ASN list
     for exp in asn.exposures:
-        flt_file = find_fits_gz(exp.lower()+'_flt.fits')
+        flt_file = find_fits_gz(path_to_FLT+'/'+exp.lower()+'_flt.fits')
         fp_flt = pyfits.open(flt_file)
         ##### Get general information from extension 0
         fp_header = fp_flt[0].header

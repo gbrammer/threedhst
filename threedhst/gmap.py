@@ -18,7 +18,7 @@ MAP_KEY = 'ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb' \
     '_rzgcy5bqzSaTV8cyi2Bgsx3g'
 
 def makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1,
-                  zmin=-0.1, zmax=1):
+                  zmin=-0.1, zmax=1, verbose=False):
     """
 makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1,
               zmin=-0.1, zmax=1)
@@ -171,6 +171,8 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1,
             outfile = outPath+'%s_%d_%d_%d.png' %(tileroot,
                             tileX0+i,tileY0+j,zoomLevel)
             subim.save(outfile)
+            if verbose: 
+                print 'threedhst.gmap: %s' %(outfile)
             #print outfile
             
     return params
@@ -181,7 +183,8 @@ def makeOtherTiles(reference_image='ib6o23020_drz.fits',
       other_ext = 0, zmin=-0.1, zmax=1,
       outPath='../HTML/tiles/', 
       tileroot='VLA', 
-      swarpmode='wait'):
+      swarpmode='wait',
+      rescale=True):
     """
 makeOtherTiles
     
@@ -227,10 +230,11 @@ makeOtherTiles
         sw.swarpImage('other_match.fits[1]', mode=swarpmode)
         im = pyfits.open('coadd.fits')
         #im[0].data *= 4**(aper-15)
-        if aper <= 14:
-            im[0].data /= 2
-        if aper == 16:
-            im[0].data *= 2
+        if rescale:
+            if aper <= 14:
+                im[0].data /= 3**np.abs(aper-15)
+            if aper == 16:
+                im[0].data *= 4
             
         im.writeto('scale.fits', clobber=True)
         mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
@@ -239,9 +243,9 @@ makeOtherTiles
                                                  extension=0,
                                                  zmin=zmin, zmax=zmax)
     
-def makeAllTiles(ROOT_DIRECT, ROOT_GRISM):
+def makeAllTiles(ROOT_DIRECT, ROOT_GRISM, zmin=-0.1, zmax=1, verbose=False):
     """
-mapParams = makeAllTiles(ROOT_DIRECT, ROOT_GRISM)
+mapParams = makeAllTiles(ROOT_DIRECT, ROOT_GRISM, zmin=-0.1, zmax=1)
     """
     import threedhst
     import pyfits
@@ -263,7 +267,8 @@ multiple times for each zoom level and image combination.
     m = threedhst.gmap.MercatorProjection()
     aperpix = 1./np.array(m.pixels_per_lon_degree)*3600
     sw = threedhst.sex.SWarp()
-    sw.swarpMatchImage(ROOT_DIRECT.lower()+'_drz.fits')
+    # sw.swarpMatchImage(ROOT_DIRECT.lower()+'_drz.fits')
+    sw.swarpMatchImage(threedhst.options['DIRECT_MOSAIC'])
     
     ########### Prepare map tiles for different zoom levels:
     ########### 0.07 x [1,2,4,8] arcsec/pix
@@ -277,11 +282,12 @@ multiple times for each zoom level and image combination.
         sw.options['PIXELSCALE_TYPE']='MANUAL'
         sw.options['PIXEL_SCALE']='%10.6f' %aperpix[aper]
         
-        zmin = -0.1
-        zmax = 1
+        zmi = zmin
+        zma = zmax
                 
         #### Direct
-        sw.swarpImage(ROOT_DIRECT.lower()+'_drz.fits[1]', mode='wait')
+        # sw.swarpImage(ROOT_DIRECT.lower()+'_drz.fits[1]', mode='wait')
+        sw.swarpImage(threedhst.options['DIRECT_MOSAIC']+'[1]', mode='wait')
         im = pyfits.open('coadd.fits')
         #im[0].data *= 4**(aper-15)
         if aper <= 14:
@@ -291,15 +297,16 @@ multiple times for each zoom level and image combination.
                                                  outPath='../HTML/tiles/',
                                                  tileroot=ROOT_DIRECT+'_d',
                                                  extension=0,
-                                                 zmin=zmin, zmax=zmax)
+                                                 zmin=zmi, zmax=zma,
+                                                 verbose=verbose)
         
         #### Get map parameters from high-resolution image
         if (aper == 16):
             mapParams=mapParamsD.copy()
         
         if aper == 16:
-            zmin*=0.2
-            zmax*=0.2
+            zmi*=0.2
+            zma*=0.2
             
         #### Grism
         sw.swarpImage(ROOT_GRISM.lower()+'_drz.fits[1]', mode='wait')
@@ -312,7 +319,8 @@ multiple times for each zoom level and image combination.
                                                  outPath='../HTML/tiles/',
                                                  tileroot=ROOT_DIRECT+'_g',
                                                  extension=0,
-                                                 zmin=zmin, zmax=zmax)
+                                                 zmin=zmi, zmax=zma,
+                                                 verbose=verbose)
         
         #### Model
         sw.swarpImage(ROOT_GRISM.lower()+'CONT_drz.fits[1]', mode='wait')
@@ -325,7 +333,8 @@ multiple times for each zoom level and image combination.
                                                  outPath='../HTML/tiles/',
                                                  tileroot=ROOT_DIRECT+'_m',
                                                  extension=0,
-                                                 zmin=zmin, zmax=zmax)
+                                                 zmin=zmi, zmax=zma,
+                                                 verbose=verbose)
         
     # #### direct tiles
     # mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile=
