@@ -129,8 +129,8 @@ try:
     import pysao
     options['PYSAO_INSTALLED'] = True
 except:
-    print 'No pysao installation found.'
     options['PYSAO_INSTALLED'] = False
+    print 'WARNING: No pysao installation found.  `threedhst.dq` won\'t work.'
 
 def showOptions(to_file=None):
     """
