@@ -130,7 +130,7 @@ try:
     options['PYSAO_INSTALLED'] = True
 except:
     options['PYSAO_INSTALLED'] = False
-    print '\nWARNING: No pysao installation found.  `threedhst.dq` won\'t work.\n'
+    print '\nWARNING: No pysao installation found.  `threedhst.dq` won\'t work\n but the reduction scripts should be OK.\n'
 
 def showOptions(to_file=None):
     """

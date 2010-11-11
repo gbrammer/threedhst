@@ -150,7 +150,6 @@ Pipeline to process a set of grism/direct exposures.
     import numpy as np
     import aXe2html.sexcat.sextractcat
     import threedhst.dq
-    from threedhst.TerminalController import TerminalController
     
     ############################################################################
     ####   Bookkeeping, set up DATA directory
@@ -586,8 +585,8 @@ Pipeline to process a set of grism/direct exposures.
         shutil.copy(direct_mosaic,'flux1.fits')
         shutil.copy(direct_mosaic,'flux2.fits')
         lines = ['flux1.fits, %6.1f, %s\n' %(threedhst.options['FILTWAVE']+50,mag_zeropoint),
-                   direct_mosaic+', %6.1f, %s\n' %(threedhst.options['FILTWAVE'], mag_zeropoint),
-                   'flux2.fits, %6.1f, %s\n' %(threedhst.options['FILTWAVE']-50,mag_zeropoint)]
+                   direct_mosaic+', %6.1f, %s\n' %(threedhst.options['FILTWAVE'], mag_zeropoint)] #,
+#                   'flux2.fits, %6.1f, %s\n' %(threedhst.options['FILTWAVE']-50,mag_zeropoint)]
     
     #### Make a 'zeropoints.lis' file needed for fcubeprep   
     fp = open('zeropoints.lis','w')
@@ -608,10 +607,10 @@ Pipeline to process a set of grism/direct exposures.
     #    filter_info = 'zeropoints.lis', AB_zero = yes, 
     #    dimension_info = '400,400,0,0', interpol="poly5")
 
-    status = iraf.fcubeprep(grism_image = ROOT_GRISM+'_drz.fits',
+    iraf.fcubeprep(grism_image = ROOT_GRISM+'_drz.fits',
        segm_image = ROOT_DIRECT+'_seg.fits',
        filter_info = 'zeropoints.lis', AB_zero = yes, 
-       dimension_info = '0,0,0,0', interpol="poly5", Stdout=1)
+       dimension_info = '0,0,0,0', interpol="poly5")
     
     # #### Try matching the FLX WCS to the grism images, could need to add shifts
     # flx_files = glob.glob('ib*FLX.fits')
@@ -641,13 +640,27 @@ Pipeline to process a set of grism/direct exposures.
     else:
         geom_yn = "NO"
         
+    # iraf.axecore(inlist=prep_name(asn_grism_file), configs=CONFIG,
+    #     back="NO",extrfwhm=5.0, drzfwhm=4.0, backfwhm=0.0,
+    #     slitless_geom=geom_yn, orient=geom_yn, exclude="NO", 
+    #     lambda_mark=threedhst.options['FILTWAVE'], 
+    #     cont_model="fluxcube", model_scale=4.0, 
+    #     lambda_psf=threedhst.options['FILTWAVE'],
+    #     inter_type="linear", np=10, interp=-1, smooth_lengt=0, smooth_fwhm=0.0,
+    #     spectr="NO", adj_sens=threedhst.options['AXE_ADJ_SENS'], weights="NO",
+    #     sampling="drizzle")
+        
+    #### Local background
+    #LOCAL_BACKGROUND="YES"
+    LOCAL_BACKGROUND="NO"
+    
     iraf.axecore(inlist=prep_name(asn_grism_file), configs=CONFIG,
-        back="NO",extrfwhm=5.0, drzfwhm=4.0, backfwhm=0.0,
+        back=LOCAL_BACKGROUND,extrfwhm=4.0, drzfwhm=3.0, backfwhm=4.0,
         slitless_geom=geom_yn, orient=geom_yn, exclude="NO", 
         lambda_mark=threedhst.options['FILTWAVE'], 
         cont_model="fluxcube", model_scale=4.0, 
         lambda_psf=threedhst.options['FILTWAVE'],
-        inter_type="linear", np=10, interp=-1, smooth_lengt=0, smooth_fwhm=0.0,
+        inter_type="linear", np=10, interp=0, smooth_lengt=0, smooth_fwhm=0.0,
         spectr="NO", adj_sens=threedhst.options['AXE_ADJ_SENS'], weights="NO",
         sampling="drizzle")
     
@@ -672,7 +685,7 @@ Pipeline to process a set of grism/direct exposures.
     threedhst.showMessage('Running iraf.drzprep')
     
     status = iraf.drzprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
-        opt_extr="YES", back="NO", Stdout=1)
+        opt_extr="YES", back=LOCAL_BACKGROUND, Stdout=1)
     
     threedhst.currentRun['step'] = 'DRZPREP'
         
@@ -686,7 +699,8 @@ Pipeline to process a set of grism/direct exposures.
     
     flprMulti()
     status = iraf.axedrizzle(inlist=prep_name(asn_grism_file), configs=CONFIG,
-                    infwhm=4.0,outfwhm=3.0, back="NO", makespc="YES",
+                    infwhm=4.0,outfwhm=3.0, back=LOCAL_BACKGROUND,
+                    makespc="YES",
                     opt_extr=threedhst.options['AXE_OPT_EXTR'],
                     adj_sens=threedhst.options['AXE_ADJ_SENS'], 
                     driz_separate='NO', Stdout=1)
@@ -711,7 +725,8 @@ Pipeline to process a set of grism/direct exposures.
         
         flprMulti()
         iraf.axedrizzle(inlist=prep_name(asn_grism_file), configs=CONFIG,
-                        infwhm=4.0,outfwhm=3.0, back="NO", makespc="YES",
+                        infwhm=4.0,outfwhm=3.0, back=LOCAL_BACKGROUND,
+                        makespc="YES",
                         opt_extr=threedhst.options['AXE_OPT_EXTR'], 
                         adj_sens=threedhst.options['AXE_ADJ_SENS'], 
                         driz_separate='YES',
