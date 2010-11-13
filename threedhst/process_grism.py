@@ -838,7 +838,7 @@ Pipeline to process a set of grism/direct exposures.
 
     os.chdir('../')
 
-    logfile = ROOT_DIRECT+'.threedhst.info'
+    logfile = ROOT_DIRECT+'.threedhst.param'
     print '\nthreedhst: Parameter log in <%s>.\n' %logfile
     
     threedhst.showOptions(to_file = logfile)
@@ -890,8 +890,8 @@ def fresh_flt_files(asn_filename, from_path="../RAW"):
         fi.writeto('./'+exp+'_flt.fits', clobber=True)
         
         #### Apply DQ mask (.mask.reg), if it exists
-        if threedhst.options['PYSAO_INSTALLED']:
-            threedhst.dq.apply_dq_mask(os.path.basename(fits_file), addval=2048)
+        threedhst.regions.apply_dq_mask(os.path.basename(fits_file),
+                                        addval=2048)
     
 def swarpOtherBands():
     """

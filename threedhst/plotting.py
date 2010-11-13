@@ -352,7 +352,9 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     #               np.max([ypix-3*size,1]),
     #               np.min([ypix+3*size, drz_y]))
     # print '\n\ntest'
-                  
+    
+    threedhst.process_grism.flprMulti()
+       
     iraf.imcopy(drz_image+'[SCI][%d:%d,%d:%d]' %(np.max([xpix-3*size,1]),
                   np.min([xpix+3*size, drz_x-5]),
                   np.max([ypix-3*size,1]),
@@ -384,12 +386,16 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
                 
     s_hdu = pyfits.PrimaryHDU(sci)
     s_list = pyfits.HDUList([s_hdu])
-    copy_keys = ['CTYPE1','CTYPE2','CRVAL1','CRVAL2','CRPIX1','CRPIX2','CD1_1','CD1_2','CD2_1','CD2_2','LTM1_1','LTM2_2']
     s_list[0].header.update('EXPTIME',im[0].header.get('EXPTIME'))
     s_list[0].header.update('CDELT1',im[0].header.get('CD1_1'))
     s_list[0].header.update('CDELT2',im[0].header.get('CD2_2'))
+    copy_keys = ['CTYPE1','CTYPE2','CRVAL1','CRVAL2','CRPIX1','CRPIX2','CD1_1','CD1_2','CD2_1','CD2_2','LTM1_1','LTM2_2']
     for key in copy_keys:
-        s_list[0].header.update(key, im[0].header.get(key))
+        try:
+            s_list[0].header.update(key, im[0].header.get(key))
+        except:
+            s_list[0].header.update(key, 0)
+            
     s_list.writeto('/tmp/subSCI.fits', clobber=True)
     
     im = pyfits.open('/tmp/subWHTa.fits')
@@ -401,7 +407,11 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     w_list[0].header.update('CDELT1',im[0].header.get('CD1_1'))
     w_list[0].header.update('CDELT2',im[0].header.get('CD2_2'))
     for key in copy_keys:
-        w_list[0].header.update(key, im[0].header.get(key))
+        try:
+            w_list[0].header.update(key, im[0].header.get(key))
+        except:
+            s_list[0].header.update(key, 0)
+    
     w_list.writeto('/tmp/subWHT.fits', clobber=True)
     
     old_files = glob.glob(fitsfile+'*')
@@ -437,7 +447,8 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
         print 'Redo WDRIZZLE\n\n'
         data_img = drz_image+'[1]'
         mask_img = drz_image+'[2]'
-        status = iraf.wdrizzle(data = data_img, outdata = fitsfile, \
+        try:
+          status = iraf.wdrizzle(data = data_img, outdata = fitsfile, \
            outweig = "", outcont = "", in_mask = mask_img, 
            wt_scl = 'exptime', \
            outnx = size, outny = size, geomode = 'wcs', kernel = 'square', \
@@ -447,7 +458,9 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
            raref = ra_ref, decref = dec_ref, xrefpix = size/2+0.5, yrefpix = size/2+0.5, \
            orient = orient, dr2gpar = "", expkey = 'exptime', in_un = 'cps', \
            out_un = 'cps', fillval = '0', mode = 'al', Stdout=1)
-        
+        except:
+            return 
+            
         if not status[-1].startswith('-Writing output'):
             return 
             
@@ -624,7 +637,11 @@ plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
         +head['CRPIX1'])
     ax.set_xticklabels(np.arange(np.ceil(lmin/1000.)*1000,
         np.ceil(lmax/1000.)*1000,1000)/1.e4)
-    pyplot.ylabel('Contam.')
+    
+    if clean:
+        pyplot.ylabel('Cleaned')
+    else:
+        pyplot.ylabel('Contam.')
     
     pyplot.xlabel(r'$\lambda$ [$\mu$m]')
     
@@ -886,7 +903,7 @@ def makeSpec1dImages(SPCFile, path='./HTML/'):
     ids = SPCFile._ext_map+0
     ids.sort()
     
-    fp = open(path+'/'+root+'_1D_lines.info','w')
+    fp = open(path+'/'+root+'_1D_lines.dat','w')
     fp.write('# id lambda sigma eqw snpeak\n# 4 parameters for each detected em. line\n')
     for id in ids:
         idstr = '%04d' %id
@@ -1322,8 +1339,8 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         <a href="./images/%s_thumbs.tar.gz" class="dl"> thumbs </a>
         <a href="./ascii/%s_spec.tar.gz" class="dl"> 1Dspec </a>
         <a href="./images/%s_2D.tar.gz" class="dl"> 2Dspec </a>
-        <a href="./images/%s_1D_lines.info" class="dl"> lines </a>
-        <a href="%s.threedhst.info" class="dl"> info </a>
+        <a href="./images/%s_1D_lines.dat" class="dl"> lines </a>
+        <a href="%s.threedhst.param" class="dl"> info </a>
     </div>
     
     <img src="scripts/3dHST.png" id="logo">

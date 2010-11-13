@@ -275,7 +275,7 @@ def prep_all(asn_files='ib*050_asn.fits', get_shift=True, bg_skip=False,
              skip_drz=False,final_scale=0.06, pixfrac=0.8,
              DIRECT_SKY='/research/HST/GRISM/CONF/F140W_GOODSN_median.fits',
              GRISM_SKY='/research/HST/GRISM/CONF/G141_sky_cleaned.fits',
-             clean=True):
+             align_geometry='rxyscale,shift', clean=True):
     """
 prep_all(asn_files='ib*050_asn.fits', get_shift=True, 
          redo_background=True, bg_only=False, grism=False)
@@ -297,7 +297,8 @@ prep_all(asn_files='ib*050_asn.fits', get_shift=True,
                     redo_background=redo_background,
                     bg_only=bg_only, grism=grism, ALIGN_IMAGE=ALIGN_IMAGE,
                     skip_drz=skip_drz,final_scale=final_scale, pixfrac=pixfrac,
-                    DIRECT_SKY=DIRECT_SKY, GRISM_SKY=GRISM_SKY, clean=clean)
+                    DIRECT_SKY=DIRECT_SKY, GRISM_SKY=GRISM_SKY, 
+                    align_geometry=align_geometry, clean=clean)
 
 def prep_flt(asn_file=None, get_shift=True, bg_only=False, bg_skip=False,
                 redo_background=True, grism=False,
@@ -305,7 +306,7 @@ def prep_flt(asn_file=None, get_shift=True, bg_only=False, bg_skip=False,
                 skip_drz=False, final_scale=0.06, pixfrac=0.8,
                 DIRECT_SKY='/research/HST/GRISM/CONF/F140W_GOODSN_median.fits',
                 GRISM_SKY='/research/HST/GRISM/CONF/G141_sky_cleaned.fits',
-                clean=True):
+                align_geometry='rxyscale,shift', clean=True):
     """
 prep_flt(asn_file=None, get_shift=True, bg_only=False,
             redo_background=True, grism=False)
@@ -348,7 +349,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
     """
     #import fit_2d_poly
     import threedhst
-    import threedhst.dq
+    import threedhst.dq    
     
     if asn_file is None:
         asn_file = 'ib3728050_asn.fits'
@@ -402,15 +403,16 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
         
     for i,exp in enumerate(asn.exposures):
         run.blot_back(ii=i*skip, copy_new=(i is 0))
-        make_segmap(exp+'_flt')
+        make_segmap(run.flt[i])
         
     if get_shift:
         #### If shift routine gets confused, run the following instead
         #for geom in ['shift','rxyscale','shift']:
-        for geom in ['rxyscale','shift']:
+        # for geom in ['rxyscale','shift']:
+        for geom in align_geometry.split(','):
             refine_shifts(ROOT_DIRECT=ROOT_DIRECT,
                           ALIGN_IMAGE=ALIGN_IMAGE,
-                          fitgeometry=geom, clean=clean)
+                          fitgeometry=geom.strip(), clean=clean)
             startMultidrizzle(asn_file, use_shiftfile=True, skysub=False,
                 final_scale=final_scale, pixfrac=pixfrac, driz_cr=False,
                 updatewcs=False)
@@ -418,7 +420,8 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
         
     #### Run BG subtraction with improved mask and run multidrizzle again
     if redo_background:
-        fit = fit_2D_background(ORDER=1, grism=grism)#, x0=507, y0=507)
+        fit = fit_2D_background(ORDER=1, grism=grism, DIRECT_SKY=DIRECT_SKY,
+                                GRISM_SKY=GRISM_SKY)#, x0=507, y0=507)
         for exp in asn.exposures:
             fit.fit_image(exp, A=fit.A, show=False, overwrite=True)
         

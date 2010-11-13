@@ -264,7 +264,46 @@ Note: something like this could be used to flag grism 0th order contaminants
     flag_idx = np.where(np.abs(theta) > np.pi)
     dq[flag_idx] = 1
     return dq
+
+def apply_dq_mask(flt_file, addval=2048):
+    """
+apply_dq_mask(flt_file, addval=2048)
+
+    Read mask polygons from `flt_file`+'.mask.reg', if available,
+    and apply to the DQ extension of `flt_file`.
     
+    DQnew = DQold + `addval` within the polygon.
+    """
+    try:
+        fp = open(flt_file.split('.gz')[0]+'.mask.reg','r')
+    except:
+        return None
+    #
+    print 'Applying mask from %s.mask_reg' %(flt_file.split('.gz')[0])
+    regions = ''.join(fp.readlines())
+    fi = pyfits.open(threedhst.utils.find_fits_gz(flt_file.split('.gz')[0]),
+                     mode='update')
+    dqflag = np.zeros(fi[3].data.shape,dtype=np.int)
+    ##### Loop through user-defined regions
+    for region in regions.split('\n'):
+        if region.strip().startswith('polygon'):
+            #region = 'polygon(375.05333,642.2,465.18667,642.2,751.36,
+            # 709.8,393.08,326.73333,210.56,461.93333,465.18667,
+            # 552.06667,375.05333,552.06667,221.82667,509.25333)'
+            spl = np.float_(np.array(
+                     region[region.find('(')+1:region.find(')')].split(',')
+                     ))
+            px = spl[0::2]
+            py = spl[1::2]
+            dqflag += threedhst.regions.region_mask(fi[1].data.shape,px,py)
+    
+    ##### Set DQ bit
+    dqflag[np.where(dqflag > 0)] = addval
+    fi[3].data+=dqflag
+    ##### Write back to flt_file
+    fi.flush()
+
+
 def point_in_polygon(x,y,px,py):
     """
 test = point_in_polygon(x,y,px,py)
