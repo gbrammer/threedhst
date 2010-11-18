@@ -47,6 +47,10 @@ defaultOptions()
     options['PREFAB_DIRECT_IMAGE'] = None
     options['PREFAB_GRISM_IMAGE'] = None
     
+    #### Use a particular catalog rather than creating one with 
+    #### SExtractor.
+    options['FORCE_CATALOG'] = None
+    
     #### Use the direct mosaic as a reference for making the catalog.
     #### Assumes one-to-one grism/direct exposures.  Set to 'GRISM'
     #### if you want to use the grism mosaic as a reference for splitting

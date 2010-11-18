@@ -130,24 +130,6 @@ setup_matrices()
         self.B[0,:,:] = med_g141*1.
         self.NPARAM = NPARAM
     
-    # def go_all(self, A = None, show=False, grism=False):
-    #     import glob
-    #     
-    #     if A is None:
-    #         A = self.A
-    #         if grism:
-    #             A = self.B
-    #     
-    #     asn_files = glob.glob('*050_asn.fits')
-    #     for asn_file in asn_files:
-    #         asn = threedhst.utils.ASNFile(asn_file)
-    #         for exp in asn.exposures:
-    #             threedhst.dq.apply_dq_mask(exp+'_flt.fits')
-    #             fit_background(exp, A=A, show=False, overwrite=True)
-    # 
-    #         startMultidrizzle(asn_file,
-    #             use_shiftfile=False)    
-
     def fit_image(self, root, A=None, overwrite=False, show=True):
         """
 fit_image(self, root, A=None, overwrite=False, show=True)
@@ -349,7 +331,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
     """
     #import fit_2d_poly
     import threedhst
-    import threedhst.dq    
+    #import threedhst.dq    
     
     if asn_file is None:
         asn_file = 'ib3728050_asn.fits'
@@ -373,7 +355,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
     #### First pass background subtraction
     if not bg_skip:
         for exp in asn.exposures:
-            threedhst.dq.apply_dq_mask(exp+'_flt.fits')
+            threedhst.regions.apply_dq_mask(exp+'_flt.fits')
             fit.fit_image(exp, A=fit.A, show=False, overwrite=True)
     
     #### Stop here if only want background subtraction
@@ -472,12 +454,13 @@ refine_shifts(ROOT_DIRECT='f160w',
     shiftF.print_shiftfile(ROOT_DIRECT+'_shifts.txt')
 
 def startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
-    skysub=True, updatewcs=True, driz_cr=True, final_scale=0.06, pixfrac=0.8, 
+    skysub=True, updatewcs=True, driz_cr=True, median=True,
+    final_scale=0.06, pixfrac=0.8, 
     final_outnx='', final_outny='', final_rot=0., ra='', dec=''):
     """
 startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
                   skysub=True, final_scale=0.06, updatewcs=True, driz_cr=True,
-                  final_scale=0.06, pixfrac=0.8, 
+                  median=True, final_scale=0.06, pixfrac=0.8, 
                   final_outnx='', final_outny='', final_rot=0., ra='', dec='')
     
     Run multidrizzle on an input asn table.
@@ -524,12 +507,18 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
         driz_cr=yes
     else:
         driz_cr=no
+
+    if median:
+        median=yes
+    else:
+        median=no
     
     #### Run Multidrizzle
     iraf.multidrizzle(input=asn_direct_file, \
        shiftfile=shiftfile, \
        output = '', skysub = skysub, updatewcs = updatewcs, driz_cr=driz_cr,
-       final_scale = final_scale, final_pixfrac = pixfrac, 
+       final_scale = final_scale, final_pixfrac = pixfrac, median=median, 
+       blot=median,
        final_outnx=final_outnx, final_outny=final_outny, 
        final_rot=final_rot, ra=ra, dec=dec)
     

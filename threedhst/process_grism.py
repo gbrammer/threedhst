@@ -316,71 +316,86 @@ Pipeline to process a set of grism/direct exposures.
     #### Make a catalog with SExtractor
     #############################################
     
-    #print "\n3DHST.process_grism: Making the catalog\n"
-    threedhst.showMessage('Making the catalog')
+    #### If a catalog is not specified in 'FORCE_CATALOG', 
+    #### make one with SExtractor
+    if threedhst.options['FORCE_CATALOG'] is None:
     
-    #### Get out SCI and WHT extensions of the Multidrizzle mosaic, 
-    #### SExtractor was choking on multi-extension FITS files
-    try:
-        os.remove(ROOT_DIRECT+'_SCI.fits')
-        os.remove(ROOT_DIRECT+'_WHT.fits')
-    except:
-        pass
+        threedhst.showMessage('Making the catalog')
+
+        #### Get out SCI and WHT extensions of the Multidrizzle mosaic, 
+        #### SExtractor was choking on multi-extension FITS files
+        try:
+            os.remove(ROOT_DIRECT+'_SCI.fits')
+            os.remove(ROOT_DIRECT+'_WHT.fits')
+        except:
+            pass
+
+        iraf.imcopy(input=direct_mosaic+'[1]',output=ROOT_DIRECT+'_SCI.fits')
+        iraf.imcopy(input=direct_mosaic+'[2]',output=ROOT_DIRECT+'_WHT.fits')
+
+        #### Run SExtractor on the direct image, with the WHT 
+        #### extension as a weight image
+        se = threedhst.sex.SExtractor()
+
+        ## Set the output parameters required for aXe 
+        ## (stored in [threedhst source]/data/aXe.param) 
+        se.aXeParams()
+
+        ## XXX add test for user-defined .conv file
+        se.copyConvFile()
+
+        se.overwrite = True
+        se.options['CATALOG_NAME']    = ROOT_DIRECT+'_drz.cat'
+        se.options['CHECKIMAGE_NAME'] = ROOT_DIRECT+'_seg.fits'
+        se.options['CHECKIMAGE_TYPE'] = 'SEGMENTATION'
+        se.options['WEIGHT_TYPE']     = 'MAP_WEIGHT'
+        se.options['WEIGHT_IMAGE']    = ROOT_DIRECT+'_WHT.fits'
+        se.options['FILTER']    = 'Y'
+
+        #### Detect thresholds (default = 1.5)
+        se.options['DETECT_THRESH']    = str(threedhst.options['DETECT_THRESH']) 
+        se.options['ANALYSIS_THRESH']  = str(threedhst.options['ANALYSIS_THRESH']) 
+        se.options['MAG_ZEROPOINT'] = str(threedhst.options['MAG_ZEROPOINT'])
     
-    iraf.imcopy(input=direct_mosaic+'[1]',output=ROOT_DIRECT+'_SCI.fits')
-    iraf.imcopy(input=direct_mosaic+'[2]',output=ROOT_DIRECT+'_WHT.fits')
+        #### Run SExtractor
+        status = se.sextractImage(ROOT_DIRECT+'_SCI.fits')
+
+        threedhst.currentRun['step'] = 'SEXTRACT_CATALOG'
+
+        #### Read catalog to keep around
+        sexCat = threedhst.sex.mySexCat(ROOT_DIRECT+'_drz.cat')
+
+        #### Trim faint sources from the catalog (will still be in the seg. image)
+        mag = np.cast[float](sexCat.MAG_AUTO)
+        q = np.where(mag > threedhst.options['LIMITING_MAGNITUDE'])[0]
+        if len(q) > 0:
+            threedhst.showMessage('Trimming objects with direct M < %6.2f.' 
+                                  %(threedhst.options['LIMITING_MAGNITUDE']))
+            numbers = np.cast[int](sexCat.NUMBER)[q]
+            sexCat.popItem(numbers)
+
+        #### Replace MAG_AUTO column name to MAG_F1392W
+        threedhst.options['FILTWAVE'] = np.float(threedhst.options['FILTWAVE'])
+        sexCat.change_MAG_AUTO_for_aXe(filter='F%0dW'
+                    %(np.round(threedhst.options['FILTWAVE'])))
     
-    #### Run SExtractor on the direct image, with the WHT 
-    #### extension as a weight image
-    se = threedhst.sex.SExtractor()
+    else:
+        #### Assumes that the MAG_AUTO column has already been changed 
+        #### appropriately
+        sexCat = threedhst.sex.mySexCat(threedhst.options['FORCE_CATALOG'])
+        ##### Note: segmentation image has to accompany the force_catalog!
+        
+    sexCat.writeToFile(ROOT_DIRECT+'_drz.cat')
     
-    ## Set the output parameters required for aXe 
-    ## (stored in [threedhst source]/data/aXe.param) 
-    se.aXeParams()
-    
-    ## XXX add test for user-defined .conv file
-    se.copyConvFile()
-    
-    se.overwrite = True
-    se.options['CATALOG_NAME']    = ROOT_DIRECT+'_drz.cat'
-    se.options['CHECKIMAGE_NAME'] = ROOT_DIRECT+'_seg.fits'
-    se.options['CHECKIMAGE_TYPE'] = 'SEGMENTATION'
-    se.options['WEIGHT_TYPE']     = 'MAP_WEIGHT'
-    se.options['WEIGHT_IMAGE']    = ROOT_DIRECT+'_WHT.fits'
-    se.options['FILTER']    = 'Y'
-    
-    #### Detect thresholds (default = 1.5)
-    se.options['DETECT_THRESH']    = str(threedhst.options['DETECT_THRESH']) 
-    se.options['ANALYSIS_THRESH']  = str(threedhst.options['ANALYSIS_THRESH']) 
-    se.options['MAG_ZEROPOINT'] = str(threedhst.options['MAG_ZEROPOINT'])
-    
-    #### Run SExtractor
-    status = se.sextractImage(ROOT_DIRECT+'_SCI.fits')
-    
-    threedhst.currentRun['step'] = 'SEXTRACT_CATALOG'
-    
-    #### Read catalog to keep around
-    sexCat = threedhst.sex.mySexCat(ROOT_DIRECT+'_drz.cat')
+    ##### Subset of galaxies for z8.6 test
+    #sexCat = threedhst.sex.mySexCat('z86.cat')
+    #sexCat.writeToFile(outfile=ROOT_DIRECT+'_drz.cat')
     
     #### Trim objects on the edge of the detection image whose
     #### spectra will fall off of the grism image [turned off]
     #threedhst.regions.trim_edge_objects(sexCat)
     
     threedhst.currentRun['sexCat'] = sexCat
-    
-    #### Trim faint sources from the catalog (will still be in the seg. image)
-    mag = np.cast[float](sexCat.MAG_AUTO)
-    q = np.where(mag > threedhst.options['LIMITING_MAGNITUDE'])[0]
-    if len(q) > 0:
-        threedhst.showMessage('Trimming objects with direct M < %6.2f.' 
-                              %(threedhst.options['LIMITING_MAGNITUDE']))
-        numbers = np.cast[int](sexCat.NUMBER)[q]
-        sexCat.popItem(numbers)
-        
-    #### Replace MAG_AUTO column name to MAG_F1392W
-    threedhst.options['FILTWAVE'] = np.float(threedhst.options['FILTWAVE'])
-    sexCat.change_MAG_AUTO_for_aXe(filter='F%0dW' %(np.round(threedhst.options['FILTWAVE'])))
-    sexCat.writeToFile()
     
     #### Make region file for SExtracted catalog
     threedhst.sex.sexcatRegions(ROOT_DIRECT+'_drz.cat', 
