@@ -32,7 +32,7 @@ def defaultPlotParameters():
     pyplot.rcParams['ps.useafm'] = True
     pyplot.rcParams['patch.linewidth'] = 0.
     pyplot.rcParams['patch.edgecolor'] = 'black'
-    #pyplot.rcParams['text.usetex'] = True
+    pyplot.rcParams['text.usetex'] = True
     #pyplot.rcParams['text.latex.preamble'] = ''
 
 def make_data_products(ROOT_DIRECT, ROOT_GRISM):
@@ -203,6 +203,7 @@ make_data_products()
     print '\nthreedhst.plotting.makeHTML: making webpage: %s\n' %out_web
     threedhst.plotting.makeHTML(SPC, sexCat, mapParams, output=out_web)
     threedhst.plotting.makeCSS()
+    threedhst.plotting.makeJavascript()
     
     threedhst.currentRun['step'] = 'MAKE_HTML'
     
@@ -841,7 +842,7 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     
     ### Labels
     root = os.path.basename(SPCFile.filename).split('_2')[0]
-    pyplot.title('%s: \#%d' %(root,object_number))
+    pyplot.title('%s: \#%d' %(root.replace('_','\_'),object_number))
     pyplot.xlabel(r'$\lambda$[\AA]')
     pyplot.ylabel(r'$\mathit{F}_{\lambda}$')
 
@@ -944,14 +945,16 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     
     #### Header
     lines = ["""
-    <html>
+<html>
     <head>
     
     <link rel="stylesheet" href="scripts/style.css" type="text/css" id="" media="print, projection, screen" /> 
 
     <script type="text/javascript" src="scripts/jquery-1.4.2.min.js"></script> 
 
-    <script type="text/javascript" src="scripts/jquery.tablesorter.min.js"></script> 
+    <script type="text/javascript" src="scripts/jquery.sprintf.js"></script> 
+
+    <script type="text/javascript" src="scripts/threedhst.js"></script> 
 
     <!--  www.astro.yale.edu/ --> 
     <!-- 
@@ -962,143 +965,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     <!-- localhost -->
     <script src="http://maps.google.com/maps?file=api&amp;v=3&amp;key=ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb_rzgcy5bqzSaTV8cyi2Bgsx3g" type="text/javascript"></script> 
     """]
-    
-    #### Script for sorting the table
-    lines.append("""
-    
-    <script type="text/javascript" id="js">
-    
-    // Add ability to sort the table
-    $(document).ready(function() {
-        $.tablesorter.defaults.sortList = [[0,0]]; 
-    	$("table").tablesorter({
-    		// pass the headers argument and assing a object
-    		headers: {
-    			// assign the secound column (we start counting zero)
-    			4: {
-    				// disable it by setting the property sorter to false
-    				sorter: false
-    			},
-    			5: {
-    				// disable it by setting the property sorter to false
-    				sorter: false
-    			},
-    			6: {
-    				// disable it by setting the property sorter to false
-    				sorter: false
-    			},
-    		}
-    	});
-    	
-    	switch_layout();
-    	
-    });
-    
-    var layout = -1; // Start with horizontal
-    function switch_layout() {
-        if (layout == 0) {
-            layout = 1;
-            vertical_layout();
-            $("#switchbox").text("||");
-            $("#switchbox").css("cursor","s-resize");  
-            map.checkResize();                    
-        } else {
-            layout = 0;
-            horizontal_layout();
-            $("#switchbox").text("=");
-            $("#switchbox").css("cursor","e-resize");
-            map.checkResize();          
-        }
-    }
-    
-    var markers_on=1;
-	function toggle_markers() {
-		if (markers_on == 0) {
-		    $("#markerbox").css("border","2px solid #00FF03");  
-            markers_on = 1;
-            for (var i = 0; i < marker_list.length; i++) {
-				marker_list[i].show();
-		    }
-		} else {
-		    $("#markerbox").css("border","2px solid #AAAAAA");  
-		    markers_on=0
-            for (var i = 0; i < marker_list.length; i++) {
-				marker_list[i].hide();
-		    }
-		}
-	}
-	
-    function vertical_layout() {
-    
-    	$("#title").css("width",1087);
-    	
-    	$("#content").css("height",$(window).height()-60-5);
-    	$("#content").css("width","840px");
-    	$("#content").css("top","60px");
-    	$("#content").css("left","301px");
         
-    	$("#map").css("height",$(window).height()-60);	
-    	$("#map").css("width",300-5);	
-        
-        $("#coords").css("left",
-    	    parseInt($("#map").css("width"))/2.-
-    	    parseInt($("#coords").css("width"))/2.+10);
-    	    
-    	c = $("#centerbox");
-        c.css("left",parseFloat($("#map").css("left"))+
-                     parseFloat($("#map").css("width"))/2.-
-                     parseFloat(c.css("width"))/2.-0);
-                     
-        c.css("top",parseFloat($("#map").css("top"))+
-                     parseFloat($("#map").css("height"))/2.-
-                     parseFloat(c.css("height"))/2.-0);
-    }
-    
-    function horizontal_layout() {
-
-    	$("#title").css("width",$(window).width()-12-
-    	    parseFloat($("#title").css("padding-left"))+
-    	    parseFloat($("#title").css("padding-right")));
-
-    	$("#content").css("height",170);
-    	$("#content").css("width",$("#title").width()+
-    	    parseFloat($("#title").css("padding-left"))+
-    	    parseFloat($("#title").css("padding-right")));
-    	//alert(parseFloat($("#title").css("padding-left"))+20);
-    	$("#content").css("top",$(window).height()-170);
-        $("#content").css("left",$("#map").css("left"));
-        
-    	$("#map").css("height",$(window).height()-60-170-11);
-    	$("#map").css("width",$("#title").width()+
-    	    parseFloat($("#title").css("padding-left"))+
-    	    parseFloat($("#title").css("padding-right")));    
-    	
-    	$("#coords").css("left",
-    	    parseInt($("#map").css("width"))/2.-
-    	    parseInt($("#coords").css("width"))/2.);    
-    	
-    	c = $("#centerbox");
-        c.css("left",parseFloat($("#map").css("left"))+
-                     parseFloat($("#map").css("width"))/2.-
-                     parseFloat(c.css("width"))/2.-0);
-                     
-        c.css("top",parseFloat($("#map").css("top"))+
-                     parseFloat($("#map").css("height"))/2.-
-                     parseFloat(c.css("height"))/2.-0);
-    }
-    
-    function show_centerbox() {
-        c = $("#centerbox");
-        document.getElementById("centerbox").style.display = "block";
-        c.animate({ opacity: 1.0}, 300, function() { });        
-        c.animate({ opacity: 0.0}, 300, function() {
-            document.getElementById("centerbox").style.display = "none";
-        });
-    }
-    
-    </script>   
-    """)
-    
     #### Script for the Google map
     llSW = mapParams['LLSW']
     llNE = mapParams['LLNE']
@@ -1106,16 +973,24 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     lng_offset = mapParams['LNG_OFFSET']
     
     lines.append("""
-            <script type="text/javascript"> 
+    <script type="text/javascript"> 
     
-    var map = 0; // Global
+    //////////// Global variables
+    var map = 0;
     var centerLat = %f;
     var centerLng = %f;
     // var offset = %f;
-    offset = 0.0;
+    var offset = 0.0;
     var zoomLevel = %f;
     var root = '%s';
     
+    var myIcon = new GIcon();
+	myIcon.iconSize = new GSize(30, 25);
+	myIcon.iconAnchor = new GPoint(14.5, 14.5);
+	
+	var ROWSTART = 0;
+	var NSHOW = 25;
+	
     function initialize() {        
         if (GBrowserIsCompatible()) {
             map = new GMap2(document.getElementById("map"));
@@ -1186,148 +1061,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         }
     }
     
-    function latLng2raDec() {
-        var mapcenter = map.getCenter();
-        var dec = mapcenter.lat()+centerLat;                       
-        var dsign = "+";
-        var hex = "\%%2B"
-        if (dec < 0) {
-            dsign = "-";
-            hex = "\%%2D";
-        }
-        dec = Math.abs(dec);
-        var ded = parseInt(dec);
-        var dem = parseInt((dec-ded)*60);
-        var des = parseInt(((dec-ded)*60-dem)*60);
-        var dess = parseInt((((dec-ded)*60-dem)*60-des)*10);
-        if (ded < 10) {ded = "0"+ded;} 
-        if (dem < 10) {dem = "0"+dem;} 
-        if (des < 10) {des = "0"+des;} 
-        var decstr = ded+":"+dem+":"+des+"."+dess;
-        document.getElementById("decInput").value = dsign + decstr;
-        
-        var ra = ((360-mapcenter.lng()/Math.cos(centerLat/360.*2*3.14159)+offset-centerLng)/360.*24);
-        var rah = parseInt(ra);
-        var ram = parseInt((ra-rah)*60);
-        var ras = parseInt(((ra-rah)*60-ram)*60);
-        var rass = parseInt((((ra-rah)*60-ram)*60-ras)*100);
-        if (rah < 10) {rah = "0"+rah;} 
-        if (ram < 10) {ram = "0"+ram;} 
-        if (ras < 10) {ras = "0"+ras;} 
-        if (rass < 10) {rass = "0"+rass;} 
-        var rastr = rah+":"+ram+":"+ras+"."+rass;
-        document.getElementById("raInput").value = rastr;   
-        
-        document.getElementById("vizierLink").href = "http://vizier.u-strasbg.fr/viz-bin/VizieR?-c=" + rastr + "+" + hex + decstr +  "&-c.rs=1";        
-             
-    }
-    
-    function centerOnInput() {
-        var rastr = document.getElementById("raInput").value;
-        var rsplit = rastr.split(":");
-        if (rsplit.length != 3) rsplit = rastr.split(" ");
-        var ra = parseFloat(rastr);
-        
-        if (rsplit.length == 3) {
-            ra = (parseInt(rsplit[0])+
-                parseInt(rsplit[1])/60.+
-                parseFloat(rsplit[2])/3600.)/24.*360;
-        } 
-        
-        var decstr = document.getElementById("decInput").value;
-        var dsplit = decstr.split(":");
-        if (dsplit.length != 3) dsplit = decstr.split(" ");
-        var dec = parseFloat(decstr);
-        if (rsplit.length == 3) {
-            dec = Math.abs(parseInt(dsplit[0])+
-                Math.abs(parseInt(dsplit[1])/60.)+
-                Math.abs(parseFloat(dsplit[2])/3600.));
-                
-            /// Don't know why, but need to do this twice
-            dec = Math.abs(parseInt(dsplit[0]))+
-            parseInt(dsplit[1])/60.+
-            parseFloat(dsplit[2])/3600.;
-            
-            if (parseFloat(dsplit[0]) < 0) {
-                dec *= -1;
-            }
-        }
-        
-        recenter(ra,dec);
-        latLng2raDec();
-    }
-    
-    function centerOnID() {
-        var id = document.getElementById("idInput").value;
-        window.location = '#i'+id;
-    }
-    
-    // Globals
-    var myIcon = new GIcon();
-    myIcon.iconSize = new GSize(30, 25);
-    myIcon.iconAnchor = new GPoint(14.5, 14.5);
-    var lats = [];
-    var lngs = [];
-    var ids = [];
-    var nObject = 0;
-    var marker_list = [];
-    
-    // Read objects from XML file and plot regions
-    function plotXmlObjects() {
-        GDownloadUrl(root+".xml", function(data) {
-            var xml = GXml.parse(data);
-            var markers = xml.documentElement.getElementsByTagName("marker");
-            nObject = markers.length;
-                        
-            for (var i = 0; i < markers.length; i++) {
-                // Read from XML
-                var id = markers[i].getAttribute("id");
-                var ra = markers[i].getAttribute("ra");
-                var dec = markers[i].getAttribute("dec");
-                var lat = dec-centerLat;
-                var lng = ((360-ra)-centerLng+offset)*Math.cos(centerLat/360.*2*3.14159);
-                
-                lats.push(lat);
-                lngs.push(lng);
-                ids.push(id);
-
-                // The marker
-                myIcon.image = "scripts/circle.php?id="+id;
-                markerOptions = { icon:myIcon, title:id};
-                var point = new GLatLng(lat,lng);
-                var marker = new GMarker(point, markerOptions);
-
-                // The only thing passed to the listener is LatLng(), 
-                // so need to find which object is closest to the clicked marker.
-                GEvent.addListener(marker, "click", function(self) {
-                    //alert(self.lat()+' '+nObject+' '+lats[0]);
-                    var matchID = 0;
-                    var lat = self.lat();
-                    var lng = self.lng();
-                    for (var j=0;j<nObject;j++) {
-                        var dj = (lats[j]-lat)*(lats[j]-lat)+
-                                 (lngs[j]-lng)*(lngs[j]-lng) ;
-                        if (dj == 0) {
-                            matchID = ids[j];
-                            break;
-                        }
-                    }
-                    //alert(matchID);
-                    window.location = '#i'+matchID;
-                });
-                marker_list.push(marker);
-                map.addOverlay(marker);            
-            }
-        });
-    }
-    
-    function recenter(ra,dec) {
-        var lat = dec-centerLat;
-        var lng = ((360-ra)-centerLng+offset)*Math.cos(centerLat/360.*2*3.14159)
-        map.setCenter(new GLatLng(lat,lng)); //, zoomLevel);
-    }
-    
-            </script>
+    </script>
         """ %(center[0],center[1],lng_offset,mapParams['ZOOMLEVEL'],
               threedhst.options['ROOT_DIRECT'],
               llSW[0]-center[0],llSW[1]-center[1]+lng_offset,
@@ -1336,8 +1070,8 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     #### HTML Body   
     lines.append("""
 
-    </head>
-    <body onload="initialize()" onunload="GUnload()">
+</head>
+<body onload="initialize()" onunload="GUnload()">
     
     <div id="map"></div>
     
@@ -1385,19 +1119,27 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     <table id="myTable" cellspacing="1" class="tablesorter"> 
     <thead> 
     <tr> 
-        <th width=50px>ID</th>
-        <th width=100px>R.A.</th> 
-        <th width=100px>Dec.</th> 
-        <th width=50px>mag %s</th> 
-        <th width=180px>Thumb</th> 
-        <th width=260px>1D Spec</th> 
-        <th width=260px>2D Spec</th> 
+    <th width=50px>ID 
+		<span style="cursor:s-resize">
+			<a onclick="javascript:pageDown();"> <b>+</b> </a>
+		</span>
+		<span style="cursor:n-resize">
+			<a onclick="javascript:pageUp();"> <b>-</b> </a>
+		</span>
+    </th>
+        <th width=70px>R.A.</th> 
+        <th width=70px>Dec.</th> 
+        <th width=100px>mag %s</th> 
+        <th width=140px>Thumb</th> 
+        <th width=210px>1D Spec</th> 
+        <th width=210px>2D Spec</th> 
     </tr> 
     </thead> 
     <tbody> 
     """ %(MAG_COLUMN.split('MAG_')[1]))
         
-    for id in SPCFile._ext_map:
+    # for id in SPCFile._ext_map:
+    for id in [SPCFile._ext_map[0]]:
         for idx,num in enumerate(mySexCat.NUMBER):
             if num == str(id):
                 break
@@ -1409,17 +1151,20 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         img = '%s_%05d' %(root,id)
         lines.append("""
         <tr> 
-            <td id="i%d" onclick="javascript:recenter(%13.6f,%13.6f)">
+            <td id="tab_id" onclick="javascript:recenter(0,0)">
                   %d
             </td>
-            <td>%13.6f</td> 
-            <td>%13.6f</td> 
-            <td>%6.2f</td> 
-            <td><a href='images/%s_thumb.fits.gz'><img src='images/%s_thumb.png' width=133px></a></td> 
-            <td><a href='ascii/%s.dat.gz'><img src='images/%s_1D.png' width=200px title='ascii'></a></td> 
-            <td><a href='images/%s_2D.fits.gz'><img src='images/%s_2D.png' width=200px></a></td> 
+            <td id="tab_ra">%13.6f</td> 
+            <td id="tab_dec">%13.6f</td> 
+            <td id="tab_mag">%6.2f</td> 
+            <td id="tab_thumb">
+                <a id="a_thumb" href='images/%s_thumb.fits.gz'><img id="img_thumb" src='images/%s_thumb.png' width=133px></a></td> 
+            <td id="tab_1D">
+                <a id="a_1D" href='ascii/%s.dat.gz'><img id="img_1D" src='images/%s_1D.png' width=200px title='ascii'></a></td> 
+            <td id="tab_2D">
+                <a id="a_2D" href='images/%s_2D.fits.gz'><img id="img_2D" src='images/%s_2D.png' width=200px></a></td> 
         </tr> 
-        """ %(id,np.float(ra),np.float(dec),id,
+        """ %(id,
               np.float(ra),np.float(dec),np.float(mag),
               img,img,img,img,img,img))
     
@@ -1722,4 +1467,419 @@ __init__(filename='ib3721050_2_opt.SPC.fits',
         else:
             print "Object #%d not found in %s." %(object_number, self.filename)
             return False
-            
+
+def makeJavascript(path="../HTML/scripts"):
+    """
+make_Javascript(path="../HTML/scripts")
+    """
+
+    fp = open(path+"/threedhst.js","w")
+    fp.write("""
+    /////////////////// Ready function
+    $(document).ready(function() {
+    	switch_layout();		
+    });
+
+    var layout = -1; // Start with horizontal layout
+    function switch_layout() {
+        if (layout == 0) {
+            layout = 1;
+            vertical_layout();
+            $("#switchbox").text("||");
+            $("#switchbox").css("cursor","s-resize");  
+            map.checkResize();                    
+        } else {
+            layout = 0;
+            horizontal_layout();
+            $("#switchbox").text("=");
+            $("#switchbox").css("cursor","e-resize");
+            map.checkResize();          
+        }
+    }
+
+    ///// Turn on/off green object markers
+    var markers_on=1;
+    function toggle_markers() {
+    	if (markers_on == 0) {
+    	    $("#markerbox").css("border","2px solid #00FF03");  
+            markers_on = 1;
+            for (var i = 0; i < marker_list.length; i++) {
+    			marker_list[i].show();
+    	    }
+    	} else {
+    	    $("#markerbox").css("border","2px solid #AAAAAA");  
+    	    markers_on=0
+            for (var i = 0; i < marker_list.length; i++) {
+    			marker_list[i].hide();
+    	    }
+    	}
+    }
+
+    ////// Map at left, spectral images at right
+    function vertical_layout() {
+
+    	//$("#title").css("width",1087);
+    	$("#title").css("width",$(window).width()-12-
+    	    parseFloat($("#title").css("padding-left"))+
+    	    parseFloat($("#title").css("padding-right")));
+
+    	$("#content").css("height",$(window).height()-60-5);
+    	//$("#content").css("width","840px");
+    	$("#content").css("width",$(window).width()-295+2);
+    	$("#content").css("top","60px");
+    	$("#content").css("left","301px");
+
+    	$("#map").css("height",$(window).height()-60);	
+    	$("#map").css("width",300-5);	
+
+        $("#coords").css("left",
+    	    parseInt($("#map").css("width"))/2.-
+    	    parseInt($("#coords").css("width"))/2.+10);
+
+    	c = $("#centerbox");
+        c.css("left",parseFloat($("#map").css("left"))+
+                     parseFloat($("#map").css("width"))/2.-
+                     parseFloat(c.css("width"))/2.-0);
+
+        c.css("top",parseFloat($("#map").css("top"))+
+                     parseFloat($("#map").css("height"))/2.-
+                     parseFloat(c.css("height"))/2.-0);
+
+    	addRowSet();
+
+    }
+
+    ////// Map on top, spectra info on bottom
+    function horizontal_layout() {
+
+    	$("#title").css("width",$(window).width()-12-
+    	    parseFloat($("#title").css("padding-left"))+
+    	    parseFloat($("#title").css("padding-right")));
+
+    	$("#content").css("height",170);
+    	$("#content").css("width",$("#title").width()+
+    	    parseFloat($("#title").css("padding-left"))+
+    	    parseFloat($("#title").css("padding-right")));
+    	//alert(parseFloat($("#title").css("padding-left"))+20);
+    	$("#content").css("top",$(window).height()-170);
+        $("#content").css("left",$("#map").css("left"));
+
+    	$("#map").css("height",$(window).height()-60-170-11);
+    	$("#map").css("width",$("#title").width()+
+    	    parseFloat($("#title").css("padding-left"))+
+    	    parseFloat($("#title").css("padding-right")));    
+
+    	$("#coords").css("left",
+    	    parseInt($("#map").css("width"))/2.-
+    	    parseInt($("#coords").css("width"))/2.);    
+
+    	c = $("#centerbox");
+        c.css("left",parseFloat($("#map").css("left"))+
+                     parseFloat($("#map").css("width"))/2.-
+                     parseFloat(c.css("width"))/2.-0);
+
+        c.css("top",parseFloat($("#map").css("top"))+
+                     parseFloat($("#map").css("height"))/2.-
+                     parseFloat(c.css("height"))/2.-0);
+
+    	clearRows();
+
+    }
+
+    /////////////////////
+    /////  Map utilities
+    /////////////////////
+
+    ///// Flash a little box to show where the center of the map is, 
+    ///// which corresponds to the listed coordinates
+    function show_centerbox() {
+        c = $("#centerbox");
+        document.getElementById("centerbox").style.display = "block";
+        c.animate({ opacity: 1.0}, 300, function() { });        
+        c.animate({ opacity: 0.0}, 300, function() {
+            document.getElementById("centerbox").style.display = "none";
+        });
+    }
+
+    ///// Convert RA/Dec to Map Lat/Lng coordinates, which are centered around 0,0
+    function latLng2raDec() {
+        var mapcenter = map.getCenter();
+        var dec = mapcenter.lat()+centerLat;                       
+        var dsign = "+";
+        var hex = "\%%2B"
+        if (dec < 0) {
+            dsign = "-";
+            hex = "\%%2D";
+        }
+        dec = Math.abs(dec);
+        var ded = parseInt(dec);
+        var dem = parseInt((dec-ded)*60);
+        var des = parseInt(((dec-ded)*60-dem)*60);
+        var dess = parseInt((((dec-ded)*60-dem)*60-des)*10);
+        if (ded < 10) {ded = "0"+ded;} 
+        if (dem < 10) {dem = "0"+dem;} 
+        if (des < 10) {des = "0"+des;} 
+        var decstr = ded+":"+dem+":"+des+"."+dess;
+        document.getElementById("decInput").value = dsign + decstr;
+
+        var ra = ((360-mapcenter.lng()/Math.cos(centerLat/360.*2*3.14159)+offset-centerLng)/360.*24);
+        var rah = parseInt(ra);
+        var ram = parseInt((ra-rah)*60);
+        var ras = parseInt(((ra-rah)*60-ram)*60);
+        var rass = parseInt((((ra-rah)*60-ram)*60-ras)*100);
+        if (rah < 10) {rah = "0"+rah;} 
+        if (ram < 10) {ram = "0"+ram;} 
+        if (ras < 10) {ras = "0"+ras;} 
+        if (rass < 10) {rass = "0"+rass;} 
+        var rastr = rah+":"+ram+":"+ras+"."+rass;
+        document.getElementById("raInput").value = rastr;   
+
+        document.getElementById("vizierLink").href = "http://vizier.u-strasbg.fr/viz-bin/VizieR?-c=" + rastr + "+" + hex + decstr +  "&-c.rs=1";        
+
+    }
+
+    ////// Center the map after changing the coordinates in the input box
+    function centerOnInput() {
+        var rastr = document.getElementById("raInput").value;
+        var rsplit = rastr.split(":");
+        if (rsplit.length != 3) rsplit = rastr.split(" ");
+        var ra = parseFloat(rastr);
+
+        if (rsplit.length == 3) {
+            ra = (parseInt(rsplit[0])+
+                parseInt(rsplit[1])/60.+
+                parseFloat(rsplit[2])/3600.)/24.*360;
+        } 
+
+        var decstr = document.getElementById("decInput").value;
+        var dsplit = decstr.split(":");
+        if (dsplit.length != 3) dsplit = decstr.split(" ");
+        var dec = parseFloat(decstr);
+        if (rsplit.length == 3) {
+            dec = Math.abs(parseInt(dsplit[0])+
+                Math.abs(parseInt(dsplit[1])/60.)+
+                Math.abs(parseFloat(dsplit[2])/3600.));
+
+            /// Don't know why, but need to do this twice
+            dec = Math.abs(parseInt(dsplit[0]))+
+            parseInt(dsplit[1])/60.+
+            parseFloat(dsplit[2])/3600.;
+
+            if (parseFloat(dsplit[0]) < 0) {
+                dec *= -1;
+            }
+        }
+
+        recenter(ra,dec);
+        latLng2raDec();
+    }
+
+    //// Pan to object ID entered in the input box, show spectra + info
+    function centerOnID() {
+        var id = document.getElementById("idInput").value;
+        for (j=0; j < ids.length; j++) {
+            if (ids[j] == id) {
+                ROWSTART = j;
+                setFirstRow();
+                recenter(0,0);
+                break;
+            }
+        }
+    }
+
+    ////// Globals
+    var ra_list = [];
+    var de_list = [];
+    var mag_list = [];
+    var lats = [];
+    var lngs = [];
+    var ids = [];
+    var nObject = 0;
+    var marker_list = [];
+
+    ///// Read objects from XML file and plot regions
+    function plotXmlObjects() {
+        GDownloadUrl(root+".xml", function(data) {
+            var xml = GXml.parse(data);
+            var markers = xml.documentElement.getElementsByTagName("marker");
+            nObject = markers.length;
+
+            for (var i = 0; i < markers.length; i++) {
+                // Read from XML
+                var id = markers[i].getAttribute("id");
+                var ra = markers[i].getAttribute("ra");
+                var dec = markers[i].getAttribute("dec");
+                var mag = markers[i].getAttribute("mag");
+                var lat = dec-centerLat;
+                var lng = ((360-ra)-centerLng+offset)*Math.cos(centerLat/360.*2*3.14159);
+
+    			ra_list.push(ra);
+    			de_list.push(dec);
+    			mag_list.push(mag);
+                lats.push(lat);
+                lngs.push(lng);
+                ids.push(id);
+
+                // The marker
+                myIcon.image = "scripts/circle.php?id="+id;
+                markerOptions = { icon:myIcon, title:id};
+                var point = new GLatLng(lat,lng);
+                var marker = new GMarker(point, markerOptions);
+
+                // The only thing passed to the listener is LatLng(), 
+                // so need to find which object is closest to the clicked marker.
+                GEvent.addListener(marker, "click", function(self) {
+                    //alert(self.lat()+' '+nObject+' '+lats[0]);
+                    var matchID = 0;
+                    var lat = self.lat();
+                    var lng = self.lng();
+                    for (var j=0;j<nObject;j++) {
+                        var dj = (lats[j]-lat)*(lats[j]-lat)+
+                                 (lngs[j]-lng)*(lngs[j]-lng) ;
+                        if (dj == 0) {
+                            matchID = ids[j];
+                            break;
+                        }
+                    }
+                    //alert(matchID);
+                    //window.location = '#i'+matchID;
+
+    				ROWSTART = j;
+    				setFirstRow();
+
+    				if (layout == 1) {
+    					clearRows();
+    					addRowSet();
+    				}
+                });
+
+                marker_list.push(marker);
+                map.addOverlay(marker);            
+            }
+        });
+    }
+
+    function recenter(ra,dec) {
+    	if ((ra+dec) == 0) {
+    		ra = document.getElementById("tab_ra").innerText;
+    		dec = document.getElementById("tab_dec").innerText;
+    	}
+
+    	var lat = dec-centerLat;
+        var lng = ((360-ra)-centerLng+offset)*Math.cos(centerLat/360.*2*3.14159)
+        map.setCenter(new GLatLng(lat,lng)); //, zoomLevel);
+    }
+
+    /////////////////////
+    /////  Dynamic control of the table showing the spectra/thumbnails
+    /////////////////////
+    function setFirstRow() {
+    	if (ROWSTART < 0) ROWSTART=0;
+    	j = ROWSTART;
+
+    	var matchID = 0+$.sprintf('%04d', ids[j]);
+    	if (ids[j] < 1000) matchID = 0+matchID;
+    	if (ids[j] < 100) matchID = 0+matchID;
+    	if (ids[j] < 10) matchID = 0+matchID;
+
+    	document.getElementById("tab_id").innerText = ids[j];
+    	document.getElementById("tab_ra").innerText = $.sprintf('%14.6f', ra_list[j]);
+    	document.getElementById("tab_dec").innerText = $.sprintf('%14.6f', de_list[j]);
+    	document.getElementById("tab_mag").innerText = $.sprintf('%14.6f', mag_list[j]);
+
+    	document.getElementById("img_thumb").src = 'images/'+root+'_' + matchID + '_thumb.png';
+    	document.getElementById("a_thumb").href = 'images/'+root+'_' + matchID + '_thumb.fits.gz';
+
+    	document.getElementById("img_1D").src = 'images/'+root+'_' + matchID + '_1D.png';
+    	document.getElementById("a_1D").href = 'images/'+root+'_' + matchID + '.dat.gz';
+
+    	document.getElementById("img_2D").src = 'images/'+root+'_' + matchID + '_2D.png';
+    	document.getElementById("a_2D").href = 'images/'+root+'_' + matchID + '_2D.fits.gz';
+
+    }
+
+    //////// Clear all but the first row for horizonal layout and redrawing
+    function clearRows() {
+    	var theTable =  document.getElementById("myTable");
+    	var NROW = theTable.rows.length;
+    	if (NROW > 2) {
+    		for (var i = NROW-1; i > 1; i--) {
+    			theTable.deleteRow(i);
+    		}
+    	}
+    }
+
+    /////// Add NSHOW rows, starting with index 'ROWSTART'
+    function addRowSet() {
+    	if (ROWSTART < 0) {
+    		ROWSTART=0;
+    	}
+    	stop = ROWSTART + NSHOW;
+    	if (stop >= ids.length) stop = ids.length-1;
+    	if (layout == 1) {
+    		for (var i=ROWSTART+1; i<=stop; i++) {
+    			addRow(i);
+    		}
+    	}
+    }
+
+    ////// Add a row to the display table
+    function addRow(idx) {
+    	var theTable =  document.getElementById("myTable");
+    	var NROW = theTable.rows.length;
+    	var newRow = theTable.insertRow(NROW);
+
+    	thisID = 0+ids[idx]
+    	if (ids[idx] < 1000) thisID = 0+thisID;
+    	if (ids[idx] < 100) thisID = 0+thisID;
+    	if (ids[idx] < 10) thisID = 0+thisID;
+
+    	var tid = newRow.insertCell(0);
+    	tid.innerHTML = "<a onclick='javascript:recenter("+$.sprintf('%14.6f', ra_list[idx])+","+$.sprintf('%14.6f', de_list[idx])+");'>"+ids[idx]+"</a>";
+
+    	var tra = newRow.insertCell(1);
+    	tra.innerText = $.sprintf('%14.6f', ra_list[idx]);
+
+    	var tdec = newRow.insertCell(2);
+    	tdec.innerText = $.sprintf('%14.6f', de_list[idx]);
+
+    	var tmag = newRow.insertCell(3);
+    	tmag.innerText = mag_list[idx];
+
+    	var tthumb = newRow.insertCell(4);
+    	tthumb.innerHTML = "<a href='images/"+root+"_"+thisID+ "_thumb.fits.gz'> <img src='images/"+root+"_"+thisID+"_thumb.png'  width=133px></a>";
+
+    	var t1D = newRow.insertCell(5);
+    	t1D.innerHTML = "<td><a href='ascii/"+root+"_"+thisID+".dat.gz'><img src='images/"+root+"_"+thisID+"_1D.png' width=200px title='ascii'></a></td>"
+
+    	var t2D = newRow.insertCell(6);
+    	t2D.innerHTML = "<td><a href='ascii/"+root+"_"+thisID+"_2D.fits.gz'><img src='images/"+root+"_"+thisID+"_2D.png' width=200px title='2D'></a></td>"
+
+    }
+
+    ///// Page down through objects on vertical view
+    function pageDown() {
+        if (layout == 1) {
+            ROWSTART+=NSHOW;
+        } else {
+            ROWSTART+=1;
+        }
+        setFirstRow();
+        clearRows();
+        addRowSet();
+    }
+
+    ///// Page up on vertical view
+    function pageUp() {
+        if (layout == 1) {
+            ROWSTART-=NSHOW;
+        } else {
+            ROWSTART-=1;
+        }
+        setFirstRow();
+        clearRows();
+        addRowSet();
+    }
+    """)
+    fp.close()
+        

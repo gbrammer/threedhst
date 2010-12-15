@@ -573,11 +573,24 @@ makeCatXML(catFile=None,xmlFile=None)
     colID = cat.columns[cat.searchcol('NUMBER')].entry
     colRA = cat.columns[cat.searchcol('X_WORLD')].entry
     colDEC = cat.columns[cat.searchcol('Y_WORLD')].entry
+    
+    ### Mag column, sorted
+    col = 'MAG_AUTO'
+    for col in cat.column_names:
+        if col.startswith('MAG_F'):
+            break
+    colMag = cat.columns[cat.searchcol(col)].entry
+    
+    mag = np.array(np.cast[float](colMag))
+    sort_idx = mag.argsort()
+    
     ### Make XML string
     xmlString = '<markers>'
-    for i in range(cat.nrows):
-        xmlString+='<marker id="%s" ra="%s" dec="%s" />' %(colID[i],
-                      colRA[i],colDEC[i])
+    for j in range(cat.nrows):
+        i = sort_idx[j]
+        xmlString+='<marker id="%s" ra="%s" dec="%s" mag="%s"/>' %(colID[i],
+                      colRA[i], colDEC[i], colMag[i])
+                      
     xmlString+='</markers>'
     ### Print to output file
     if xmlFile:
