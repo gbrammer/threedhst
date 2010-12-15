@@ -265,7 +265,7 @@ Note: something like this could be used to flag grism 0th order contaminants
     dq[flag_idx] = 1
     return dq
 
-def apply_dq_mask(flt_file, addval=2048):
+def apply_dq_mask(flt_file, extension=3, mask_file=None, addval=2048):
     """
 apply_dq_mask(flt_file, addval=2048)
 
@@ -275,15 +275,24 @@ apply_dq_mask(flt_file, addval=2048)
     DQnew = DQold + `addval` within the polygon.
     """
     try:
-        fp = open(flt_file.split('.gz')[0]+'.mask.reg','r')
+        if mask_file is None:
+            mask_file = flt_file.split('.gz')[0]+'.mask.reg'
+            
+        fp = open(mask_file,'r')
     except:
         return None
     #
     print 'Applying mask from %s.mask_reg' %(flt_file.split('.gz')[0])
     regions = ''.join(fp.readlines())
+    
+    if not flt_file.endswith('.gz'):
+        mode = 'update'
+    else:
+        mode = 'readonly'
+        
     fi = pyfits.open(threedhst.utils.find_fits_gz(flt_file.split('.gz')[0]),
-                     mode='update')
-    dqflag = np.zeros(fi[3].data.shape,dtype=np.int)
+                     mode=mode)
+    dqflag = np.zeros(fi[extension].data.shape,dtype=np.int)
     ##### Loop through user-defined regions
     for region in regions.split('\n'):
         if region.strip().startswith('polygon'):
@@ -295,14 +304,19 @@ apply_dq_mask(flt_file, addval=2048)
                      ))
             px = spl[0::2]
             py = spl[1::2]
-            dqflag += threedhst.regions.region_mask(fi[1].data.shape,px,py)
+            dqflag += threedhst.regions.region_mask(fi[extension].data.shape,px,py)
     
     ##### Set DQ bit
     dqflag[np.where(dqflag > 0)] = addval
-    fi[3].data+=dqflag
+    fi[extension].data+=dqflag
     ##### Write back to flt_file
-    fi.flush()
-
+    if not flt_file.endswith('.gz'):
+        fi.flush()
+    else:
+        fi.writeto(flt_file.split('.gz')[0], clobber=True)
+        os.remove(flt_file)
+        os.system('gzip %s' %(flt_file.split('.gz')[0]))
+        
 
 def point_in_polygon(x,y,px,py):
     """

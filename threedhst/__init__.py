@@ -84,10 +84,16 @@ defaultOptions()
     #options['SEGMENTATION_MAP'] = None
     
     #### Config options
-    options['CONFIG_FILE'] = 'WFC3.IR.G141.V1.0.conf'
+    #options['CONFIG_FILE'] = 'WFC3.IR.G141.V1.0.conf'
+    options['CONFIG_FILE'] = 'WFC3.IR.G141.V1.5.conf'
     options['SKY_BACKGROUND'] = 'WFC3.IR.G141.sky.V1.0.fits'
     options['DRZRESOLA'] = '46.5'
     options['DRZSCALE'] = '0.128254'
+    
+    #### Axe extraction geometry to get objects outside the edges
+    #### of the grism images.  Currently doesn't work correctly and 
+    #### the model is offset w.r.t. the observed spectra.
+    options['AXE_EDGES'] = "0,0,0,0"
     
     #### Use higher-resolution drizzle
     options['DRZSCALE'] = '0.06'
@@ -112,7 +118,10 @@ defaultOptions()
     options['AXE_ADJ_SENS'] = "NO"
     #### aXe extract with "optimal weights"
     options['AXE_OPT_EXTR'] = "YES"
-
+    
+    #### Use a local installation of taxe rather than the STSDAS aXe
+    options['USE_TAXE'] = False
+    
     #### Second drizzle to flag and remove cosmic rays
     options['RUN_DRZREJ'] = False
     

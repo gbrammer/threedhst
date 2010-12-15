@@ -301,8 +301,8 @@ finish(self)
     Write out ASN files and close widget.
         """
         ### write asn files
-        self.asn_grism.writeToFile('self')
-        self.asn_direct.writeToFile('self')
+        self.asn_grism.write('self')
+        self.asn_direct.write('self')
         
         ### close widget
         self.frame.quit()

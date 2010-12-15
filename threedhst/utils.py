@@ -304,15 +304,15 @@ _read_asn_file(self)
             self._read_asn_file()
     
     
-    def writeToFile(self, out_file=None, clobber=True):
+    def write(self, out_file=None, clobber=True):
         """
-writeToFile(self,out_file=None, clobber=True)
+write(self,out_file=None, clobber=True)
 
     out_file='self' writes to `self.file`.
     
         """
         if not out_file:
-            print "USAGE:: writeToFile(out_file='output_asn.fits')"
+            print "USAGE:: asn.write(out_file='output_asn.fits')"
         else:
             if out_file == 'self':
                 out_file = self.file
@@ -452,9 +452,9 @@ combine_asn_shifts(asn_list, out_root='combined', path_to_FLT='./',
                              rotate=shift.rotate[i], scale=shift.scale[i])
     
     #### Write ASN and shiftfiles
-    shift_ref.print_shiftfile('%s_shifts.txt' %(out_root))
+    shift_ref.write('%s_shifts.txt' %(out_root))
     asn_ref.product = out_root
-    asn_ref.writeToFile('%s_asn.fits' %(out_root))
+    asn_ref.write('%s_asn.fits' %(out_root))
     
     #### Run Multidrizzle with combined ASN and shifts
     if run_multidrizzle:

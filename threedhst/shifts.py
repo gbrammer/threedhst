@@ -67,7 +67,7 @@ run_tweakshifts(asn_direct)
         for line in status:
             print line
     
-def find_align_images_that_overlap(DIRECT_MOSAIC, ALIGN_IMAGE):
+def find_align_images_that_overlap(DIRECT_MOSAIC, ALIGN_IMAGE, ALIGN_EXTENSION=0):
     """
 align_img_list = find_align_images_that_overlap()
     
@@ -92,7 +92,8 @@ align_img_list = find_align_images_that_overlap()
     #### direct mosaic
     align_img_list = []
     for align_image in align_images:
-        qx, qy = threedhst.regions.wcs_polygon(align_image, extension=0)
+        qx, qy = threedhst.regions.wcs_polygon(align_image,
+            extension=ALIGN_EXTENSION)
         if threedhst.regions.polygons_intersect(px, py, qx, qy):
             align_img_list.append(align_image)
     
@@ -100,7 +101,8 @@ align_img_list = find_align_images_that_overlap()
 
 def refine_shifts(ROOT_DIRECT='f160w',
                   ALIGN_IMAGE='../../ACS/h_sz*drz_img.fits',
-                  fitgeometry='shift', clean=True):
+                  fitgeometry='shift', clean=True,
+                  ALIGN_EXTENSION=0):
     """
 refine_shifts(ROOT_DIRECT='f160w',
               ALIGN_IMAGE='../../ACS/h_sz*drz_img.fits',
@@ -119,7 +121,8 @@ refine_shifts(ROOT_DIRECT='f160w',
     xshift, yshift, rot, scale = threedhst.shifts.align_to_reference(
                         ROOT_DIRECT,
                         ALIGN_IMAGE,
-                        fitgeometry=fitgeometry, clean=clean)
+                        fitgeometry=fitgeometry, clean=clean,
+                        ALIGN_EXTENSION=ALIGN_EXTENSION)
 
     #### shifts measured in DRZ frame.  Translate to FLT frame
     drz = pyfits.open(ROOT_DIRECT+'_drz.fits')
@@ -142,10 +145,10 @@ refine_shifts(ROOT_DIRECT='f160w',
     shiftF.rotate = list((np.array(shiftF.rotate)+rot) % 360)
     shiftF.scale = list(np.array(shiftF.scale)*scale)
     
-    shiftF.print_shiftfile(ROOT_DIRECT+'_shifts.txt')
+    shiftF.write(ROOT_DIRECT+'_shifts.txt')
     
 def align_to_reference(ROOT_DIRECT, ALIGN_IMAGE, fitgeometry="shift",
-    clean=True, verbose=False):
+    clean=True, verbose=False, ALIGN_EXTENSION=0):
     """
 xshift, yshift, rot, scale = align_to_reference()
     """        
@@ -168,7 +171,8 @@ xshift, yshift, rot, scale = align_to_reference()
                 
     #### Get only images that overlap from the ALIGN_IMAGE list    
     align_img_list = find_align_images_that_overlap(ROOT_DIRECT+'_drz.fits',
-                                                    ALIGN_IMAGE)
+                                                    ALIGN_IMAGE,
+                                     ALIGN_EXTENSION=ALIGN_EXTENSION)
     if not align_img_list:
         print 'threedhst.shifts.align_to_reference: no alignment images overlap.'
         return 0,0
@@ -390,7 +394,7 @@ make_grism_shiftfile(asn_direct, grism_direct)
         sf.images[i] = exp+'_flt.fits'
     
     #### Write the new shiftfile
-    sf.print_shiftfile(ROOT_GRISM+'_shifts.txt')
+    sf.write(ROOT_GRISM+'_shifts.txt')
     
     #print "\n3DHST.shifts.make_grism_shiftfile: %s_shifts.txt\n" %ROOT_GRISM
     threedhst.showMessage('Making grism shiftfile, %s_shifts.txt' %ROOT_GRISM)
@@ -418,7 +422,7 @@ checkShiftfile(asn_direct)
             #print sf.nrows
             
     if flag:
-        sf.print_shiftfile(sf_file)
+        sf.write(sf_file)
     else:       
         #print "\n3DHST.shifts.checkShiftfile: %s looks OK.\n" %sf_file
         threedhst.showMessage('Shiftfile, %s, looks OK' %sf_file)
@@ -530,8 +534,8 @@ ShiftFile(infile)
                 self.scale.append(float(line[4]))
     
     
-    def print_shiftfile(self, outfile):
-        """print_shiftfile(outfile)"""
+    def write(self, outfile):
+        """write(outfile)"""
         fp = open(outfile,'w')
         fp.writelines(self.headerlines)
         for i in range(self.nrows):

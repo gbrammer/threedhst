@@ -150,7 +150,13 @@ Pipeline to process a set of grism/direct exposures.
     import numpy as np
     import aXe2html.sexcat.sextractcat
     import threedhst.dq
-    
+    if threedhst.options['USE_TAXE']:
+        try:
+            from iraf import taxe21
+        except:
+            threedhst.showMessage("USE_TAXE is True, but no iraf.taxe21 found.", warn=True)
+            return False
+            
     ############################################################################
     ####   Bookkeeping, set up DATA directory
     ############################################################################
@@ -192,7 +198,7 @@ Pipeline to process a set of grism/direct exposures.
     asn_grism  = threedhst.utils.ASNFile(file=asn_grism_file)
     ### Force PROD-DTH to be the root of the input ASN file
     asn_grism.product = ROOT_GRISM
-    asn_grism.writeToFile(asn_grism_file)
+    asn_grism.write(asn_grism_file)
     #### Copy fresh FLT files from RAW
     threedhst.process_grism.fresh_flt_files(asn_grism_file, 
                       from_path=threedhst.options['PATH_TO_RAW'])
@@ -201,7 +207,7 @@ Pipeline to process a set of grism/direct exposures.
     if threedhst.options['PREFAB_DIRECT_IMAGE'] is None:
         asn_direct = threedhst.utils.ASNFile(file=asn_direct_file)
         asn_direct.product = ROOT_DIRECT
-        asn_direct.writeToFile(asn_direct_file)                            
+        asn_direct.write(asn_direct_file)                            
         threedhst.process_grism.fresh_flt_files(asn_direct_file, 
                       from_path=threedhst.options['PATH_TO_RAW'])
             
@@ -385,11 +391,11 @@ Pipeline to process a set of grism/direct exposures.
         sexCat = threedhst.sex.mySexCat(threedhst.options['FORCE_CATALOG'])
         ##### Note: segmentation image has to accompany the force_catalog!
         
-    sexCat.writeToFile(ROOT_DIRECT+'_drz.cat')
+    sexCat.write(ROOT_DIRECT+'_drz.cat')
     
     ##### Subset of galaxies for z8.6 test
     #sexCat = threedhst.sex.mySexCat('z86.cat')
-    #sexCat.writeToFile(outfile=ROOT_DIRECT+'_drz.cat')
+    #sexCat.write(outfile=ROOT_DIRECT+'_drz.cat')
     
     #### Trim objects on the edge of the detection image whose
     #### spectra will fall off of the grism image [turned off]
@@ -438,7 +444,9 @@ Pipeline to process a set of grism/direct exposures.
     conf.params['DRZPFRAC'] = threedhst.options['PIXFRAC']
     
     #### Workaround to get 0th order contam. in the right place for the fluxcube
-    conf.params['BEAMB'] = '-220 220'    
+    if threedhst.options['CONFIG_FILE'] == 'WFC3.IR.G141.V1.0.conf':
+        conf.params['BEAMB'] = '-220 220'    
+    
     conf.writeto(ROOT_DIRECT+'_full.conf')
         
     CONFIG = ROOT_DIRECT+'_full.conf'
@@ -458,6 +466,17 @@ Pipeline to process a set of grism/direct exposures.
     
     if threedhst.options['PREFAB_DIRECT_IMAGE'] is not None:
         threedhst.options['CATALOG_MODE'] = 'GRISM'
+    
+    ######### XXXXXXXXXXXXXXX
+    ######### Make empty shiftfile
+    # sf = threedhst.shifts.ShiftFile(ROOT_GRISM+'_shifts.txt')
+    # for i in range(len(sf.xshift)):
+    #     sf.xshift[i] = 0.
+    #     sf.yshift[i] = 0.
+    #     sf.rotate[i] = 0.
+    #     sf.scale[i] = 1.
+    # 
+    # sf.write(ROOT_GRISM+'_shifts.txt')
     
     #### If you want to use the grism images for making the object catalogs
     #### (CATALOG_MODE != 'DIRECT'), then might need to prepare a grism mosaic 
@@ -520,8 +539,14 @@ Pipeline to process a set of grism/direct exposures.
     
     # threedhst.showMessage('IOL_IMAGE: %s' %(IOL_IMAGE), warn=True)
     flprMulti()
-    iraf.iolprep(mdrizzle_ima=IOL_IMAGE,
-                 input_cat=ROOT_DIRECT+'_drz.cat', dimension_in="0,0,0,0")
+    if threedhst.options['USE_TAXE']:
+        taxe21.tiolprep(mdrizzle_ima=IOL_IMAGE,
+            input_cat=ROOT_DIRECT+'_drz.cat', 
+            dimension_in=threedhst.options["AXE_EDGES"])
+    else:
+        iraf.iolprep(mdrizzle_ima=IOL_IMAGE,
+            input_cat=ROOT_DIRECT+'_drz.cat', 
+            dimension_in=threedhst.options["AXE_EDGES"])
                  
     threedhst.currentRun['step'] = 'IOLPREP'
     
@@ -532,8 +557,14 @@ Pipeline to process a set of grism/direct exposures.
     os.chdir('../')
     flprMulti()
     threedhst.showMessage('Running aXe.axeprep')
-    status = iraf.axeprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
-        backgr=BACKGR, backims=SKY, mfwhm=3.0,norm="NO", Stdout=1)
+    if threedhst.options['USE_TAXE']:
+        status = taxe21.taxeprep(inlist=prep_name(asn_grism_file),
+            configs=CONFIG, backgr=BACKGR, backims=SKY, mfwhm=3.0,norm="NO",
+            Stdout=1)
+    else:
+        status = iraf.axeprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
+            backgr=BACKGR, backims=SKY, mfwhm=3.0,norm="NO", Stdout=1)
+        
     threedhst.currentRun['step'] = 'AXEPREP'
     
     os.chdir('./DATA')
@@ -622,23 +653,19 @@ Pipeline to process a set of grism/direct exposures.
     #    filter_info = 'zeropoints.lis', AB_zero = yes, 
     #    dimension_info = '400,400,0,0', interpol="poly5")
 
-    iraf.fcubeprep(grism_image = ROOT_GRISM+'_drz.fits',
-       segm_image = ROOT_DIRECT+'_seg.fits',
-       filter_info = 'zeropoints.lis', AB_zero = yes, 
-       dimension_info = '0,0,0,0', interpol="poly5")
+    if threedhst.options['USE_TAXE']:
+        taxe21.tfcubeprep(grism_image = ROOT_GRISM+'_drz.fits',
+            segm_image = ROOT_DIRECT+'_seg.fits',
+            filter_info = 'zeropoints.lis', AB_zero = yes, 
+            dimension_info =threedhst.options["AXE_EDGES"], interpol="poly5")
+    else:
+        iraf.fcubeprep(grism_image = ROOT_GRISM+'_drz.fits',
+            segm_image = ROOT_DIRECT+'_seg.fits',
+            filter_info = 'zeropoints.lis', AB_zero = yes, 
+            dimension_info =threedhst.options["AXE_EDGES"], interpol="poly5")
     
-    # #### Try matching the FLX WCS to the grism images, could need to add shifts
-    # flx_files = glob.glob('ib*FLX.fits')
-    # for flx in flx_files:
-    #     im_flx = pyfits.open(flx, 'update')
-    #     im_flt = pyfits.open(flx.split('_2.FLX')[0]+'.fits')
-    #     NEXT = len(im_flx)
-    #     keywords = ['CRVAL1','CRVAL2','CD1_1','CD1_2','CD2_1','CD2_2']
-    #     for ext in range(1,NEXT):
-    #         for key in keywords:
-    #             im_flx[ext].header.update(key, im_flt[1].header[key])
-    #     #
-    #     im_flx.flush()
+    #### Try matching the FLX WCS to the grism images, could need to add shifts
+    #threedhst.process_grism.update_FLX_WCS(path_to_FLT='./')
         
     threedhst.currentRun['step'] = 'FCUBEPREP'
     
@@ -669,15 +696,30 @@ Pipeline to process a set of grism/direct exposures.
     #LOCAL_BACKGROUND="YES"
     LOCAL_BACKGROUND="NO"
     
-    iraf.axecore(inlist=prep_name(asn_grism_file), configs=CONFIG,
-        back=LOCAL_BACKGROUND,extrfwhm=4.0, drzfwhm=3.0, backfwhm=4.0,
-        slitless_geom=geom_yn, orient=geom_yn, exclude="NO", 
-        lambda_mark=threedhst.options['FILTWAVE'], 
-        cont_model="fluxcube", model_scale=4.0, 
-        lambda_psf=threedhst.options['FILTWAVE'],
-        inter_type="linear", np=10, interp=0, smooth_lengt=0, smooth_fwhm=0.0,
-        spectr="NO", adj_sens=threedhst.options['AXE_ADJ_SENS'], weights="NO",
-        sampling="drizzle")
+    if threedhst.options['USE_TAXE']:
+        taxe21.taxecore(inlist=prep_name(asn_grism_file), configs=CONFIG,
+            back=LOCAL_BACKGROUND,extrfwhm=4.0, drzfwhm=3.0, backfwhm=4.0,
+            slitless_geom=geom_yn, orient=geom_yn, exclude="NO", 
+            lambda_mark=threedhst.options['FILTWAVE'], 
+            cont_model="fluxcube", model_scale=4.0, 
+            lambda_psf=threedhst.options['FILTWAVE'],
+            inter_type="linear", np=10, interp=0, smooth_lengt=0,
+            smooth_fwhm=0.0,
+            spectr="NO", adj_sens=threedhst.options['AXE_ADJ_SENS'],
+            weights="NO",
+            sampling="drizzle")
+    else:
+        iraf.axecore(inlist=prep_name(asn_grism_file), configs=CONFIG,
+            back=LOCAL_BACKGROUND,extrfwhm=4.0, drzfwhm=3.0, backfwhm=4.0,
+            slitless_geom=geom_yn, orient=geom_yn, exclude="NO", 
+            lambda_mark=threedhst.options['FILTWAVE'], 
+            cont_model="fluxcube", model_scale=4.0, 
+            lambda_psf=threedhst.options['FILTWAVE'],
+            inter_type="linear", np=10, interp=0, smooth_lengt=0,
+            smooth_fwhm=0.0,
+            spectr="NO", adj_sens=threedhst.options['AXE_ADJ_SENS'],
+            weights="NO",
+            sampling="drizzle")
     
     threedhst.currentRun['step'] = 'AXECORE'
         
@@ -699,8 +741,14 @@ Pipeline to process a set of grism/direct exposures.
     #print "\n3DHST.proces_grism: iraf.DRZPREP\n"
     threedhst.showMessage('Running iraf.drzprep')
     
-    status = iraf.drzprep(inlist=prep_name(asn_grism_file), configs=CONFIG,
-        opt_extr="YES", back=LOCAL_BACKGROUND, Stdout=1)
+    if threedhst.options['USE_TAXE']:
+        status = taxe21.tdrzprep(inlist=prep_name(asn_grism_file),
+            configs=CONFIG,
+            opt_extr="YES", back=LOCAL_BACKGROUND, Stdout=1)
+    else:
+        status = iraf.drzprep(inlist=prep_name(asn_grism_file), 
+            configs=CONFIG,
+            opt_extr="YES", back=LOCAL_BACKGROUND, Stdout=1)
     
     threedhst.currentRun['step'] = 'DRZPREP'
         
@@ -713,12 +761,22 @@ Pipeline to process a set of grism/direct exposures.
     threedhst.showMessage('Running iraf.axedrizzle')
     
     flprMulti()
-    status = iraf.axedrizzle(inlist=prep_name(asn_grism_file), configs=CONFIG,
-                    infwhm=4.0,outfwhm=3.0, back=LOCAL_BACKGROUND,
-                    makespc="YES",
-                    opt_extr=threedhst.options['AXE_OPT_EXTR'],
-                    adj_sens=threedhst.options['AXE_ADJ_SENS'], 
-                    driz_separate='NO', Stdout=1)
+    if threedhst.options['USE_TAXE']:
+        status = taxe21.taxedrizzle(inlist=prep_name(asn_grism_file),
+                        configs=CONFIG,
+                        infwhm=4.0,outfwhm=3.0, back=LOCAL_BACKGROUND,
+                        makespc="YES",
+                        opt_extr=threedhst.options['AXE_OPT_EXTR'],
+                        adj_sens=threedhst.options['AXE_ADJ_SENS'], 
+                        driz_separate='NO', Stdout=1)
+    else:
+        status = iraf.axedrizzle(inlist=prep_name(asn_grism_file),
+                        configs=CONFIG,
+                        infwhm=4.0,outfwhm=3.0, back=LOCAL_BACKGROUND,
+                        makespc="YES",
+                        opt_extr=threedhst.options['AXE_OPT_EXTR'],
+                        adj_sens=threedhst.options['AXE_ADJ_SENS'], 
+                        driz_separate='NO', Stdout=1)
     
     #### Run drizzle again for internal CR rejection.  Perhaps all CRs are
     #### already flagged from the earlier MultiDrizzle run
@@ -739,7 +797,22 @@ Pipeline to process a set of grism/direct exposures.
         threedhst.showMessage('Running iraf.axedrizzle, second pass.')
         
         flprMulti()
-        iraf.axedrizzle(inlist=prep_name(asn_grism_file), configs=CONFIG,
+        if threedhst.options['USE_TAXE']:
+            taxe21.taxedrizzle(inlist=prep_name(asn_grism_file), configs=CONFIG,
+                            infwhm=4.0,outfwhm=3.0, back=LOCAL_BACKGROUND,
+                            makespc="YES",
+                            opt_extr=threedhst.options['AXE_OPT_EXTR'], 
+                            adj_sens=threedhst.options['AXE_ADJ_SENS'], 
+                            driz_separate='YES',
+                            combine_type='median', combine_maskpt=0.7,
+                            combine_nsigmas="4.0 3.0", combine_nlow=0, 
+                            combine_nhigh=0, combine_lthresh="INDEF",
+                            combine_hthresh="INDEF", combine_grow=1.0, 
+                            blot_interp='poly5', blot_sinscl=1.0, 
+                            driz_cr_snr="5.0 4.0", driz_cr_grow=1,
+                            driz_cr_scale="1.2 0.7")
+        else:
+            iraf.axedrizzle(inlist=prep_name(asn_grism_file), configs=CONFIG,
                         infwhm=4.0,outfwhm=3.0, back=LOCAL_BACKGROUND,
                         makespc="YES",
                         opt_extr=threedhst.options['AXE_OPT_EXTR'], 
@@ -772,7 +845,7 @@ Pipeline to process a set of grism/direct exposures.
         flt[1].data = cont[1].data.copy()
         flt.flush()
     asn_grism.product = ROOT_GRISM+'CONT' #ROOT_GRISM+'CONT'
-    asn_grism.writeToFile(ROOT_GRISM+'CONT_asn.fits')
+    asn_grism.write(ROOT_GRISM+'CONT_asn.fits')
     flprMulti()
     
     if threedhst.options['PREFAB_DIRECT_IMAGE'] is None:
@@ -823,14 +896,15 @@ Pipeline to process a set of grism/direct exposures.
     #############################################
     
     if threedhst.options['CLEAN_UP']:
-        rmfiles = glob.glob('*FLX.fits')
+        rmfiles = []
+        #rmfiles.extend(glob.glob('*FLX.fits'))
         rmfiles.extend(glob.glob('flux?.fits'))
         rmfiles.extend(glob.glob('*_flt.fits'))
         rmfiles.extend(glob.glob('*flt_1.cat'))
         rmfiles.extend(glob.glob(ROOT_DIRECT+'*[SW][CH]?.fits'))
         #rmfiles.extend(glob.glob('*coeffs1.dat'))
         #rmfiles.extend(glob.glob('threedhst_auto.*'))
-        rmfiles.extend(glob.glob('zeropoints.lis'))
+        #rmfiles.extend(glob.glob('zeropoints.lis'))
         rmfiles.extend(glob.glob('default.conv'))
         #for expi in asn_grism.exposures:
         #    rmfiles.extend(glob.glob('../OUTPUT_G141/'+expi+'*'))
@@ -1441,5 +1515,35 @@ class Conf(object):
         fp = open(self.path+output,'w')
         fp.writelines(self.lines)
         fp.close()
+
+def update_FLX_WCS(path_to_FLT='../RAW/'):
+    """
+    There seems to be something wrong with the WCS keywords of the FLX images
+    produced by fcubeprep.  Force CRVALX and CDX_X keywords to match those 
+    in the FLT files.
+    """
+    import glob
     
+    edges = threedhst.options['AXE_EDGES'].split(',')
+    padding = float(edges[1])+float(edges[0])
+    
+    flx_files = glob.glob('ib*FLX.fits')
+    for flx_file in flx_files:
+        flt_file = threedhst.utils.find_fits_gz('%s/%s.fits' %(path_to_FLT, flx_file.split('_2')[0]))
+        flx = pyfits.open(flx_file,'update')
+        flt = pyfits.open(flt_file)
+        head_flt = flt[1].header
+        keys = ['CRVAL1','CRVAL2','CD1_1','CD1_2','CD2_1','CD2_2']
+        for ext in flx[1:]:
+            head_flx = ext.header
+            for key in keys:
+                head_flx.update(key,head_flt.get(key))
+            
+            head_flx.update('CRPIX1',head_flx.get('NAXIS1')/2.-5.*padding/200.)
+        #
+        print 'Updating WCS header keywords: %s\n' %(flx_file)
+        flx.flush()
+        
+        
+        
     

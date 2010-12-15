@@ -32,8 +32,8 @@ def defaultPlotParameters():
     pyplot.rcParams['ps.useafm'] = True
     pyplot.rcParams['patch.linewidth'] = 0.
     pyplot.rcParams['patch.edgecolor'] = 'black'
-    pyplot.rcParams['text.usetex'] = True
-    pyplot.rcParams['text.latex.preamble'] = ''
+    #pyplot.rcParams['text.usetex'] = True
+    #pyplot.rcParams['text.latex.preamble'] = ''
 
 def make_data_products(ROOT_DIRECT, ROOT_GRISM):
     """
@@ -323,6 +323,14 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     drz_y, drz_x = drz['SCI'].data.shape
     
     orient = drz_header['PA_APER']
+    
+    #### Need to get orientation from *GRISM* images if a 
+    #### "prefab" direct image was supplied.
+    if threedhst.options['PREFAB_DIRECT_IMAGE'] is not None:
+        drz_grism = threedhst.options['ROOT_GRISM']+'_drz.fits'
+        grism_header = pyfits.getheader(drz_grism,'SCI')
+        orient = grism_header['PA_APER']
+    
     pixel_scale = np.abs(drz_header['CD1_1']*3600.)
     ra_ref = mySexCat.X_WORLD[idx]
     dec_ref = mySexCat.Y_WORLD[idx]
@@ -543,7 +551,7 @@ def makeThumbs(SPCFile, mySexCat, path='./HTML/'):
     ids = SPCFile._ext_map+0
     ids.sort()
     for id in ids:
-        idstr = '%04d' %id
+        idstr = '%05d' %id
         print noNewLine+'plotting.makeThumbs: %s_%s_thumb.png' %(root, idstr)
         plotThumbNew(id, mySexCat, SPCFile,
                   outfile=path+'/'+root+'_'+idstr+'_thumb.png',
@@ -669,7 +677,7 @@ def makeSpec2dImages(SPCFile, path='./HTML/', add_FITS=True):
     ids = SPCFile._ext_map+0
     ids.sort()
     for id in ids:
-        idstr = '%04d' %id
+        idstr = '%05d' %id
         print noNewLine+'plotting.makeSpecImages: %s_%s_2D.png' %(root, idstr)
         plot2Dspec(SPCFile, id, outfile=path+'/'+root+'_'+idstr+'_2D.png',
                    close_window=True)
@@ -906,7 +914,7 @@ def makeSpec1dImages(SPCFile, path='./HTML/'):
     fp = open(path+'/'+root+'_1D_lines.dat','w')
     fp.write('# id lambda sigma eqw snpeak\n# 4 parameters for each detected em. line\n')
     for id in ids:
-        idstr = '%04d' %id
+        idstr = '%05d' %id
         print noNewLine+'plotting.makeSpec1dImages: %s_%s_1D.png' %(root, idstr)
         lines = plot1Dspec(SPCFile, id,
                    outfile=path+'/'+root+'_'+idstr+'_1D.png',
@@ -1398,7 +1406,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         dec = mySexCat.Y_WORLD[idx]
         mag = mySexCat.getcol(MAG_COL_ID)[idx]
         
-        img = '%s_%04d' %(root,id)
+        img = '%s_%05d' %(root,id)
         lines.append("""
         <tr> 
             <td id="i%d" onclick="javascript:recenter(%13.6f,%13.6f)">
@@ -1637,7 +1645,7 @@ asciiSpec(SPCFile, root="spec", path="../HTML/ascii")
         ferr = spec.field('FERROR')*ERROR_SCALE
         contam = spec.field('CONTAM')
     
-        out = root+'_%04d.dat' %id
+        out = root+'_%05d.dat' %id
         print noNewLine+out
         
         fp = gzip.open(path+'/'+out+'.gz','wb')
@@ -1653,7 +1661,7 @@ asciiSpec(SPCFile, root="spec", path="../HTML/ascii")
     os.chdir(path)
     fptar = tarfile.open(root+'_spec.tar.gz','w|gz')
     for id in ids:
-        out = root+'_%04d.dat.gz' %id
+        out = root+'_%05d.dat.gz' %id
         fptar.add(out)
     fptar.close()
     os.chdir(oldwd)

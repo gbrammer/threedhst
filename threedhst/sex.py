@@ -494,9 +494,9 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         #### repopulate columns
         self._easy_columns()
         
-    def writeToFile(self, outfile=None):
+    def write(self, outfile=None):
         """
-        writeToFile(self, outfile=None)
+        write(self, outfile=None)
         
         Write catalog lines to file.  Default overwrites the initial file 
         (``self.filename``).
@@ -819,7 +819,9 @@ class SWarp(object):
         if 'IDCSCALE' in head.keys():
             self.options['PIXEL_SCALE'] = str(head['IDCSCALE'])
         else:
-            self.options['PIXEL_SCALE'] = str(np.abs(head['CD1_1']*3600.))
+            #self.options['PIXEL_SCALE'] = str(np.abs(head['CD1_1']*3600.))
+            self.options['PIXEL_SCALE'] = str(np.sqrt(head['CD1_1']**2+head['CD1_2']**2)*3600.)
+        
         self.options['IMAGE_SIZE']  = '%s,%s' %(head['NAXIS1'],head['NAXIS2'])
         self.options['CENTER_TYPE'] = 'MANUAL'
         self.options['PIXELSCALE_TYPE'] = 'MANUAL'

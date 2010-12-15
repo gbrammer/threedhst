@@ -118,3 +118,38 @@ I have figured out in principle how to use a pre-computed direct image that is l
 
 I can't find a hack fix for this (e.g. I tried forcing the FLX image WCS to be the same as the grism FLT images), so will need to check with the aXe people since the mode where you don't have a direct image for each grism exposure seems to be an important way to analyze the grism spectra (i.e. PEARS or the Riess program)
 
+*** Update 12/7/10 ***
+1) Have confirmed with Martin Kuemmel that the sign of the dimension_info values is wrong in the manual and that the above observation is correct.
+
+2) I've mostly figured out the offset problem, which seems to be caused by the reference pixel defined in the coeffs1.dat files.  By default it is the center pixel of the WFC3 image (507, 507), but this is no longer the center of the image if you add padding around the sides.  This can be pretty easily fixed by just shifting the reference pixel accordingly, e.g. in fcubeobjs.py:
+
+#### GBB: Need to adjust the reference pixel in the coeffs.dat file
+####      output image sizes different than the native image size,
+####      e.g. 1014 x 1014 for WFC3
+try:
+    coeffs_lines = open(self.coef).readlines()
+    shape = (self.inima_dims[0]+2*x_excess,
+             self.inima_dims[1]+2*y_excess)
+             
+    if shape != (1014, 1014):
+        for i, line in enumerate(coeffs_lines):
+            if line.strip().startswith('refpix'):
+                ### Default to center pixel
+                coeffs_lines[i] = 'refpix %9.3f %9.3f\n' %(shape[0]*1./2, shape[1]*1./2)
+    
+    fp = open('/tmp/coeffs1.dat','w')
+    fp.writelines(coeffs_lines)
+    fp.close()
+    print 'XXX GBB XXX: adjusted `refpix`, %s -> /tmp/coeffs1.dat' %(self.coef)
+    self.coef = '/tmp/coeffs1.dat'
+except:
+    print 'XXX GBB XXX: Some problem with adjusting the reference pixel in %s\n' %(self.coef)
+    pass
+
+*** Note, am now using taxe2.1, and need to change scripts as described above to remove the prompt when you allow a faint object threshold and there is a relatively small number of pixels available for the background estimation
+----- DONE, axepreptor.py changed -----
+
+============
+
+changed 'writeToFile' methods to 'write'
+
