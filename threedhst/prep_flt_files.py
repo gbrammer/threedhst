@@ -14,6 +14,8 @@ __version__ = "$Rev$"
 # $Author$
 # $Date$
 
+import os
+
 import numpy as np
 import pyfits
 import scipy.linalg
@@ -86,12 +88,23 @@ setup_matrices()
         med = medF[0].data
         medF.close()
 
-        NPARAM  = np.sum(np.arange(self.ORDER+2))
+        NPARAM  = np.sum(np.arange(self.ORDER+2)) #+1 #+1
+        
         self.A = np.zeros((NPARAM,NX,NY))
         self.A[0,:,: ] = med  ## zeroth order is background median
-
+        #self.A[1,:,:] = 1.  ## add flat background component
+        
         ##### Set up polynomial grid for fit, including cross terms
         count = 1
+        
+        # #### Use all G141 sky for different sky levels
+        # LO = pyfits.getdata('/research/HST/GRISM/CONF/G141wLO_fixed_sky.fits',0)
+        # self.A[1,:,:] = LO
+        # count += 1
+        # HI = pyfits.getdata('/research/HST/GRISM/CONF/G141wHI_fixed_sky.fits',0)
+        # self.A[2,:,:] = HI
+        # count += 1
+        
         for pow in range(1,self.ORDER+1):
             pi = pow-1
 
@@ -130,7 +143,8 @@ setup_matrices()
         self.B[0,:,:] = med_g141*1.
         self.NPARAM = NPARAM
     
-    def fit_image(self, root, A=None, overwrite=False, show=True):
+    def fit_image(self, root, A=None, overwrite=False, show=True,
+                  save_fit=False):
         """
 fit_image(self, root, A=None, overwrite=False, show=True)
     
@@ -148,6 +162,7 @@ fit_image(self, root, A=None, overwrite=False, show=True)
         
         """
         import os
+        import glob
         
         if A is None:
             A = self.A
@@ -166,10 +181,12 @@ fit_image(self, root, A=None, overwrite=False, show=True)
         
         #### If a segmentation image is available, read it
         #### for use as an object mask.
-        if not os.path.exists(root+'_flt.seg.fits'):
+        segfile = glob.glob(root+'_flt.seg.fits*')
+        if len(segfile) == 0:
             seg = IMG*0.
         else:
-            fis = pyfits.open(root+'_flt.seg.fits')
+            print 'Segmentation image: %s' %segfile[0]
+            fis = pyfits.open(segfile[0])
             seg = fis[0].data
         
         #### Apply segmentation mask, also mask out extreme IMG values 
@@ -219,6 +236,12 @@ fit_image(self, root, A=None, overwrite=False, show=True)
             plt.subplot(224)
             plt.imshow(DQ,vmin=0,vmax=10)
         
+        if save_fit:
+            hdu = pyfits.PrimaryHDU()
+            save_im = pyfits.HDUList([hdu])
+            save_im[0].data = IMGout
+            save_im.writeto(root+'_flt.BG.fits', clobber=True)
+        
         #### Subtract fitted background, write
         #### bg-subtracted image to original FLT file if `overwrite` is True
         FIX = IMG-IMGout
@@ -257,7 +280,10 @@ def prep_all(asn_files='ib*050_asn.fits', get_shift=True, bg_skip=False,
              skip_drz=False,final_scale=0.06, pixfrac=0.8,
              DIRECT_SKY='/research/HST/GRISM/CONF/F140W_GOODSN_median.fits',
              GRISM_SKY='/research/HST/GRISM/CONF/G141_sky_cleaned.fits',
-             align_geometry='rxyscale,shift', clean=True):
+             align_geometry='rxyscale,shift', 
+             initial_order=0,
+             clean=True,
+             save_fit=False):
     """
 prep_all(asn_files='ib*050_asn.fits', get_shift=True, 
          redo_background=True, bg_only=False, grism=False)
@@ -279,8 +305,10 @@ prep_all(asn_files='ib*050_asn.fits', get_shift=True,
                     redo_background=redo_background,
                     bg_only=bg_only, grism=grism, ALIGN_IMAGE=ALIGN_IMAGE,
                     skip_drz=skip_drz,final_scale=final_scale, pixfrac=pixfrac,
-                    DIRECT_SKY=DIRECT_SKY, GRISM_SKY=GRISM_SKY, 
-                    align_geometry=align_geometry, clean=clean)
+                    DIRECT_SKY=DIRECT_SKY, GRISM_SKY=GRISM_SKY,
+                    initial_order=initial_order,
+                    align_geometry=align_geometry, clean=clean,
+                    save_fit=save_fit)
 
 def prep_flt(asn_file=None, get_shift=True, bg_only=False, bg_skip=False,
                 redo_background=True, grism=False,
@@ -288,7 +316,8 @@ def prep_flt(asn_file=None, get_shift=True, bg_only=False, bg_skip=False,
                 skip_drz=False, final_scale=0.06, pixfrac=0.8,
                 DIRECT_SKY='/research/HST/GRISM/CONF/F140W_GOODSN_median.fits',
                 GRISM_SKY='/research/HST/GRISM/CONF/G141_sky_cleaned.fits',
-                align_geometry='rxyscale,shift', clean=True):
+                align_geometry='rxyscale,shift', clean=True,
+                initial_order=0, save_fit=False):
     """
 prep_flt(asn_file=None, get_shift=True, bg_only=False,
             redo_background=True, grism=False)
@@ -331,6 +360,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
     """
     #import fit_2d_poly
     import threedhst
+    import os
     #import threedhst.dq    
     
     if asn_file is None:
@@ -349,14 +379,16 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
     asn = threedhst.utils.ASNFile(asn_file)
     
     #### Set up matrix for fitting
-    fit = fit_2D_background(ORDER=0, grism=grism, DIRECT_SKY=DIRECT_SKY,
+    fit = fit_2D_background(ORDER=initial_order, grism=grism,
+                            DIRECT_SKY=DIRECT_SKY,
                             GRISM_SKY=GRISM_SKY)#, x0=507, y0=507)
     
     #### First pass background subtraction
     if not bg_skip:
         for exp in asn.exposures:
             threedhst.regions.apply_dq_mask(exp+'_flt.fits')
-            fit.fit_image(exp, A=fit.A, show=False, overwrite=True)
+            fit.fit_image(exp, A=fit.A, show=False, overwrite=True,
+                          save_fit=save_fit)
     
     #### Stop here if only want background subtraction
     if bg_only:
@@ -369,7 +401,8 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
         
     if not skip_drz:
         startMultidrizzle(asn_file, use_shiftfile=True, 
-            skysub=bg_skip, final_scale=final_scale, pixfrac=pixfrac)
+            skysub=bg_skip, final_scale=final_scale, pixfrac=pixfrac,
+            driz_cr=True, median=True, updatewcs=True)
         
     #### Blot combined images back to reference frame and make a 
     #### segmentation mask
@@ -397,7 +430,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
                           fitgeometry=geom.strip(), clean=clean)
             startMultidrizzle(asn_file, use_shiftfile=True, skysub=False,
                 final_scale=final_scale, pixfrac=pixfrac, driz_cr=False,
-                updatewcs=False)
+                updatewcs=False, clean=clean, median=False)
                 
         
     #### Run BG subtraction with improved mask and run multidrizzle again
@@ -405,12 +438,14 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
         fit = fit_2D_background(ORDER=1, grism=grism, DIRECT_SKY=DIRECT_SKY,
                                 GRISM_SKY=GRISM_SKY)#, x0=507, y0=507)
         for exp in asn.exposures:
-            fit.fit_image(exp, A=fit.A, show=False, overwrite=True)
+            fit.fit_image(exp, A=fit.A, show=False, overwrite=True, 
+                          save_fit=save_fit)
         
         startMultidrizzle(asn_file, use_shiftfile=True, skysub=False,
             final_scale=final_scale, pixfrac=pixfrac, driz_cr=False,
-            updatewcs=False)
+            updatewcs=False, median=False)
     
+        
 #
 def refine_shifts(ROOT_DIRECT='f160w',
                   ALIGN_IMAGE='../../ACS/h_sz*drz_img.fits',
@@ -451,11 +486,11 @@ refine_shifts(ROOT_DIRECT='f160w',
     shiftF.rotate = list((np.array(shiftF.rotate)+rot) % 360)
     shiftF.scale = list(np.array(shiftF.scale)*scale)
     
-    shiftF.print_shiftfile(ROOT_DIRECT+'_shifts.txt')
+    shiftF.write(ROOT_DIRECT+'_shifts.txt')
 
 def startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
     skysub=True, updatewcs=True, driz_cr=True, median=True,
-    final_scale=0.06, pixfrac=0.8, 
+    final_scale=0.06, pixfrac=0.8, clean=True,
     final_outnx='', final_outny='', final_rot=0., ra='', dec=''):
     """
 startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
@@ -518,52 +553,15 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
        shiftfile=shiftfile, \
        output = '', skysub = skysub, updatewcs = updatewcs, driz_cr=driz_cr,
        final_scale = final_scale, final_pixfrac = pixfrac, median=median, 
-       blot=median,
+       blot=median, driz_separate=median, static=median,
+       driz_sep_outnx = final_outnx, driz_sep_outny = final_outny, 
        final_outnx=final_outnx, final_outny=final_outny, 
        final_rot=final_rot, ra=ra, dec=dec)
     
     #### Delete created files    
-    threedhst.process_grism.cleanMultidrizzleOutput()
-    
-# def go_blot_all():
-#     import glob
-#     
-#     files=glob.glob('IB*run')
-#     for file in files:
-#         run = MultidrizzleRun(root=file.split('.run')[0])
-#         for i in range(4):
-#             try:
-#                 run.blot_back(ii=i)
-#             except:
-#                 pass
-# 
-# def blot_g141(asn_file=None):
-#     import os
-#     if not asn_file:
-#         asn_file = 'ib3704060_asn.fits'
-#     
-#     iraf.multidrizzle.static=no
-#     iraf.multidrizzle.skysub=no
-#     iraf.multidrizzle.driz_separate=no
-#     iraf.multidrizzle.median=no
-#     iraf.multidrizzle.median_newmasks=no
-#     iraf.multidrizzle.blot=no
-#     iraf.multidrizzle.driz_cr=no
-#     iraf.multidrizzle.driz_combine=yes
-#     startMultidrizzle(root=asn_file, use_shiftfile=False)
-#     asn_root = (asn_file.split('_asn.fits')[0]).upper()
-#     os.remove(asn_root+'_drz.fits')
-#     
-#     asn = threedhst.utils.ASNFile(asn_file)
-#     #direct = (asn_file.split('060_')[0]+'050').upper()
-#     run = MultidrizzleRun(root=asn_root)
-#     
-#     run.root = '../DATA/'+asn_file.split('_asn')[0]+'CONT'
-#     # for i,exp in enumerate(asn.exposures):
-#     #     run.flt[i] = exp+'_flt'
-#     for ii,flt in enumerate(run.flt):
-#         run.blot_back(ii=ii)
-    
+    if clean is True:
+        threedhst.process_grism.cleanMultidrizzleOutput()
+            
 class MultidrizzleRun():
     """
 MultidrizzleRun(root='IB3728050')
@@ -583,14 +581,15 @@ MultidrizzleRun(root='IB3728050')
         self.ysh = []
         self.rot = []
         self.scl = 1.
+        self.exptime = []
         
         for line in open(runfile,'r'):
             if line.startswith('drizzle.scale'):
                 self.scl = line.split()[2]
-                
             if line.startswith('drizzle '):
                 spl = line.split()
                 self.flt.append(spl[1].split('.fits')[0])
+                self.exptime.append(-1)
                 for tag in spl:
                     if tag.startswith('xsh'):
                         self.xsh.append(np.float(tag.split('=')[1]))
@@ -598,8 +597,10 @@ MultidrizzleRun(root='IB3728050')
                         self.ysh.append(np.float(tag.split('=')[1]))
                     if tag.startswith('rot'):
                         self.rot.append(np.float(tag.split('=')[1]))
-                        
-    def blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True):
+        
+        self.count = len(self.flt)
+        
+    def blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True, shape = None):
         """
 blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
     
@@ -618,13 +619,43 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
         #flt_orig = pyfits.open('../RAW/'+self.flt[ii]+'.fits.gz')
         threedhst.process_grism.flprMulti()
         
-        flt_orig = pyfits.open(self.flt[ii]+'.fits')
-        exptime = flt_orig[0].header.get('EXPTIME')
-        flt_orig.close()
+        if self.exptime[ii] < 0:
+            try:
+                flt_orig = pyfits.open(self.flt[ii]+'.fits')
+                exptime = flt_orig[0].header.get('EXPTIME')
+                flt_orig.close()
+            except:
+                exptime = 1.
+        else:
+            exptime = self.exptime[ii]
         
-        inNX = flt_orig[1].header.get('NAXIS1')
-        inNY = flt_orig[1].header.get('NAXIS2')
+        if shape is None:  
+            try:
+                inNX = flt_orig[1].header.get('NAXIS1')
+                inNY = flt_orig[1].header.get('NAXIS2')
+            except:
+                inNX = 1014
+                inNY = 1014
+            
+            shape = (inNX, inNY)
+        else:
+            inNX, inNY = shape
         
+        #### Need to update reference position of coeffs file
+        #### for an output shape different than 1014, 1014
+        coeffs = self.flt[ii]+'_coeffs1.dat'
+        coeffs_lines = open(coeffs).readlines()
+        if shape != (1014, 1014):
+            for i, line in enumerate(coeffs_lines):
+                if line.strip().startswith('refpix'):
+                    ### Default to center pixel
+                    coeffs_lines[i] = 'refpix %9.3f %9.3f\n' %(inNX*1./2, inNY*1./2)
+        
+        fp = open('/tmp/coeffs1.dat','w')
+        fp.writelines(coeffs_lines)
+        fp.close()
+        
+                
         iraf.delete(self.flt[ii]+'.BLOT.*.fits')
         if copy_new:
             iraf.delete('drz_*.fits')
@@ -658,7 +689,7 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
         if SCI:
             iraf.blot(data='drz_sci.fits',
                 outdata=self.flt[ii]+'.BLOT.SCI.fits', scale=self.scl,
-                coeffs=self.flt[ii]+'_coeffs1.dat', xsh=self.xsh[ii], 
+                coeffs='/tmp/coeffs1.dat', xsh=self.xsh[ii], 
                 ysh=self.ysh[ii], 
                 rot=self.rot[ii], outnx=inNX, outny=inNY, align='center', 
                 shft_un='input', shft_fr='input', in_un='cps', out_un='cps', 
@@ -668,13 +699,47 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
         if WHT:
             iraf.blot(data='drz_wht.fits',
                 outdata=self.flt[ii]+'.BLOT.WHT.fits', scale=self.scl,
-                coeffs=self.flt[ii]+'_coeffs1.dat', xsh=self.xsh[ii], 
+                coeffs='/tmp/coeffs1.dat', xsh=self.xsh[ii], 
                 ysh=self.ysh[ii], 
                 rot=self.rot[ii], outnx=inNX, outny=inNY, align='center', 
                 shft_un='input', shft_fr='input', in_un='cps', out_un='cps', 
                 interpol='poly5', sinscl='1.0', expout=exptime, 
                 expkey='EXPTIME',fillval=0.0)
-                
+
+class DRZFile(MultidrizzleRun):
+    """
+    Get the information from a drz file directly, rather than from a .run 
+    file
+    """
+    def __init__(self, fitsfile='ib6o23010_drz.fits'):
+        import numpy as np
+        
+        self.root = fitsfile.split('_drz.fits')[0]
+        
+        drz = pyfits.open(fitsfile)
+        hdrz = drz[0].header
+        self.count = 0
+        for key in hdrz.keys():
+            if key.startswith('D') & key.endswith('XSH'):
+                self.count+=1
+        
+        self.flt = []
+        self.xsh = []
+        self.ysh = []
+        self.rot = []
+        self.scl = 0.
+        self.exptime = []
+        
+        for i in range(self.count):
+            self.flt.append(hdrz.get('D%03dDATA' %(i+1)).split('.fits')[0])
+            self.xsh.append(hdrz.get('D%03dXSH' %(i+1)))
+            self.ysh.append(hdrz.get('D%03dYSH' %(i+1)))
+            self.rot.append(hdrz.get('D%03dROT' %(i+1)))
+            self.exptime.append(hdrz.get('D%03dDEXP' %(i+1)))
+            self.scl += hdrz.get('D%03dSCAL' %(i+1))
+        
+        self.scl /= self.count
+        
 def jitter_info():
     """
 jitter_info()
@@ -725,7 +790,7 @@ jitter_info()
 #     for file in files:
 #         make_segmap(root=file.split('.BLOT')[0])
         
-def make_segmap(root='ib3701ryq_flt', sigma=1):
+def make_segmap(root='ib3701ryq_flt', sigma=0.5):
     """
 make_segmap(root='ib3701ryq_flt', sigma=1)
     

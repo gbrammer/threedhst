@@ -258,7 +258,8 @@ multiple times for each zoom level and image combination.
 
     #### Make XML file of the catalog, coordinates and ID number
     threedhst.gmap.makeCatXML(catFile=ROOT_DIRECT.lower()+'_drz.cat',
-                              xmlFile='../HTML/'+ROOT_DIRECT+'.xml')
+                              xmlFile='../HTML/'+ROOT_DIRECT+'.xml',
+                              SPCFile = threedhst.currentRun['SPC'])
     
     threedhst.gmap.makeCirclePNG(outfile='../HTML/scripts/circle.php')            
     
@@ -556,7 +557,7 @@ radec2latlon(radec)
     #latlon = np.array([radec[1],radec[0]])
     return latlon
     
-def makeCatXML(catFile=None,xmlFile=None):
+def makeCatXML(catFile=None, xmlFile=None, SPCFile=None):
     """
 makeCatXML(catFile=None,xmlFile=None)
     
@@ -574,6 +575,11 @@ makeCatXML(catFile=None,xmlFile=None)
     colRA = cat.columns[cat.searchcol('X_WORLD')].entry
     colDEC = cat.columns[cat.searchcol('Y_WORLD')].entry
     
+    if SPCFile is None:
+        spec_list = np.array(np.cast[int](cat.NUMBER))
+    else:
+        spec_list = SPCFile._ext_map
+        
     ### Mag column, sorted
     col = 'MAG_AUTO'
     for col in cat.column_names:
@@ -588,7 +594,8 @@ makeCatXML(catFile=None,xmlFile=None)
     xmlString = '<markers>'
     for j in range(cat.nrows):
         i = sort_idx[j]
-        xmlString+='<marker id="%s" ra="%s" dec="%s" mag="%s"/>' %(colID[i],
+        if int(cat.NUMBER[i]) in spec_list:
+            xmlString+='<marker id="%s" ra="%s" dec="%s" mag="%s"/>' %(colID[i],
                       colRA[i], colDEC[i], colMag[i])
                       
     xmlString+='</markers>'

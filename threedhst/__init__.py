@@ -25,6 +25,57 @@ options = {}
 currentRun = {}
 currentRun['step'] = 'INIT'
 
+def showMessage(msg, warn=False):
+    """
+showMessage(msg)
+    
+    Print a system message formatted like:
+    
+    ***********************************
+    *  THREEDHST.`module`.`function`  *
+    ***********************************
+    
+    `msg`
+    
+    ***********************************
+    """       
+    import os
+    import sys
+    import inspect
+    import time
+    
+    from threedhst.TerminalController import TerminalController
+    
+    calling_function_name = sys._getframe(1).f_code.co_name    
+    module_name =  os.path.basename(inspect.stack()[1][1]).split('.py')[0]
+    
+    term = TerminalController()
+    
+    char = '='
+    substr = 'THREEDHST.'+module_name+'.'+calling_function_name
+    
+    substr = char+'  '+substr+'  '+char
+    
+    NL = len(substr)
+    topbar = char*NL
+    
+    t0 = time.localtime()
+    theDate = '%0d/%0d/%0d %0d:%0d' %(t0[0],t0[1],t0[2],t0[3],t0[4])
+    N2 = (NL-2-len(theDate))/2
+    botbar = char*N2+' '+theDate+' '+char*(NL-N2-2-len(theDate))
+    
+    if warn:
+        text_color = term.WHITE
+        bg_color = term.BG_RED
+    else:
+        text_color = term.BLUE
+        bg_color = term.BG_WHITE
+        
+    print (bg_color+text_color+term.BOLD+'\n'+topbar+
+           '\n'+substr+'\n'+topbar+'\n\n'+term.NORMAL+
+           msg+'\n\n'+
+           bg_color+text_color+term.BOLD+botbar+'\n'+term.NORMAL)
+
 def defaultOptions():
     """
 defaultOptions()
@@ -36,9 +87,13 @@ defaultOptions()
     >>> threedhst.defaultOptions()
     >>> threedhst.showOptions()
     """
+    showMessage('Initializing THREEDHST parameters')
     #### Delete all keywords and reset
     for key in options.keys():
         pop = options.popitem()
+    
+    #### ACS rather than WFC3 grism
+    options['ACS_G800L'] = False
     
     #### Optionally supply a ready-made direct image
     #### that you will match the grism image to.  Useful
@@ -115,7 +170,7 @@ defaultOptions()
     #### of the direct thumbnail.
     options['FULL_EXTRACTION_GEOMETRY'] = False
     #### aXe adjust sensitivity - convolve grism throughput with source profile
-    options['AXE_ADJ_SENS'] = "NO"
+    options['AXE_ADJ_SENS'] = "YES"
     #### aXe extract with "optimal weights"
     options['AXE_OPT_EXTR'] = "YES"
     
@@ -168,51 +223,6 @@ def showOptions(to_file=None):
         for key in options.keys():
             fp.write('%s = %s\n' %(key,str(options[key])))
         fp.close()
-
-def showMessage(msg, warn=False):
-    """
-showMessage(msg)
-    
-    Print a system message formatted like:
-    
-    ***********************************
-    *  THREEDHST.`module`.`function`  *
-    ***********************************
-    
-    `msg`
-    
-    ***********************************
-    """       
-    import os
-    import sys
-    import inspect
-     
-    from threedhst.TerminalController import TerminalController
-    
-    calling_function_name = sys._getframe(1).f_code.co_name    
-    module_name =  os.path.basename(inspect.stack()[1][1]).split('.py')[0]
-    
-    term = TerminalController()
-    
-    char = '='
-    substr = 'THREEDHST.'+module_name+'.'+calling_function_name
-    
-    substr = char+'  '+substr+'  '+char
-    
-    NL = len(substr)
-    bar = char*NL
-    
-    if warn:
-        text_color = term.WHITE
-        bg_color = term.BG_RED
-    else:
-        text_color = term.BLUE
-        bg_color = term.BG_WHITE
-        
-    print (bg_color+text_color+term.BOLD+'\n'+bar+
-           '\n'+substr+'\n'+bar+'\n\n'+term.NORMAL+
-           msg+'\n\n'+
-           bg_color+text_color+term.BOLD+bar+'\n'+term.NORMAL)
     
     
     

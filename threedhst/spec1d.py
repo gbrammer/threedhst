@@ -413,7 +413,7 @@ lines = spWFindLines(SPCFile, idx=195, show=True, check_contam=False)
     #     print line.wave, line.scale, line.sigma, line.type
         
     return emLines
-    
+
 class spLineNew:
     wave = 0.
     waveMin = 0.
@@ -430,3 +430,34 @@ class spLineNew:
     scale = 0.
     type = ''
     flag = 'ok'
+    
+class readLinesDat():
+    def __init__(self, infile):
+        wave = []
+        sigma = []
+        eqw = []
+        sn = []
+        id = []
+        ndet = []
+        
+        lines = open(infile,'r').readlines()
+        for line in lines:
+            if not line.startswith('#'):
+                spl = line.split()
+                N = len(spl)
+                if N > 1:
+                    for i in range(N/4):
+                        id.append(spl[0])
+                        wave.append(spl[i*4+1])
+                        sigma.append(spl[i*4+2])
+                        eqw.append(spl[i*4+3])
+                        sn.append(spl[i*4+4])
+                        ndet.append(N/4)
+                        
+        self.id = np.cast[int](id)
+        self.ndet = np.cast[int](ndet)
+        self.wave = np.cast[float](wave)
+        self.sigma = np.cast[float](sigma)
+        self.eqw = np.cast[float](eqw)
+        self.sn = np.cast[float](sn)
+        

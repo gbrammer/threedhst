@@ -32,7 +32,8 @@ def defaultPlotParameters():
     pyplot.rcParams['ps.useafm'] = True
     pyplot.rcParams['patch.linewidth'] = 0.
     pyplot.rcParams['patch.edgecolor'] = 'black'
-    pyplot.rcParams['text.usetex'] = True
+    pyplot.rcParams['text.usetex'] = False
+    #pyplot.rcParams['text.usetex'] = True
     #pyplot.rcParams['text.latex.preamble'] = ''
 
 def make_data_products(ROOT_DIRECT, ROOT_GRISM):
@@ -74,15 +75,15 @@ make_data_products()
     print '\nTHREEDHST.plotting.makeThumbs: Creating direct image ' + \
           'thumbnails...\n\n'
     threedhst.plotting.makeThumbs(SPC, sexCat, path='../HTML/images/')
-    
-    fptar = tarfile.open('../HTML/images/'+ROOT_DIRECT+'_thumbs.tar.gz','w|gz')
-    oldwd = os.getcwd()
-    os.chdir('../HTML/images/')
-    files = glob.glob(ROOT_DIRECT+'*thumb.fits.gz')
-    for file in files:
-        fptar.add(file)
-    fptar.close()
-    os.chdir(oldwd)
+    # 
+    # fptar = tarfile.open('../HTML/images/'+ROOT_DIRECT+'_thumbs.tar.gz','w|gz')
+    # oldwd = os.getcwd()
+    # os.chdir('../HTML/images/')
+    # files = glob.glob(ROOT_DIRECT+'*thumb.fits.gz')
+    # for file in files:
+    #     fptar.add(file)
+    # fptar.close()
+    # os.chdir(oldwd)
     
     #############################################
     #### 1D spectra images
@@ -98,14 +99,14 @@ make_data_products()
           'thumbnails...\n\n'
     threedhst.plotting.makeSpec2dImages(SPC, path='../HTML/images/')
     
-    fptar = tarfile.open('../HTML/images/'+ROOT_DIRECT+'_2D.tar.gz','w|gz')
-    oldwd = os.getcwd()
-    os.chdir('../HTML/images/')
-    files = glob.glob(ROOT_DIRECT+'*2D.fits.gz')
-    for file in files:
-        fptar.add(file)
-    fptar.close()
-    os.chdir(oldwd)
+    # fptar = tarfile.open('../HTML/images/'+ROOT_DIRECT+'_2D.tar.gz','w|gz')
+    # oldwd = os.getcwd()
+    # os.chdir('../HTML/images/')
+    # files = glob.glob(ROOT_DIRECT+'*2D.fits.gz')
+    # for file in files:
+    #     fptar.add(file)
+    # fptar.close()
+    # os.chdir(oldwd)
     
     #### Done with thumbnails
     threedhst.currentRun['step'] = 'MAKE_THUMBNAILS'
@@ -483,6 +484,8 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     sub = sub_im[0].data
     
     #### Look for a better platform-independent way to gzip
+    if os.path.exists(fitsfile+'.gz'):
+        os.remove(fitsfile+'.gz')
     os.system('gzip '+fitsfile)
     
     interp = 'nearest'
@@ -580,6 +583,11 @@ plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
     head = mef['SCI'].header
     lmin = 10800
     lmax = 16800
+    
+    if threedhst.options['ACS_G800L']:
+        lmin = 5500
+        lmax = 1.0e4
+    
     xmin = (lmin-head['CRVAL1'])/head['CDELT1']+head['CRPIX1']
     xmax = (lmax-head['CRVAL1'])/head['CDELT1']+head['CRPIX1']
     
@@ -606,6 +614,11 @@ plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
         vmin = -0.5*0.8
         vmax = 0.1*0.8
     
+    #### Need to convert to e- / s for ACS.  aXe bug for ACS?????
+    if threedhst.options['GRISM_NAME'] == 'G800L':
+        drz = pyfits.getheader(threedhst.options['ROOT_GRISM']+'_drz.fits',0)
+        mef['SCI'].data /= (drz.get('EXPTIME')/drz.get('NDRIZIM')*2)
+        
     #vmin *= (np.float(threedhst.options['DRZSCALE'])/0.128254)**1
     #vmax *= (np.float(threedhst.options['DRZSCALE'])/0.128254)**1
     
@@ -711,10 +724,16 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     #object_number = 42
     spec = SPCFile.getSpec(object_number)
     flux = spec.field('FLUX')
-    ferr = spec.field('FERROR')*np.float(threedhst.options['DRZSCALE'])/0.128254
+    ferr = spec.field('FERROR') 
     
     contam = spec.field('CONTAM')
     lam  = spec.field('LAMBDA')
+    
+    #### Need to convert to e- / s for ACS.  aXe bug for ACS?????
+    if threedhst.options['GRISM_NAME'] == 'G800L':
+        drz = pyfits.getheader(threedhst.options['ROOT_GRISM']+'_drz.fits',0)
+        flux /= (drz.get('EXPTIME')/drz.get('NDRIZIM')*2)
+        ferr /= (drz.get('EXPTIME')/drz.get('NDRIZIM')*2)
         
     ### Initialize plot
     # fig = pyplot.figure(figsize=[6,4],dpi=100)
@@ -734,10 +753,15 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
                color='red',linewidth=1.0,alpha=0.2)
     ax.errorbar(lam, flux-contam,
                yerr= ferr,ecolor='blue',
-               color='blue',fmt='.',alpha=0.5)
+               color='blue',fmt='.',alpha=0.2)
     
     xmin = 10800
     xmax = 16800
+    
+    if threedhst.options['ACS_G800L']:
+        xmin = 5500
+        xmax = 1.0e4
+        
     sub = np.where((lam > xmin) & (lam < xmax))[0]
     ymax = np.max((flux-0*contam)[sub])
     
@@ -776,20 +800,22 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
                     
                     #### If gaussian fit successful, update line parameters
                     #### with fit results
-                    if pout[2][4] <= 4:
-                        line.wave = pout[2][0][1]
-                        line.sigma = pout[2][0][2]
-                        line.ew = pout[1]
-
-                        # S/N at line peak
-                        npeak = np.where(np.abs(lam-line.wave) ==
+                    if pout is not -1:
+                        if pout[2][4] <= 4:
+                            line.wave = pout[2][0][1]
+                            line.sigma = pout[2][0][2]
+                            line.ew = pout[1]
+                            
+                            # S/N at line peak
+                            npeak = np.where(np.abs(lam-line.wave) ==
                                          np.min(np.abs(lam-line.wave)))[0]
-                        line.sn = pout[2][0][0]/ferr[npeak]
-                        line.type = 'emgauss'
+                        
+                            line.sn = pout[2][0][0]/ferr[npeak]
+                            line.type = 'emgauss'
+                        
+                            #lines[il] = line
 
-                        #lines[il] = line
-
-                        ax.plot(xnew,pout[0], color='green', linewidth=4, alpha=0.3)
+                            ax.plot(xnew,pout[0], color='green', linewidth=4, alpha=0.3)
                     
                 ### show assuming line is OII, OIII, Ha
                 compare_lines = np.array([3727., 5007, 6563.])
@@ -842,11 +868,15 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     
     ### Labels
     root = os.path.basename(SPCFile.filename).split('_2')[0]
-    pyplot.title('%s: \#%d' %(root.replace('_','\_'),object_number))
-    pyplot.xlabel(r'$\lambda$[\AA]')
-    pyplot.ylabel(r'$\mathit{F}_{\lambda}$')
-
-    
+    if pyplot.rcParams['text.usetex']:
+        pyplot.title(r'%s: \#%d' %(root.replace('_','\_'),object_number))
+        pyplot.xlabel(r'$\lambda~\left[$\AA$\right]')
+        pyplot.ylabel(r'$\mathit{f}_{\lambda}$')
+    else:
+        pyplot.title(r'%s: #%d' %(root.replace('_','\_'),object_number))
+        pyplot.xlabel(r'$\lambda$ [$\AA$]')
+        pyplot.ylabel(r'$f_{\lambda}$')
+        
     ### Save to PNG
     if outfile:
         fig.savefig(outfile,dpi=75,transparent=False)
@@ -889,10 +919,14 @@ def gaussfit(x,y,p0):
     
     errfunc = lambda p, x, y: (fitfunc(p,x)-y)
     
+    use = (np.isfinite(x)) & (np.isfinite(y))
+    if len(x[use]) <= 3:
+        return -1
+        
     output = scipy.optimize.leastsq(errfunc, p0.copy(),
-                     args=(x,y),
+                     args=(x[use],y[use]),
                      full_output=True)
-    
+        
     yfit = fitfunc(output[0], x)
     cont = continuum(output[0], x)
     eqwidth = np.trapz(1-yfit/cont, x)
@@ -988,9 +1022,6 @@ def makeHTML(SPCFile, mySexCat, mapParams,
 	myIcon.iconSize = new GSize(30, 25);
 	myIcon.iconAnchor = new GPoint(14.5, 14.5);
 	
-	var ROWSTART = 0;
-	var NSHOW = 25;
-	
     function initialize() {        
         if (GBrowserIsCompatible()) {
             map = new GMap2(document.getElementById("map"));
@@ -998,57 +1029,9 @@ def makeHTML(SPCFile, mySexCat, mapParams,
             var topLeft = new GControlPosition(G_ANCHOR_TOP_LEFT,
                                                  new GSize(10,40));
             map.addControl(new GSmallMapControl(), topLeft);
-            // map.addControl(new GMapTypeControl());
-            var copyright = new GCopyright(1,
-                 new GLatLngBounds(new GLatLng(%f,%f),
-                                   new GLatLng(%f,%f)),
-                                   zoomLevel, "3D-HST");
-            var copyrightCollection = new GCopyrightCollection('Map Data:');
-            copyrightCollection.addCopyright(copyright);
 
-            // Direct image tiles
-            CustomGetDirectTileUrl=function(a,b){
-                return "tiles/"+root+"_d_"+a.x+"_"+a.y+"_"+b+".png"
-            }
-            var tilelayersDirect = [new GTileLayer(copyrightCollection,
-                                          zoomLevel-2,zoomLevel+1)];
-            tilelayersDirect[0].getTileUrl = CustomGetDirectTileUrl;
-            var custommapDirect = new GMapType(tilelayersDirect, 
-                   new GMercatorProjection(zoomLevel+2), "Direct");
-            map.addMapType(custommapDirect);
-
-            // Grism image tiles
-            CustomGetGrismTileUrl=function(a,b){
-                return "tiles/"+root+"_g_"+a.x+"_"+a.y+"_"+b+".png"
-            }
-            var tilelayersGrism = [new GTileLayer(copyrightCollection,
-                                          zoomLevel-2,zoomLevel+1)];
-            tilelayersGrism[0].getTileUrl = CustomGetGrismTileUrl;
-            var custommapGrism = new GMapType(tilelayersGrism, 
-                   new GMercatorProjection(zoomLevel+2), "Grism");
-            map.addMapType(custommapGrism);
-            
-            // Model image tiles
-            CustomGetModelTileUrl=function(a,b){
-                return "tiles/"+root+"_m_"+a.x+"_"+a.y+"_"+b+".png"
-            }
-            var tilelayersModel = [new GTileLayer(copyrightCollection,
-                                          zoomLevel-2,zoomLevel+1)];
-            tilelayersModel[0].getTileUrl = CustomGetModelTileUrl;
-            var custommapModel = new GMapType(tilelayersModel, 
-                   new GMercatorProjection(zoomLevel+2), "Model");
-            map.addMapType(custommapModel);
-            
-            // Can't remove all three for some reason
-            map.removeMapType(G_NORMAL_MAP);
-            map.removeMapType(G_HYBRID_MAP);
-            map.removeMapType(G_SATELLITE_MAP);
-            
-            map.addControl(new GMapTypeControl());
-            
-            // Set map center
-            map.setCenter(new GLatLng(0.0, offset), zoomLevel,
-             custommapDirect);
+		    ///// Add the layer tiles
+		    add_mapLayer_tiles()
             
             latLng2raDec();
             
@@ -1057,15 +1040,15 @@ def makeHTML(SPCFile, mySexCat, mapParams,
                 show_centerbox();
             });
             
+            ///// Add the green circles around the catalog objects
             plotXmlObjects();
         }
+        initialize_SED_column();
     }
     
     </script>
         """ %(center[0],center[1],lng_offset,mapParams['ZOOMLEVEL'],
-              threedhst.options['ROOT_DIRECT'],
-              llSW[0]-center[0],llSW[1]-center[1]+lng_offset,
-              llNE[0]-center[0],llNE[1]-center[1]+lng_offset))
+              threedhst.options['ROOT_DIRECT']))
     
     #### HTML Body   
     lines.append("""
@@ -1118,13 +1101,13 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     
     <table id="myTable" cellspacing="1" class="tablesorter"> 
     <thead> 
-    <tr> 
+    <tr id="header_row"> 
     <th width=50px>ID 
-		<span style="cursor:s-resize">
-			<a onclick="javascript:pageDown();"> <b>+</b> </a>
-		</span>
 		<span style="cursor:n-resize">
-			<a onclick="javascript:pageUp();"> <b>-</b> </a>
+			<a onclick="javascript:pageUp();"> <b>+</b> </a>
+		</span>
+		<span style="cursor:s-resize">
+			<a onclick="javascript:pageDown();"> <b>-</b> </a>
 		</span>
     </th>
         <th width=70px>R.A.</th> 
@@ -1150,7 +1133,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
         
         img = '%s_%05d' %(root,id)
         lines.append("""
-        <tr> 
+        <tr id=""> 
             <td id="tab_id" onclick="javascript:recenter(0,0)">
                   %d
             </td>
@@ -1381,13 +1364,14 @@ asciiSpec(SPCFile, root="spec", path="../HTML/ascii")
     #### hack: errors seem too large when you use 
     #### drizzle with updated DRZSCALE parameter.
     #### scale by DRZSCALE/0.128254
-    ERROR_SCALE = np.float(threedhst.options['DRZSCALE'])/0.128254
+    #ERROR_SCALE = np.float(threedhst.options['DRZSCALE'])/0.128254
+    ########    ---- this was a bug fixed by M. Kuemmel 12/16/10  ----
     
     for id in ids:
         spec = SPCFile.getSpec(id)
         lam  = spec.field('LAMBDA')
         flux = spec.field('FLUX')
-        ferr = spec.field('FERROR')*ERROR_SCALE
+        ferr = spec.field('FERROR')
         contam = spec.field('CONTAM')
     
         out = root+'_%05d.dat' %id
@@ -1589,7 +1573,64 @@ make_Javascript(path="../HTML/scripts")
     /////////////////////
     /////  Map utilities
     /////////////////////
+    
+    ///// Add the layer tiles
+    function add_mapLayer_tiles() {
+        
+        var copyright = new GCopyright(1,
+             new GLatLngBounds(new GLatLng(-2,-2),
+                               new GLatLng(2,2)),
+                               zoomLevel, "3D-HST");
+        
+        var copyrightCollection = new GCopyrightCollection('Map Data:');
+        copyrightCollection.addCopyright(copyright);
+        
+        // Direct image tiles
+        CustomGetDirectTileUrl=function(a,b){
+            return "tiles/"+root+"_d_"+a.x+"_"+a.y+"_"+b+".png"
+        }
+        var tilelayersDirect = [new GTileLayer(copyrightCollection,
+                                      zoomLevel-2,zoomLevel+1)];
+        tilelayersDirect[0].getTileUrl = CustomGetDirectTileUrl;
+        var custommapDirect = new GMapType(tilelayersDirect, 
+               new GMercatorProjection(zoomLevel+2), "Direct");
+        map.addMapType(custommapDirect);
 
+        // Grism image tiles
+        CustomGetGrismTileUrl=function(a,b){
+            return "tiles/"+root+"_g_"+a.x+"_"+a.y+"_"+b+".png"
+        }
+        var tilelayersGrism = [new GTileLayer(copyrightCollection,
+                                      zoomLevel-2,zoomLevel+1)];
+        tilelayersGrism[0].getTileUrl = CustomGetGrismTileUrl;
+        var custommapGrism = new GMapType(tilelayersGrism, 
+               new GMercatorProjection(zoomLevel+2), "Grism");
+        map.addMapType(custommapGrism);
+        
+        // Model image tiles
+        CustomGetModelTileUrl=function(a,b){
+            return "tiles/"+root+"_m_"+a.x+"_"+a.y+"_"+b+".png"
+        }
+        var tilelayersModel = [new GTileLayer(copyrightCollection,
+                                      zoomLevel-2,zoomLevel+1)];
+        tilelayersModel[0].getTileUrl = CustomGetModelTileUrl;
+        var custommapModel = new GMapType(tilelayersModel, 
+               new GMercatorProjection(zoomLevel+2), "Model");
+        map.addMapType(custommapModel);    
+        
+        // Can't remove all three for some reason
+        map.removeMapType(G_NORMAL_MAP);
+        map.removeMapType(G_HYBRID_MAP);
+        map.removeMapType(G_SATELLITE_MAP);
+        
+        map.addControl(new GMapTypeControl());
+        
+        // Set map center
+        map.setCenter(new GLatLng(0.0, offset), zoomLevel,
+         custommapDirect);
+		
+    }
+    
     ///// Flash a little box to show where the center of the map is, 
     ///// which corresponds to the listed coordinates
     function show_centerbox() {
@@ -1606,10 +1647,10 @@ make_Javascript(path="../HTML/scripts")
         var mapcenter = map.getCenter();
         var dec = mapcenter.lat()+centerLat;                       
         var dsign = "+";
-        var hex = "\%%2B"
+        var hex = "%2B"
         if (dec < 0) {
             dsign = "-";
-            hex = "\%%2D";
+            hex = "%2D";
         }
         dec = Math.abs(dec);
         var ded = parseInt(dec);
@@ -1696,7 +1737,12 @@ make_Javascript(path="../HTML/scripts")
     var ids = [];
     var nObject = 0;
     var marker_list = [];
-
+    
+    var SED_COLUMN = 1;
+    var ROWSTART = 0;
+	var NSHOW = 25;
+	
+	
     ///// Read objects from XML file and plot regions
     function plotXmlObjects() {
         GDownloadUrl(root+".xml", function(data) {
@@ -1777,7 +1823,7 @@ make_Javascript(path="../HTML/scripts")
     	if (ROWSTART < 0) ROWSTART=0;
     	j = ROWSTART;
 
-    	var matchID = 0+$.sprintf('%04d', ids[j]);
+    	var matchID = 0+$.sprintf('%d', ids[j]);
     	if (ids[j] < 1000) matchID = 0+matchID;
     	if (ids[j] < 100) matchID = 0+matchID;
     	if (ids[j] < 10) matchID = 0+matchID;
@@ -1785,7 +1831,7 @@ make_Javascript(path="../HTML/scripts")
     	document.getElementById("tab_id").innerText = ids[j];
     	document.getElementById("tab_ra").innerText = $.sprintf('%14.6f', ra_list[j]);
     	document.getElementById("tab_dec").innerText = $.sprintf('%14.6f', de_list[j]);
-    	document.getElementById("tab_mag").innerText = $.sprintf('%14.6f', mag_list[j]);
+    	document.getElementById("tab_mag").innerText = $.sprintf('%6.2f', mag_list[j]);
 
     	document.getElementById("img_thumb").src = 'images/'+root+'_' + matchID + '_thumb.png';
     	document.getElementById("a_thumb").href = 'images/'+root+'_' + matchID + '_thumb.fits.gz';
@@ -1795,6 +1841,12 @@ make_Javascript(path="../HTML/scripts")
 
     	document.getElementById("img_2D").src = 'images/'+root+'_' + matchID + '_2D.png';
     	document.getElementById("a_2D").href = 'images/'+root+'_' + matchID + '_2D.fits.gz';
+
+        if (SED_COLUMN == 1) {
+            document.getElementById("img_SED").src = 'SED/'+root+'_' + matchID + '_SED.png';
+        	document.getElementById("a_SED").href = 'SED/'+root+'_' + matchID + '_SED.png';
+
+        }
 
     }
 
@@ -1844,7 +1896,7 @@ make_Javascript(path="../HTML/scripts")
     	tdec.innerText = $.sprintf('%14.6f', de_list[idx]);
 
     	var tmag = newRow.insertCell(3);
-    	tmag.innerText = mag_list[idx];
+    	tmag.innerText = $.sprintf('%6.2f', mag_list[idx]);
 
     	var tthumb = newRow.insertCell(4);
     	tthumb.innerHTML = "<a href='images/"+root+"_"+thisID+ "_thumb.fits.gz'> <img src='images/"+root+"_"+thisID+"_thumb.png'  width=133px></a>";
@@ -1854,6 +1906,11 @@ make_Javascript(path="../HTML/scripts")
 
     	var t2D = newRow.insertCell(6);
     	t2D.innerHTML = "<td><a href='ascii/"+root+"_"+thisID+"_2D.fits.gz'><img src='images/"+root+"_"+thisID+"_2D.png' width=200px title='2D'></a></td>"
+
+        if (SED_COLUMN == 1) {
+        	var tSED = newRow.insertCell(7);
+        	tSED.innerHTML = "<td><a href='SED/"+root+"_"+thisID+"_SED.png'><img src='SED/"+root+"_"+thisID+"_SED.png' width=200px title='2D'></a></td>"
+        }
 
     }
 
@@ -1880,6 +1937,36 @@ make_Javascript(path="../HTML/scripts")
         clearRows();
         addRowSet();
     }
+    
+    ///// Add an additional column for plots with BB SEDs compared
+    ///// to the spectra.
+    function initialize_SED_column() {
+        if (SED_COLUMN == 1) {
+        	var theTab = document.getElementById("myTable");
+        	
+        	//// <th> column, called "SED"
+        	var tabHead = theTab.tHead;
+        	thObj = document.createElement("th");
+        	thObj.style.width="210px";
+        	thObj.innerHTML = "SED";
+        	tabHead.rows[0].appendChild(thObj);
+        	
+        	//// Data column, with a link and an image
+        	var newCell = theTab.tBodies[0].rows[0].insertCell(7);
+        	newCell.id = "tab_sed";
+        	var newLink = document.createElement("a");
+        	newLink.id="a_SED";
+        	var newImg = document.createElement("img");
+        	newImg.id="img_SED";
+        	newImg.style.width="200px";
+        	newImg.src = "SED/"+root+"_0001.png";
+        	newLink.appendChild(newImg);
+        	newCell.appendChild(newLink);
+
+            //// newCell.innerHTML = "<a id=\"a_sed\"><img id=\"img_sed\" src=\"SED/"+root+"_0001.png\" width=200px></a>";
+        }
+    }
+    
     """)
     fp.close()
         

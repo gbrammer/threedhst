@@ -310,6 +310,7 @@ apply_dq_mask(flt_file, addval=2048)
     dqflag[np.where(dqflag > 0)] = addval
     fi[extension].data+=dqflag
     ##### Write back to flt_file
+    
     if not flt_file.endswith('.gz'):
         fi.flush()
     else:
