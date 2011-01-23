@@ -66,7 +66,8 @@ $ csh
 % pyraf --ipython
 }}}
 
-Next, download *aXe2html* from [http://www.stecf.org/software/slitless_software/axe/installation.php] and extract it.  
+Next, download *aXe2html* from [http://www.stecf.org/software/slitless_software/axe/installation.php] and extract it.  *This link no longer available.  The aXe2html v1.1 distribution can be downloaded from the "Downloads" tab.*
+
 
 {{{
 cd /tmp
