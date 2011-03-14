@@ -243,9 +243,11 @@ makeOtherTiles
                                                  extension=0,
                                                  zmin=zmin, zmax=zmax)
     
-def makeAllTiles(ROOT_DIRECT, ROOT_GRISM, zmin=-0.1, zmax=1, verbose=False):
+def makeAllTiles(ROOT_DIRECT, ROOT_GRISM, zmin=-0.1, zmax=1, verbose=False,
+                 PARAM_ONLY=False):
     """
-mapParams = makeAllTiles(ROOT_DIRECT, ROOT_GRISM, zmin=-0.1, zmax=1)
+mapParams = makeAllTiles(ROOT_DIRECT, ROOT_GRISM, zmin=-0.1, zmax=1, 
+                         PARAM_ONLY=False)
     """
     import threedhst
     import pyfits
@@ -273,7 +275,11 @@ multiple times for each zoom level and image combination.
     
     ########### Prepare map tiles for different zoom levels:
     ########### 0.07 x [1,2,4,8] arcsec/pix
-    for aper in range(13,17):
+    aper_list = range(13,17)
+    if PARAM_ONLY:
+        aper_list = [16]
+        
+    for aper in aper_list:
         ### base image
         
         threedhst.showMessage("Map tiles, zoom level: %10.6f arcsec/pix"
@@ -304,7 +310,9 @@ multiple times for each zoom level and image combination.
         #### Get map parameters from high-resolution image
         if (aper == 16):
             mapParams=mapParamsD.copy()
-        
+            if PARAM_ONLY:
+                return mapParams
+                
         if aper == 16:
             zmi*=0.2
             zma*=0.2
