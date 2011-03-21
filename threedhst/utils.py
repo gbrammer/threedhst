@@ -503,7 +503,18 @@ asn_file_info(asn_file, verbose=1)
         for line in lines:
             print line
     
-
+def replace_OrIg():
+    """
+    Copy the Multidrizzle backup files back to the original 
+    flt files.
+    """
+    import glob
+    import shutil
+    files=glob.glob('*OrIg_flt.fits')
+    for file in files:
+        out=file.replace('OrIg_','')
+        print file, out
+        shutil.move(file, out)
 # def asn_region(asn_file):
 #     """
 # asn_region(asn_file)

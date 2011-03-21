@@ -1,6 +1,8 @@
 Miscellaneous notes
 ===================
 
+Add a flag to the catalog that indicates if an object won't have a grism spectrum or 2d thumbnail because it falls off of the grism coverage.
+
 ---------
 I tried to run the reduction script with ASN files that contain *all* of the available observations for GOODS-N.  I got as far as iolprep, which broke because one of the iraf tasks it uses (wtran) doesn't output its results with enough decimal precision given the input image size.  I edited /usr/stsci/stsdas/python/axe/axesrc/awtran.py as follows:
 

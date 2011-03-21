@@ -218,8 +218,12 @@ SExtractor()
         for par in useParams:
             self.params[par] = True
     
-    
     def _saveFiles(self,fnbase):
+        """
+        
+        make threedhst_auto.[sex/param] files
+        
+        """
         import os
         
         fnbase = fnbase.replace('.sex','')
@@ -346,6 +350,7 @@ SExtractor()
             self.lasterr = serr
             
             if res!=0 and mode == 'waiterror' :
+                print serr, sout
                 raise SError(serr,sout)
             return res
         elif mode == 'proc':
@@ -356,7 +361,6 @@ SExtractor()
             res = proc.wait()
         else:
             raise ValueError('unrecognized mode argument '+str(mode))
-
 
 class SError(Exception):
     def __init__(self,*args):
@@ -836,7 +840,7 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
                             CENTER= %s\n""" %(self.options['PIXEL_SCALE'],
                             self.options['IMAGE_SIZE'],self.options['CENTER'])
     
-    def swarpImage(self,inputImage,mode='direct', verbose=True):
+    def swarpImage(self,inputImage, mode='direct', verbose=True):
         """
         swarpImage(self,inputImage,mode='waiterror', verbose=True)
         

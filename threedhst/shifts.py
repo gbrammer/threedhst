@@ -67,6 +67,8 @@ run_tweakshifts(asn_direct)
         for line in status:
             print line
     
+    return status
+    
 def find_align_images_that_overlap(DIRECT_MOSAIC, ALIGN_IMAGE, ALIGN_EXTENSION=0):
     """
 align_img_list = find_align_images_that_overlap()
@@ -233,8 +235,7 @@ xshift, yshift, rot, scale = align_to_reference()
         ## alignment image
         fp = open('align.xy','w')
         for i in range(len(alignCat.X_IMAGE)):
-            fp.write('%s  %s\n'
-                     %(np.float(alignCat.X_IMAGE[i])+xshift,
+            fp.write('%s  %s\n' %(np.float(alignCat.X_IMAGE[i])+xshift,
                        np.float(alignCat.Y_IMAGE[i])+yshift))
         fp.close()
 
@@ -246,6 +247,13 @@ xshift, yshift, rot, scale = align_to_reference()
                        output="align.match",
                        tolerance=8, separation=0, verbose=yes, Stdout=1)
         
+        pow=3
+        while status1[-1].startswith('0'):
+            pow+=1
+            status1 = iraf.xyxymatch(input="direct.xy", reference="align.xy",
+                           output="align.match",
+                           tolerance=2**pow, separation=0, verbose=yes, Stdout=1)
+            
         if verbose:
             for line in status1:
                 print line
@@ -258,6 +266,7 @@ xshift, yshift, rot, scale = align_to_reference()
             os.remove("align.map")
         except:
             pass
+            
         status2 = iraf.geomap(input="align.match", database="align.map",
                     fitgeometry=fitgeometry, interactive=no, 
                     xmin=INDEF, xmax=INDEF, ymin=INDEF, ymax=INDEF,
@@ -292,13 +301,14 @@ xshift, yshift, rot, scale = align_to_reference()
     
     im = pyfits.open('SCI.fits')
         
-    # shutil.copy('align.map',ROOT_DIRECT+'_align.map')
+    shutil.copy('align.map',ROOT_DIRECT+'_align.map')
     
     #### Cleanup
     if clean:
-        rmfiles = ['SCI.fits','align.cat',
+        rmfiles = ['SCI.fits','WHT.fits','align.cat',
                'align.map','align.match','align.reg','align.xy',
-               'direct.cat','direct.reg','direct.xy']
+               'direct.cat','direct.reg','direct.xy',
+               'drz_sci.fits','drz_wht.fits','bg.fits']
         
         for file in rmfiles:
             try:

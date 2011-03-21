@@ -588,6 +588,10 @@ plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
         lmin = 5500
         lmax = 1.0e4
     
+    if threedhst.options['GRISM_NAME'] == 'G102':
+        lmin = 8000
+        lmax = 1.12e4
+    
     xmin = (lmin-head['CRVAL1'])/head['CDELT1']+head['CRPIX1']
     xmax = (lmax-head['CRVAL1'])/head['CDELT1']+head['CRPIX1']
     
@@ -761,6 +765,10 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     if threedhst.options['ACS_G800L']:
         xmin = 5500
         xmax = 1.0e4
+    
+    if threedhst.options['GRISM_NAME'] == 'G102':
+        xmin = 8000
+        xmax = 1.12e4
         
     sub = np.where((lam > xmin) & (lam < xmax))[0]
     ymax = np.max((flux-0*contam)[sub])
@@ -789,12 +797,19 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
                 
                 ### Fit a gaussian to the line position
                 near = np.where(np.abs(lam-line.wave) < 800)[0]                                         
-                if len(near) > 2:                    
+                if 1 == 0:                    
+                #if len(near) > 2:                    
                     p0 = np.array([np.max(flux[near]), line.wave,
                          50, np.median(flux[sub]), 0.])
                     fi = interp1d(lam[near], (flux-contam)[near], kind='cubic')       
                     xnew = np.linspace(lam[near[0]], lam[near[-1]], len(near)*3)
-                    pout = threedhst.plotting.gaussfit(xnew, fi(xnew), p0)
+                    ok = np.isfinite(fi(xnew))
+                    if len(xnew[ok]) > 10:
+                        pout = threedhst.plotting.gaussfit(xnew[ok], 
+                                                           fi(xnew[ok]), p0)
+                    else:
+                        pout = -1
+                        
                     #print p0, pout[2][0]
                     #print pout[2][4]
                     

@@ -33,7 +33,7 @@ import threedhst
 class fit_2D_background():
     
     def __init__(self, ORDER=2, grism=False, x0=None, y0=None, DQMAX=10,
-        DIRECT_SKY='/research/HST/GRISM/CONF/F140W_GOODSN_median.fits',
+        DIRECT_SKY='/research/HST/GRISM/CONF/f140w_COSMOS_sky.fits',
         GRISM_SKY='/research/HST/GRISM/CONF/G141_sky_cleaned.fits'):
         """
 __init__(self, ORDER=2, grism=False, x0=None, y0=None, DQMAX=10)
@@ -61,7 +61,7 @@ __init__(self, ORDER=2, grism=False, x0=None, y0=None, DQMAX=10)
             self.A = self.B
             
     def setup_matrices(self,
-        DIRECT_SKY='/research/HST/GRISM/CONF/F140W_GOODSN_median.fits',
+        DIRECT_SKY='/research/HST/GRISM/CONF/f140w_COSMOS_sky.fits',
         GRISM_SKY='/research/HST/GRISM/CONF/G141_sky_cleaned.fits'):
         """
 setup_matrices()
@@ -88,7 +88,7 @@ setup_matrices()
         med = medF[0].data
         medF.close()
 
-        NPARAM  = np.sum(np.arange(self.ORDER+2)) #+1 #+1
+        NPARAM  = np.sum(np.arange(self.ORDER+2))+2 #+1 #+1
         
         self.A = np.zeros((NPARAM,NX,NY))
         self.A[0,:,: ] = med  ## zeroth order is background median
@@ -97,13 +97,13 @@ setup_matrices()
         ##### Set up polynomial grid for fit, including cross terms
         count = 1
         
-        # #### Use all G141 sky for different sky levels
-        # LO = pyfits.getdata('/research/HST/GRISM/CONF/G141wLO_fixed_sky.fits',0)
-        # self.A[1,:,:] = LO
-        # count += 1
-        # HI = pyfits.getdata('/research/HST/GRISM/CONF/G141wHI_fixed_sky.fits',0)
-        # self.A[2,:,:] = HI
-        # count += 1
+        #### Use all G141 sky for different sky levels
+        LO = pyfits.getdata('/research/HST/GRISM/CONF/G141wLO_fixed_sky.fits',0)
+        self.A[1,:,:] = LO
+        count += 1
+        HI = pyfits.getdata('/research/HST/GRISM/CONF/G141wHI_fixed_sky.fits',0)
+        self.A[2,:,:] = HI
+        count += 1
         
         for pow in range(1,self.ORDER+1):
             pi = pow-1
@@ -278,7 +278,7 @@ def prep_all(asn_files='ib*050_asn.fits', get_shift=True, bg_skip=False,
              redo_background=True, bg_only=False, grism=False,
              ALIGN_IMAGE='../ACS/h_nz_sect*img.fits',
              skip_drz=False,final_scale=0.06, pixfrac=0.8,
-             DIRECT_SKY='/research/HST/GRISM/CONF/F140W_GOODSN_median.fits',
+             DIRECT_SKY='/research/HST/GRISM/CONF/f140w_COSMOS_sky.fits',
              GRISM_SKY='/research/HST/GRISM/CONF/G141_sky_cleaned.fits',
              align_geometry='rxyscale,shift', 
              initial_order=0,
@@ -314,7 +314,7 @@ def prep_flt(asn_file=None, get_shift=True, bg_only=False, bg_skip=False,
                 redo_background=True, grism=False,
                 ALIGN_IMAGE='../ACS/h_nz_sect*img.fits',
                 skip_drz=False, final_scale=0.06, pixfrac=0.8,
-                DIRECT_SKY='/research/HST/GRISM/CONF/F140W_GOODSN_median.fits',
+                DIRECT_SKY='/research/HST/GRISM/CONF/f140w_COSMOS_sky.fits',
                 GRISM_SKY='/research/HST/GRISM/CONF/G141_sky_cleaned.fits',
                 align_geometry='rxyscale,shift', clean=True,
                 initial_order=0, save_fit=False):
@@ -491,12 +491,14 @@ refine_shifts(ROOT_DIRECT='f160w',
 def startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
     skysub=True, updatewcs=True, driz_cr=True, median=True,
     final_scale=0.06, pixfrac=0.8, clean=True,
-    final_outnx='', final_outny='', final_rot=0., ra='', dec=''):
+    final_outnx='', final_outny='', final_rot=0., ra='', dec='', 
+    refimage='', unlearn=True):
     """
 startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
                   skysub=True, final_scale=0.06, updatewcs=True, driz_cr=True,
                   median=True, final_scale=0.06, pixfrac=0.8, 
-                  final_outnx='', final_outny='', final_rot=0., ra='', dec='')
+                  final_outnx='', final_outny='', final_rot=0., ra='', dec='',
+                  refimage='', unlearn=True)
     
     Run multidrizzle on an input asn table.
     
@@ -548,6 +550,9 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
     else:
         median=no
     
+    if unlearn:
+        iraf.unlearn('multidrizzle')
+        
     #### Run Multidrizzle
     iraf.multidrizzle(input=asn_direct_file, \
        shiftfile=shiftfile, \
@@ -556,7 +561,7 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
        blot=median, driz_separate=median, static=median,
        driz_sep_outnx = final_outnx, driz_sep_outny = final_outny, 
        final_outnx=final_outnx, final_outny=final_outny, 
-       final_rot=final_rot, ra=ra, dec=dec)
+       final_rot=final_rot, ra=ra, dec=dec, refimage=refimage)
     
     #### Delete created files    
     if clean is True:
@@ -781,7 +786,23 @@ jitter_info()
             print str
     
     fp.close()
+
+def replace_orig():
+    """ 
+replace_orig()
+
+    Copy OrIg back to flt files from an aborted Multidrizzle run
     
+    """
+    import shutil
+    import glob
+    
+    files=glob.glob('*OrIg_flt.fits')
+    for file in files:
+        out=file.replace('OrIg_','')
+        shutil.move(file,out)
+        print out
+
 # def go_make_segmap():
 #     
 #     import glob
@@ -824,4 +845,36 @@ make_segmap(root='ib3701ryq_flt', sigma=1)
     se.options['ANALYSIS_THRESH']  = '%f' %sigma
     se.options['MAG_ZEROPOINT'] = '26.46'
     status = se.sextractImage(root+'.BLOT.SCI.fits')
+    
+def find_best_flat(flt_fits, verbose=True):
+    """
+    Find the most recent PFL file in $IREF for the filter used for the 
+    provided FLT image.  Doesn't do any special check on USEAFTER date, just
+    looks for the most-recently modified file. 
+    """
+    import glob
+    import os.path
+    import time
+    
+    the_filter = pyfits.getheader(flt_fits,0).get('FILTER')
+    
+    pfls = glob.glob(os.environ["iref"]+'/*pfl.fits')
+    latest = 0
+    best_pfl = None
+    
+    for pfl in pfls:
+        head = pyfits.getheader(pfl)
+        if head.get('FILTER') != the_filter:
+            continue    
+        
+        this_created = os.path.getmtime(pfl)
+        if this_created > latest:
+            best_pfl = pfl
+            latest = this_created
+            
+        if verbose:
+            print '%s %s %s' %(pfl, the_filter, time.ctime(latest))
+    
+    return best_pfl #, the_filter, time.ctime(latest)
+    
     
