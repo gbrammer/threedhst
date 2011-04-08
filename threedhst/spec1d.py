@@ -460,4 +460,207 @@ class readLinesDat():
         self.sigma = np.cast[float](sigma)
         self.eqw = np.cast[float](eqw)
         self.sn = np.cast[float](sn)
+
+def test1D():
+    import threedhst
+    
+    root='AEGIS_F140W'
+    path='/research/HST/GRISM/3DHST/AEGIS/HTML/'
+    ID=418
+    
+    threedhst.spec1d.extract1D(ID, root=root, path=path)
+    
+def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
+    """ 
+    Own extraction of 1D spectra.
+    
+    Errors are estimated directly from the 2D extractions.
+    
+    Include background estimate.
+    
+    """
+    import pyfits
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    import threedhst
+    import threedhst.catIO as catIO
+    from threedhst.dq import myDS9
+    
+    from scipy import polyfit, polyval
+    
+    twod = pyfits.open('%s/images/%s_%05d_2D.fits.gz' %(path, root, ID))
+    spec = catIO.ReadASCIICat('%s/ascii/%s_%05d.dat' %(path, root, ID))    
+    spec.lam = spec.field('lambda')
+    
+    head = twod[1].header
+    data = twod[1].data
+    cont = twod[4].data
+    model = twod[5].data
+    twod.close()
+    
+    flux_limit = model.max()*1.e-2    
+    ### Mask where the 2D flux is less than 1% of the maximum
+    mask = (model < flux_limit) & (cont < flux_limit)
+    mask_model = (model < flux_limit)
+    #mask = mask & (data < 0.5*model.max())
+    
+    # ma = model
+    # ma[cont > model] = cont[cont > model]
+    # flux_limit = ma.max()*1.e-2    
+    # mask = (ma < flux_limit) 
+    # mask = model < flux_limit
+    
+    wht = data*1.
+    wht[mask == False] = 0
+    
+    ### S/N
+    rms = threedhst.utils.biweight(wht[mask])
+    #ds9.view(data/rms)
+    
+    ### 1D profile
+    contam_mask = (cont > 1.e-3)
+    tt = data*1.
+    tt[contam_mask] = 0
+    N = data*0+1
+    N[contam_mask] = 0
+    
+    profile = np.sum(tt, axis=1) / np.sum(N, axis=1)
+    profile /= np.sum(profile)
+    
+    model_profile = np.sum(model, axis=1)
+    model_profile /= np.sum(model_profile)
+    
+    #### Extract where within 0.2 of the peak of the profile
+    xpix = np.arange(profile.size)
+    
+    use = xpix[profile > 0.2*profile.max()]
+    use = xpix[model_profile > 0.2*model_profile.max()]
+    if use.size == 0:
+        use = xpix
         
+    # xmax = list(xpix[profile == profile.max()])[0]
+    # use = [xpix[xmax]]
+    # i=1
+    # while (profile[xmax+i] >= 0.2*profile.max()):
+    #     use.append(xmax+i)
+    #     i+=1
+    # 
+    # i= -1
+    # while (profile[xmax+i] >= 0.2*profile.max()):
+    #     use.append(xmax+i)
+    #     i-=1
+    # 
+    # use.sort()
+    # use = np.array(use)
+
+    yi, xi = np.indices(data.shape)
+    profile_mask = (yi >= use.min()) & (yi <= use.max())
+    masked = data*1
+    masked[profile_mask == False] = 0
+    #masked[mask_model == True] = 0
+    
+    masked_cont = cont*1
+    masked_cont[profile_mask == False] = 0
+    #masked_cont[mask_model == True] = 0
+    
+    background = data*1
+    background[mask == False] = 0
+    Nbg = data*0
+    Nbg[mask == True] = 1
+    
+    #### Do the sum
+    N = data*0
+    N[profile_mask] = 1
+    #N[mask_model == True] = 0
+    
+    GAIN = 1 # WFC3 FLT images already in e-
+    
+    oned_dn = np.sum(masked, axis=0) / np.sum(N, axis=0)
+    oned_dn_cont = np.sum(masked_cont, axis=0) / np.sum(N, axis=0)
+    poisson_var = oned_dn*head['EXPTIME']*GAIN ## GAIN = 2.5 e- / DN
+    poisson_var[poisson_var < 0] = 0
+
+    oned_dn_var = (rms*GAIN)**2 / np.sum(N, axis=0)*head['EXPTIME']**2 + poisson_var
+    #oned_dn_var = rms**2 / np.sum(N, axis=0)*head['EXPTIME']**2 
+    #oned_dn_var = rms**2 * head['EXPTIME']**2 + poisson_var
+    oned_dn_err = np.sqrt(oned_dn_var)/head['EXPTIME']
+
+    oned_dn_bg = np.sum(background, axis=0) / np.sum(Nbg, axis=0)
+    
+    #oned_dn -= oned_dn_bg
+    
+    lam = (np.arange(oned_dn.size)-head['CRPIX1']+1)*head['CDELT1']+head['CRVAL1']
+    
+    #### Fit a polygon to the background
+    xfit = np.arange(oned_dn_bg.size*1.)/oned_dn_bg.size
+    xfit_use = (lam > 1.08e4) & (lam < 1.68e4) & (np.isfinite(oned_dn_bg)) & (oned_dn_bg != 0)
+    oned_dn_bg_fit = oned_dn*0.
+    if xfit[xfit_use].size > 0:
+        
+        #print xfit_use.shape
+        #print lam[xfit_use].min()
+        if (lam[xfit_use].min() < 1.1e4) & (lam[xfit_use].max() > 1.6e4):
+            polycoeffs = polyfit(xfit[xfit_use], oned_dn_bg[xfit_use], 5)
+            oned_dn_bg_fit = polyval(polycoeffs, xfit)
+
+    #print 'Fit ORDER: %d' %(ORDER)
+    
+    ### sensitivity
+    sens = pyfits.open('/research/HST/GRISM/CONF/WFC3.IR.G141.1st.sens.1.fits')[1].data
+    yint = np.interp(lam, sens.WAVELENGTH, sens.SENSITIVITY)
+    
+    ### Final fluxed spectra
+    oned_flux = oned_dn * GAIN / yint
+    oned_flux_cont = oned_dn_cont * GAIN / yint
+    oned_flux_err = oned_dn_err / yint
+    oned_flux_bg = oned_dn_bg * GAIN / yint
+    oned_flux_bg_fit = oned_dn_bg_fit * GAIN / yint
+    
+    #### Compare to aXe
+    lint = 1.3e4
+    
+    #### Show results
+    if show:
+        fig = plt.figure(figsize=[6,4.1],dpi=100)
+        fig.subplots_adjust(wspace=0.2,hspace=0.02,left=0.16,
+                            bottom=0.15,right=0.98,top=0.98)
+        ax = fig.add_subplot(111)
+
+        plt.plot(lam, oned_flux / np.interp(lint, lam, oned_flux), color='red', linestyle='-')
+        plt.plot(lam, (oned_flux - oned_flux_bg_fit) / np.interp(lint, lam, oned_flux), color='orange', linestyle='-')
+        plt.plot(lam, (oned_flux_bg) / np.interp(lint, lam, oned_flux), color='green', linestyle='-')
+        plt.plot(lam, (oned_flux_bg_fit) / np.interp(lint, lam, oned_flux), color='green', linestyle='-', alpha=0.5)
+        plt.plot(lam, oned_flux_cont / np.interp(lint, lam, oned_flux), color='red', alpha=0.2, linestyle='-')
+        plt.plot(lam, oned_flux_err / np.interp(lint, lam, oned_flux), color='red')
+
+        plt.plot(spec.lam, spec.flux / np.interp(lint, spec.lam, spec.flux), color='blue')
+        plt.plot(spec.lam, spec.contam / np.interp(lint, spec.lam, spec.flux), color='blue', alpha=0.2)
+        plt.plot(spec.lam, spec.error / np.interp(lint, spec.lam, spec.flux), color='blue')
+
+        setlabel()
+
+        # print 'Norm: %6.3f' %(np.interp(lint, lam, oned_flux)/np.interp(lint, spec.lam, spec.flux))
+        #print lam.size
+        
+    if out2d:
+        ## return the masked 2D thumbnails for the background and object extractions
+        return background, masked, model, cont
+    else:
+        ## return a structure that looks like the 1D spec FITS files
+        out = {}
+        out['lambda'] = lam
+        out['flux'] = oned_flux
+        out['error'] = oned_flux_err
+        out['contam'] = oned_flux_cont
+        out['background'] = oned_flux_bg_fit
+        return out
+        
+def setlabel():
+    import matplotlib.pyplot as plt
+
+    plt.xlim(1.e4,1.7e4)
+    ymax = 2.5
+    plt.ylim(-0.3*ymax, ymax)
+    plt.xlabel(r'$\lambda$')
+    plt.ylabel(r'$f_\lambda$')
