@@ -515,154 +515,47 @@ def replace_OrIg():
         out=file.replace('OrIg_','')
         print file, out
         shutil.move(file, out)
-# def asn_region(asn_file):
-#     """
-# asn_region(asn_file)
-#     
-# Create a DS9 region file for the exposures defined in an ASN file.
-#     
-#     """
-#     ##### Output file
-#     output_file = asn_file.split('.fits')[0]+'.pointing.reg'
-#     fp = open(output_file,'w')
-#     fp.write('fk5\n') ### WCS coordinates
-#     ##### Read ASN file
-#     asn = ASNFile(asn_file)
-#     NEXP = len(asn.exposures)
-#     RAcenters  = np.zeros(NEXP)
-#     DECcenters = np.zeros(NEXP)
-#     ##### Loop through exposures and get footprints
-#     for i, exp_root in enumerate(asn.exposures):
-#         flt_file = find_fits_gz(exp_root.lower()+'_flt.fits', hard_break = True)
-#         
-#         regX, regY = wcs_polygon(flt_file,extension=1)
-#         line = "polygon(%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f)" \
-#             %(regX[0],regY[0],regX[1],regY[1],regX[2],regY[2],regX[3],regY[3])
-#                     
-#         RAcenters[i] = np.mean(regX)
-#         DECcenters[i] = np.mean(regY)
-#         fp.write(line+' # color=magenta\n')
-#         
-#     ##### Text label with ASN filename
-#     fp.write('# text(%10.6f,%10.6f) text={%s} color=magenta\n' \
-#         %(np.mean(RAcenters),np.mean(DECcenters),
-#           asn_file.split('_asn.fits')[0]))
-#     fp.close()
-#     print '3D-HST / ASN_REGION: %s\n' %(output_file)
-#     
-# 
-# 
-# def wcs_polygon(fits_file, extension=1):
-#     """    
-# X, Y = wcs_polygon(fits_file, extension=1)
-#     
-# Calculate a DS9/region polygon from WCS header keywords.  
-#     
-# Will try to use pywcs.WCS.calcFootprint if pywcs is installed.  Otherwise
-# will compute from header directly.
-#     
-#     """
-#     ##### Open the FITS file
-#     hdulist = pyfits.open(fits_file) 
-#     ##### Get the header
-#     try:
-#         sci = hdulist[extension].header
-#     except IndexError:
-#         print 'ERROR 3D-HST/wcs_polygon:\n'+\
-#               'Extension #%d out of range in %s' %(extension, fits_file)
-#         raise
-#     
-#     #### Try to use pywcs if it is installed
-#     pywcs_exists = True
-#     try:
-#         import pywcs
-#     except:
-#         pywcs_exists = False   
-#     
-#     if pywcs_exists:
-#         wcs = pywcs.WCS(sci)
-#         footprint = wcs.calcFootprint()
-#         regX = footprint[:,0]    
-#         regY = footprint[:,1]    
-#         return regX, regY
-#     
-#     #### Do it by hand if no pywcs    
-#     NAXIS = [sci['NAXIS1'],sci['NAXIS2']]
-#     CRPIX = [sci['CRPIX1'],sci['CRPIX2']]
-#     CRVAL = [sci['CRVAL1'],sci['CRVAL2']]
-#     cosDec = np.cos(CRVAL[1]/180*np.pi)
-#     ##### Make region polygon from WCS keywords
-#     regX = CRVAL[0] + \
-#             ((np.array([0,NAXIS[0],NAXIS[0],0])-CRPIX[0])*sci['CD1_1'] +                        
-#              (np.array([0,0,NAXIS[1],NAXIS[1]])-CRPIX[1])*sci['CD1_2']) / cosDec
-#     
-#     regY = CRVAL[1] + \
-#             ((np.array([0,NAXIS[0],NAXIS[0],0])-CRPIX[0])*sci['CD2_1'] +         
-#              (np.array([0,0,NAXIS[1],NAXIS[1]])-CRPIX[1])*sci['CD2_2'])
-#              
-#     return regX, regY
-#     
-# def region_mask(shape,px,py):
-#     """
-# mask = region_mask(image.shape,px,py)
-#     
-# Make a mask image where pixels within the polygon defined by px_i, py_i
-# are set to 1.  This is the same algorithm as in :ref:`point_in_polygon`
-# but with array orders switched around to be much more efficient.
-#     
-# Note: something like this could be used to flag grism 0th order contaminants
-#     """
-#     NX=shape[0]
-#     NY=shape[1]
-#     y,x = np.mgrid[1:NX+1,1:NY+1]
-#     ##### Close polygons
-#     NPOLY = px.shape[0]
-#     tmp_px = np.append(px,px[0])
-#     tmp_py = np.append(py,py[0])
-#     theta = np.zeros((NX,NY),dtype=np.float)
-#     for i in np.arange(NPOLY):
-#         ##### Dot, cross products
-#         X1 = tmp_px[i] - x
-#         Y1 = tmp_py[i] - y 
-#         X2 = tmp_px[i+1] - x
-#         Y2 = tmp_py[i+1] - y
-#         dp = X1*X2 + Y1*Y2
-#         cp = X1*Y2 - Y1*X2
-#         theta += np.arctan2(cp,dp) 
-#     ##### Set up mask
-#     dq = np.zeros((NX,NY),dtype=np.int)
-#     flag_idx = np.where(np.abs(theta) > np.pi)
-#     dq[flag_idx] = 1
-#     return dq
-# 
-# 
-# def point_in_polygon(x,y,px,py):
-#     """
-# test = point_in_polygon(x,y,px,py)
-#     
-# Test if coordinates (x,y) are inside polygon defined by (px, py)
-#     
-# <http://www.dfanning.com/tips/point_in_polygon.html>, translated to Python
-#     
-#     """    
-#     N = px.shape[0]
-#     ##### Close polygons
-#     tmp_px = np.append(px,px[0])
-#     tmp_py = np.append(py,py[0])
-#     ##### Counters
-#     i = np.arange(N)
-#     ip = np.arange(N)+1
-#     ##### Dot, cross products
-#     X1 = tmp_px[i] - x
-#     Y1 = tmp_py[i] - y 
-#     X2 = tmp_px[ip] - x
-#     Y2 = tmp_py[ip] - y
-#     dp = X1*X2 + Y1*Y2
-#     cp = X1*Y2 - Y1*X2
-#     theta = np.arctan2(cp,dp)
-#     if np.abs(np.sum(theta)) > np.pi:
-#         return True
-#     else:
-#         return False
-# 
 
+def biweight(xarr, both=False):
+    """
+    Compute the biweight estimator for an input array.
+    
+    Example:
+    
+    >>> x = np.random.randn(1000)
+    >>> x[0:5] = 5000
+    >>> mu, sigma = biweight(x, both=True)
+    >>> sig = biweight(x, both=False)            # get just sigma
+    >>> print mu, sigma, np.median(x), np.std(x)
+    
+    """
+    bigm = np.median(xarr)
+    mad = np.median(np.abs(xarr-bigm))
+    
+    c = 6.0
+    u = (xarr-bigm)/c/mad
+    u1 = np.abs(u) < 1
+    
+    #### biweight mean
+    if (u[u1].size > 0):
+        cbi = bigm + np.sum((xarr[u1]-bigm)*(1-u[u1]**2)**2)/ \
+                  np.sum((1-u[u1]**2)**2)
+    else:
+        cbi = -99
+        
+    #### biweight sigma
+    c=9.0
+    u = (xarr-bigm)/c/mad
+    u1 = np.abs(u) < 1
+
+    if (u[u1].size > 0):
+        sbi = (np.sqrt(xarr.size)*np.sqrt(np.sum((xarr[u1]-bigm)**2*(1-u[u1]**2)**4))/ \
+                                  np.abs(np.sum((1-u[u1]**2)*(1-5*u[u1]**2))))
+    else:
+        sbi = -99
+    
+    if both:
+        return cbi, sbi
+    else:
+        return sbi
+    
