@@ -1158,7 +1158,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
             <td id="tab_thumb">
                 <a id="a_thumb" href='images/%s_thumb.fits.gz'><img id="img_thumb" src='images/%s_thumb.png' width=133px></a></td> 
             <td id="tab_1D">
-                <a id="a_1D" href='ascii/%s.dat.gz'><img id="img_1D" src='images/%s_1D.png' width=200px title='ascii'></a></td> 
+                <a id="a_1D" href='ascii/%s.dat'><img id="img_1D" src='images/%s_1D.png' width=200px title='ascii'></a></td> 
             <td id="tab_2D">
                 <a id="a_2D" href='images/%s_2D.fits.gz'><img id="img_2D" src='images/%s_2D.png' width=200px></a></td> 
         </tr> 
@@ -1392,7 +1392,8 @@ asciiSpec(SPCFile, root="spec", path="../HTML/ascii")
         out = root+'_%05d.dat' %id
         print noNewLine+out
         
-        fp = gzip.open(path+'/'+out+'.gz','wb')
+        # fp = gzip.open(path+'/'+out+'.gz','wb')
+        fp = open(path+'/'+out,'w')
         fp.write('# lambda flux error contam\n')
         
         NL = len(lam)
@@ -1405,7 +1406,7 @@ asciiSpec(SPCFile, root="spec", path="../HTML/ascii")
     os.chdir(path)
     fptar = tarfile.open(root+'_spec.tar.gz','w|gz')
     for id in ids:
-        out = root+'_%05d.dat.gz' %id
+        out = root+'_%05d.dat' %id
         fptar.add(out)
     fptar.close()
     os.chdir(oldwd)
@@ -1852,7 +1853,7 @@ make_Javascript(path="../HTML/scripts")
     	document.getElementById("a_thumb").href = 'images/'+root+'_' + matchID + '_thumb.fits.gz';
 
     	document.getElementById("img_1D").src = 'images/'+root+'_' + matchID + '_1D.png';
-    	document.getElementById("a_1D").href = 'images/'+root+'_' + matchID + '.dat.gz';
+    	document.getElementById("a_1D").href = 'images/'+root+'_' + matchID + '.dat';
 
     	document.getElementById("img_2D").src = 'images/'+root+'_' + matchID + '_2D.png';
     	document.getElementById("a_2D").href = 'images/'+root+'_' + matchID + '_2D.fits.gz';
@@ -1917,7 +1918,7 @@ make_Javascript(path="../HTML/scripts")
     	tthumb.innerHTML = "<a href='images/"+root+"_"+thisID+ "_thumb.fits.gz'> <img src='images/"+root+"_"+thisID+"_thumb.png'  width=133px></a>";
 
     	var t1D = newRow.insertCell(5);
-    	t1D.innerHTML = "<td><a href='ascii/"+root+"_"+thisID+".dat.gz'><img src='images/"+root+"_"+thisID+"_1D.png' width=200px title='ascii'></a></td>"
+    	t1D.innerHTML = "<td><a href='ascii/"+root+"_"+thisID+".dat'><img src='images/"+root+"_"+thisID+"_1D.png' width=200px title='ascii'></a></td>"
 
     	var t2D = newRow.insertCell(6);
     	t2D.innerHTML = "<td><a href='ascii/"+root+"_"+thisID+"_2D.fits.gz'><img src='images/"+root+"_"+thisID+"_2D.png' width=200px title='2D'></a></td>"
