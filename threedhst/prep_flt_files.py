@@ -255,7 +255,106 @@ fit_image(self, root, A=None, overwrite=False, show=True)
         self.IMG = IMG
         self.MODEL = IMGout
         fi.close()
+
+def asn_grism_background_subtract(asn_file='ibhj42040_asn.fits', nbin=8, path='./', verbose=True, savefig=True):
+    """
+    Run the 1-D background subtraction routine for all FLT files
+    defined in an ASN file.
+    """
     
+    asn = threedhst.utils.ASNFile(asn_file)
+    if verbose:
+        print 'Background:'
+    for flt in asn.exposures:
+        if verbose:
+            print '   %s' %flt
+        test = oned_grism_background_subtract(flt, nbin=nbin, verbose=verbose, savefig=savefig)
+        
+def oned_grism_background_subtract(flt_root, nbin=8, path='./', savefig=True, force=False, verbose=True):
+    """
+    Collapse a WFC FLT image along the y-axis to get a 
+    model of the overall background.  The structure of 
+    the sky background seems to be primarily along this axis.
+    
+    Note that this assumes that the grism sky background has already 
+    been subtracted from the FLT file, and that an object mask 
+    exists with filename `flt_root` + '_flt.seg.fits[.gz]'.
+    
+    Input is a rootname, like 'ibhm46i3q'.
+    
+    `nbin` is the number of pixels to combine along X to 
+    smooth out the profile.
+    """
+    from threedhst.utils import find_fits_gz
+    #from scipy import polyfit, polyval
+    
+    #### Find fits or fits.gz files
+    flt_file = find_fits_gz(flt_root+'_flt.fits', hard_break=True)
+    seg_file = find_fits_gz(flt_root+'_flt.seg.fits', hard_break=True)
+    
+    #### Open fits files
+    flt = pyfits.open(flt_file,'update')
+    seg = pyfits.open(seg_file)
+    
+    #### Don't proceed if already been done
+    if 'GRIS-BG' in flt[1].header.keys():
+        if (flt[1].header['GRIS-BG'] == 1) | (force is False):
+            if verbose:
+                print 'Background already subtracted from %s.' %(flt_root)
+            return False
+    
+    #### Arrays     
+    xi = np.arange(1014/nbin)*nbin+nbin/2.
+    yi = xi*1.
+    si = xi*1.
+     
+    #### Set up output plot  
+    if savefig:
+        fig = plt.figure(figsize=[5,3],dpi=100)
+        fig.subplots_adjust(wspace=0.2,hspace=0.02,left=0.17,
+                            bottom=0.17,right=0.97,top=0.97)
+        ax = fig.add_subplot(111)
+    
+    #### Iterate on bg subtraction
+    NITER = 4
+    for it in range(NITER):
+        for i in np.arange(1014/nbin):
+            #### Masks, object and DQ
+            seg_stripe = seg[0].data[:,i*nbin:(i+1)*nbin]
+            dq_stripe = flt[3].data[:,i*nbin:(i+1)*nbin]
+            OK_PIXELS = (seg_stripe == 0) & ((dq_stripe & (dq_stripe*0+4096)) == 0)
+            #### Data columns
+            data = flt[1].data[:,i*nbin:(i+1)*nbin]
+            #### Biweight mean and sigma
+            stats = threedhst.utils.biweight(data[OK_PIXELS], both=True)
+            yi[i], si[i] = stats
+        
+        if savefig:
+            plt.plot(xi, yi, color='red', alpha=1-it*0.8/(NITER-1))
+        
+        #### Interpolate smoothed back to individual pixels
+        xpix = np.arange(1014)
+        ypix = np.interp(xpix, xi, yi)
+        for i in np.arange(1014):
+            flt[1].data[:,i] -= ypix[i]
+    
+    #### Output figure
+    if savefig:
+        plt.plot(xi, yi*0, linestyle='--', alpha=0.6, color='black')
+        plt.xlabel('x pixel')
+        plt.ylabel('e-/s')
+        plt.xlim(-1,1015)
+        plt.savefig(flt_root+'_flt.residual.png')
+        plt.close()
+    
+    #### Add a 'GRIS-BG' header keyword to the FLT[DATA] extension.
+    flt[1].header.update('GRIS-BG',1)
+    
+    #### Dump to FITS file
+    flt.flush()
+    
+    return True
+
 def make_grism_shiftfiles(direct_files='ib*050_asn.fits', 
                           grism_files='ib*060_asn.fits'):
     """
@@ -309,7 +408,9 @@ prep_all(asn_files='ib*050_asn.fits', get_shift=True,
                     initial_order=initial_order,
                     align_geometry=align_geometry, clean=clean,
                     save_fit=save_fit)
-
+        #
+        asn_grism_background_subtract(file, nbin=8, savefig=True)
+        
 def prep_flt(asn_file=None, get_shift=True, bg_only=False, bg_skip=False,
                 redo_background=True, grism=False,
                 ALIGN_IMAGE='../ACS/h_nz_sect*img.fits',
@@ -787,21 +888,6 @@ jitter_info()
     
     fp.close()
 
-def replace_orig():
-    """ 
-replace_orig()
-
-    Copy OrIg back to flt files from an aborted Multidrizzle run
-    
-    """
-    import shutil
-    import glob
-    
-    files=glob.glob('*OrIg_flt.fits')
-    for file in files:
-        out=file.replace('OrIg_','')
-        shutil.move(file,out)
-        print out
 
 # def go_make_segmap():
 #     
