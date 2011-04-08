@@ -1176,7 +1176,7 @@ def cleanMultidrizzleOutput():
     rmfiles.extend(glob.glob('*flt*mask[12].fits'))
     #files.extend(glob.glob('*coeffs1.dat'))
     #rmfiles.extend(glob.glob('ib*.run'))
-    rmfiles.extend(glob.glob('ib*_med.fits'))
+    rmfiles.extend(glob.glob('*_med.fits'))
     if len(rmfiles) > 0:
         for rmfile in rmfiles:
             os.remove(rmfile)
