@@ -259,8 +259,8 @@ multiple times for each zoom level and image combination.
 """)
 
     #### Make XML file of the catalog, coordinates and ID number
-    threedhst.gmap.makeCatXML(catFile=ROOT_DIRECT.lower()+'_drz.cat',
-                              xmlFile='../HTML/'+ROOT_DIRECT+'.xml',
+    threedhst.gmap.makeCatXML(catFile=ROOT_GRISM.lower()+'_drz.cat',
+                              xmlFile='../HTML/'+ROOT_GRISM+'.xml',
                               SPCFile = threedhst.currentRun['SPC'])
     
     threedhst.gmap.makeCirclePNG(outfile='../HTML/scripts/circle.php')            
@@ -270,7 +270,7 @@ multiple times for each zoom level and image combination.
     m = threedhst.gmap.MercatorProjection()
     aperpix = 1./np.array(m.pixels_per_lon_degree)*3600
     sw = threedhst.sex.SWarp()
-    # sw.swarpMatchImage(ROOT_DIRECT.lower()+'_drz.fits')
+    # sw.swarpMatchImage(ROOT_GRISM.lower()+'_drz.fits')
     sw.swarpMatchImage(threedhst.options['DIRECT_MOSAIC'])
     
     ########### Prepare map tiles for different zoom levels:
@@ -302,7 +302,7 @@ multiple times for each zoom level and image combination.
         im.writeto('scale.fits', clobber=True)
         mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
                                                  outPath='../HTML/tiles/',
-                                                 tileroot=ROOT_DIRECT+'_d',
+                                                 tileroot=ROOT_GRISM+'_d',
                                                  extension=0,
                                                  zmin=zmi, zmax=zma,
                                                  verbose=verbose)
@@ -326,7 +326,7 @@ multiple times for each zoom level and image combination.
         im.writeto('scale.fits', clobber=True)
         mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
                                                  outPath='../HTML/tiles/',
-                                                 tileroot=ROOT_DIRECT+'_g',
+                                                 tileroot=ROOT_GRISM+'_g',
                                                  extension=0,
                                                  zmin=zmi, zmax=zma,
                                                  verbose=verbose)
@@ -340,26 +340,26 @@ multiple times for each zoom level and image combination.
         im.writeto('scale.fits', clobber=True)
         mapParamsM = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
                                                  outPath='../HTML/tiles/',
-                                                 tileroot=ROOT_DIRECT+'_m',
+                                                 tileroot=ROOT_GRISM+'_m',
                                                  extension=0,
                                                  zmin=zmi, zmax=zma,
                                                  verbose=verbose)
         
     # #### direct tiles
     # mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile=
-    #                                          ROOT_DIRECT.lower()+'_drz.fits',
+    #                                          ROOT_GRISM.lower()+'_drz.fits',
     #                                          outPath='../HTML/tiles/',
-    #                                          tileroot=ROOT_DIRECT+'_d')
+    #                                          tileroot=ROOT_GRISM+'_d')
     # #### grism tiles
     # mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile=
     #                                          ROOT_GRISM.lower()+'_drz.fits',
     #                                          outPath='../HTML/tiles/',
-    #                                          tileroot=ROOT_DIRECT+'_g')
+    #                                          tileroot=ROOT_GRISM+'_g')
     # #### model tiles                           
     # mapParamsM = threedhst.gmap.makeGMapTiles(fitsfile=
     #                                          ROOT_GRISM.lower()+'CONT_drz.fits',
     #                                          outPath='../HTML/tiles/',
-    #                                          tileroot=ROOT_DIRECT+'_m')
+    #                                          tileroot=ROOT_GRISM+'_m')
     
     #### Done making the map tiles
     threedhst.currentRun['step'] = 'MAKE_GMAP_TILES'

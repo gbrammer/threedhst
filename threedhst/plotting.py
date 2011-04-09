@@ -62,10 +62,10 @@ make_data_products()
         os.mkdir('../HTML/images')
         
     #### Read the SExtractor catalog
-    sexCat = threedhst.sex.mySexCat(ROOT_DIRECT+'_drz.cat')
+    sexCat = threedhst.sex.mySexCat(ROOT_GRISM+'_drz.cat')
     
     #### Read the SPC file containing the 1D extractions
-    SPC = threedhst.plotting.SPCFile(ROOT_DIRECT+'_2_opt.SPC.fits',
+    SPC = threedhst.plotting.SPCFile(ROOT_GRISM+'_2_opt.SPC.fits',
                     axe_drizzle_dir=os.environ['AXE_DRIZZLE_PATH'])
     threedhst.currentRun['SPC'] = SPC
     
@@ -76,10 +76,10 @@ make_data_products()
           'thumbnails...\n\n'
     threedhst.plotting.makeThumbs(SPC, sexCat, path='../HTML/images/')
     # 
-    # fptar = tarfile.open('../HTML/images/'+ROOT_DIRECT+'_thumbs.tar.gz','w|gz')
+    # fptar = tarfile.open('../HTML/images/'+ROOT_GRISM+'_thumbs.tar.gz','w|gz')
     # oldwd = os.getcwd()
     # os.chdir('../HTML/images/')
-    # files = glob.glob(ROOT_DIRECT+'*thumb.fits.gz')
+    # files = glob.glob(ROOT_GRISM+'*thumb.fits.gz')
     # for file in files:
     #     fptar.add(file)
     # fptar.close()
@@ -99,10 +99,10 @@ make_data_products()
           'thumbnails...\n\n'
     threedhst.plotting.makeSpec2dImages(SPC, path='../HTML/images/')
     
-    # fptar = tarfile.open('../HTML/images/'+ROOT_DIRECT+'_2D.tar.gz','w|gz')
+    # fptar = tarfile.open('../HTML/images/'+ROOT_GRISM+'_2D.tar.gz','w|gz')
     # oldwd = os.getcwd()
     # os.chdir('../HTML/images/')
-    # files = glob.glob(ROOT_DIRECT+'*2D.fits.gz')
+    # files = glob.glob(ROOT_GRISM+'*2D.fits.gz')
     # for file in files:
     #     fptar.add(file)
     # fptar.close()
@@ -124,8 +124,8 @@ make_data_products()
     mapParams = threedhst.gmap.makeAllTiles(ROOT_DIRECT, ROOT_GRISM)
     
     # #### Make XML file of the catalog, coordinates and ID number
-    # threedhst.gmap.makeCatXML(catFile=ROOT_DIRECT.lower()+'_drz.cat',
-    #                           xmlFile='../HTML/'+ROOT_DIRECT+'.xml')
+    # threedhst.gmap.makeCatXML(catFile=ROOT_GRISM.lower()+'_drz.cat',
+    #                           xmlFile='../HTML/'+ROOT_GRISM+'.xml')
     # 
     # threedhst.gmap.makeCirclePNG(outfile='../HTML/scripts/circle.php')            
     # 
@@ -134,7 +134,7 @@ make_data_products()
     # m = threedhst.gmap.MercatorProjection()
     # aperpix = 1./np.array(m.pixels_per_lon_degree)*3600
     # sw = threedhst.sex.SWarp()
-    # sw.swarpMatchImage(ROOT_DIRECT.lower()+'_drz.fits')
+    # sw.swarpMatchImage(ROOT_GRISM.lower()+'_drz.fits')
     # 
     # ########### Prepare map tiles for different zoom levels:
     # ########### 0.07 x [1,2,4,8] arcsec/pix
@@ -152,7 +152,7 @@ make_data_products()
     #         zmax*=0.2
     #     
     #     #### Direct
-    #     sw.swarpImage(ROOT_DIRECT.lower()+'_drz.fits[1]', mode='direct')
+    #     sw.swarpImage(ROOT_GRISM.lower()+'_drz.fits[1]', mode='direct')
     #     im = pyfits.open('coadd.fits')
     #     #im[0].data *= 4**(aper-15)
     #     if aper <= 14:
@@ -160,7 +160,7 @@ make_data_products()
     #     im.writeto('scale.fits', clobber=True)
     #     mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
     #                                              outPath='../HTML/tiles/',
-    #                                              tileroot=ROOT_DIRECT+'_d',
+    #                                              tileroot=ROOT_GRISM+'_d',
     #                                              extension=0)
     #     
     #     if (aper == 16):
@@ -175,7 +175,7 @@ make_data_products()
     #     im.writeto('scale.fits', clobber=True)
     #     mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
     #                                              outPath='../HTML/tiles/',
-    #                                              tileroot=ROOT_DIRECT+'_g',
+    #                                              tileroot=ROOT_GRISM+'_g',
     #                                              extension=0)
     #     
     #     #### Model
@@ -187,7 +187,7 @@ make_data_products()
     #     im.writeto('scale.fits', clobber=True)
     #     mapParamsM = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
     #                                              outPath='../HTML/tiles/',
-    #                                              tileroot=ROOT_DIRECT+'_m',
+    #                                              tileroot=ROOT_GRISM+'_m',
     #                                              extension=0)
             
     #### Done making the map tiles
@@ -196,11 +196,11 @@ make_data_products()
     #############################################
     #### Copy catalog to HTML directory
     #############################################
-    shutil.copy(ROOT_DIRECT+'_drz.cat','../HTML/')
+    shutil.copy(ROOT_GRISM+'_drz.cat','../HTML/')
     
     mapParams['ZOOMLEVEL']=15
     #### Make the full HTML file
-    out_web = '../HTML/'+ROOT_DIRECT+'_index.html'
+    out_web = '../HTML/'+ROOT_GRISM+'_index.html'
     print '\nthreedhst.plotting.makeHTML: making webpage: %s\n' %out_web
     threedhst.plotting.makeHTML(SPC, sexCat, mapParams, output=out_web)
     threedhst.plotting.makeCSS()
@@ -210,7 +210,7 @@ make_data_products()
     
     #### Make ASCII spectra from the SPC file
     print '\n Making ASCII spectra in ../HTML/ascii/\n'
-    threedhst.plotting.asciiSpec(SPC,root=ROOT_DIRECT,path='../HTML/ascii')
+    threedhst.plotting.asciiSpec(SPC,root=ROOT_GRISM,path='../HTML/ascii')
     
     
 def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128, 
@@ -1063,7 +1063,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     
     </script>
         """ %(center[0],center[1],lng_offset,mapParams['ZOOMLEVEL'],
-              threedhst.options['ROOT_DIRECT']))
+              threedhst.options['ROOT_GRISM']))
     
     #### HTML Body   
     lines.append("""
