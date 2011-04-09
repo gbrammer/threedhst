@@ -126,12 +126,12 @@ def write_to_log(lines, init=False):
     """
 write_to_log(lines, init=False)
     
-    Write output of IRAF tasks to options['ROOT_DIRECT']+'.iraf.log'
+    Write output of IRAF tasks to options['ROOT_GRISM']+'.iraf.log'
     """
     if init:
-        fp = open(threedhst.options['ROOT_DIRECT']+'.iraf.log','w')
+        fp = open(threedhst.options['ROOT_GRISM']+'.iraf.log','w')
     else:
-        fp = open(threedhst.options['ROOT_DIRECT']+'.iraf.log','a')
+        fp = open(threedhst.options['ROOT_GRISM']+'.iraf.log','a')
         
     fp.writelines(lines)
     fp.close()
@@ -337,8 +337,8 @@ Pipeline to process a set of grism/direct exposures.
         except:
             pass
 
-        iraf.imcopy(input=direct_mosaic+'[1]',output=ROOT_DIRECT+'_SCI.fits')
-        iraf.imcopy(input=direct_mosaic+'[2]',output=ROOT_DIRECT+'_WHT.fits')
+        iraf.imcopy(input=direct_mosaic+'[1]',output=ROOT_GRISM+'_SCI.fits')
+        iraf.imcopy(input=direct_mosaic+'[2]',output=ROOT_GRISM+'_WHT.fits')
 
         #### Run SExtractor on the direct image, with the WHT 
         #### extension as a weight image
@@ -352,11 +352,11 @@ Pipeline to process a set of grism/direct exposures.
         se.copyConvFile()
 
         se.overwrite = True
-        se.options['CATALOG_NAME']    = ROOT_DIRECT+'_drz.cat'
-        se.options['CHECKIMAGE_NAME'] = ROOT_DIRECT+'_seg.fits'
+        se.options['CATALOG_NAME']    = ROOT_GRISM+'_drz.cat'
+        se.options['CHECKIMAGE_NAME'] = ROOT_GRISM+'_seg.fits'
         se.options['CHECKIMAGE_TYPE'] = 'SEGMENTATION'
         se.options['WEIGHT_TYPE']     = 'MAP_WEIGHT'
-        se.options['WEIGHT_IMAGE']    = ROOT_DIRECT+'_WHT.fits'
+        se.options['WEIGHT_IMAGE']    = ROOT_GRISM+'_WHT.fits'
         se.options['FILTER']    = 'Y'
 
         #### Detect thresholds (default = 1.5)
@@ -365,12 +365,12 @@ Pipeline to process a set of grism/direct exposures.
         se.options['MAG_ZEROPOINT'] = str(threedhst.options['MAG_ZEROPOINT'])
     
         #### Run SExtractor
-        status = se.sextractImage(ROOT_DIRECT+'_SCI.fits')
+        status = se.sextractImage(ROOT_GRISM+'_SCI.fits')
 
         threedhst.currentRun['step'] = 'SEXTRACT_CATALOG'
 
         #### Read catalog to keep around
-        sexCat = threedhst.sex.mySexCat(ROOT_DIRECT+'_drz.cat')
+        sexCat = threedhst.sex.mySexCat(ROOT_GRISM+'_drz.cat')
 
         #### Trim faint sources from the catalog (will still be in the seg. image)
         mag = np.cast[float](sexCat.MAG_AUTO)
@@ -392,7 +392,7 @@ Pipeline to process a set of grism/direct exposures.
         sexCat = threedhst.sex.mySexCat(threedhst.options['FORCE_CATALOG'])
         ##### Note: segmentation image has to accompany the force_catalog!
         
-    sexCat.write(ROOT_DIRECT+'_drz.cat')
+    sexCat.write(ROOT_GRISM+'_drz.cat')
     
     ##### Subset of galaxies for z8.6 test
     #sexCat = threedhst.sex.mySexCat('z86.cat')
@@ -405,8 +405,8 @@ Pipeline to process a set of grism/direct exposures.
     threedhst.currentRun['sexCat'] = sexCat
     
     #### Make region file for SExtracted catalog
-    threedhst.sex.sexcatRegions(ROOT_DIRECT+'_drz.cat', 
-                                ROOT_DIRECT+'_drz.reg', format=2)
+    threedhst.sex.sexcatRegions(ROOT_GRISM+'_drz.cat', 
+                                ROOT_GRISM+'_drz.reg', format=2)
     
     #### Make a region file for the pointing itself
     #if threedhst.options['PREFAB_DIRECT_IMAGE'] is None: 
@@ -441,7 +441,7 @@ Pipeline to process a set of grism/direct exposures.
             conf.params['SENSITIVITY_B'] = 'WFC3_G141_0th_SCALED.fits'
 
         ##### Parameters for aXe
-        conf.params['DRZROOT'] = ROOT_DIRECT
+        conf.params['DRZROOT'] = ROOT_GRISM
         conf.params['DRZRESOLA'] = threedhst.options['DRZRESOLA']
         conf.params['DRZSCALE'] = threedhst.options['DRZSCALE']
         conf.params['DRZPFRAC'] = threedhst.options['PIXFRAC']
@@ -454,7 +454,7 @@ Pipeline to process a set of grism/direct exposures.
         if threedhst.options['CONFIG_FILE'] == 'WFC3.IR.G141.V1.0.conf':
             conf.params['BEAMB'] = '-220 220'    
 
-        conf.writeto(ROOT_DIRECT+'_%0d_full.conf' %chip)
+        conf.writeto(ROOT_GRISM+'_%0d_full.conf' %chip)
         
         chip+=1
         
@@ -462,9 +462,9 @@ Pipeline to process a set of grism/direct exposures.
         #### The order here is OK because the output order is the same as the 
         #### input.  Though note that now "_1_full.conf" corresponds to 
         #### WFC/Chip2 because CONFIG is supplied as "Chip2,Chip1"
-        CONFIG = ROOT_DIRECT+'_1_full.conf,'+ROOT_DIRECT+'_2_full.conf'
+        CONFIG = ROOT_GRISM+'_1_full.conf,'+ROOT_GRISM+'_2_full.conf'
     else:
-        CONFIG = ROOT_DIRECT+'_1_full.conf'
+        CONFIG = ROOT_GRISM+'_1_full.conf'
     
     #CONFIG = 'WFC3.IR.G141.V1.0.conf'
     if threedhst.options['SKY_BACKGROUND'] is None:
@@ -673,12 +673,12 @@ Pipeline to process a set of grism/direct exposures.
 
     if threedhst.options['USE_TAXE']:
         taxe21.tfcubeprep(grism_image = ROOT_GRISM+'_drz.fits',
-            segm_image = ROOT_DIRECT+'_seg.fits',
+            segm_image = ROOT_GRISM+'_seg.fits',
             filter_info = 'zeropoints.lis', AB_zero = yes, 
             dimension_info =threedhst.options["AXE_EDGES"], interpol="poly5")
     else:
         iraf.fcubeprep(grism_image = ROOT_GRISM+'_drz.fits',
-            segm_image = ROOT_DIRECT+'_seg.fits',
+            segm_image = ROOT_GRISM+'_seg.fits',
             filter_info = 'zeropoints.lis', AB_zero = yes, 
             dimension_info =threedhst.options["AXE_EDGES"], interpol="poly5")
     
@@ -927,7 +927,7 @@ Pipeline to process a set of grism/direct exposures.
         rmfiles.extend(glob.glob('flux?.fits'))
         rmfiles.extend(glob.glob('*_flt.fits'))
         rmfiles.extend(glob.glob('*flt_1.cat'))
-        rmfiles.extend(glob.glob(ROOT_DIRECT+'*[SW][CH]?.fits'))
+        rmfiles.extend(glob.glob(ROOT_GRISM+'*[SW][CH]?.fits'))
         #rmfiles.extend(glob.glob('*coeffs1.dat'))
         #rmfiles.extend(glob.glob('threedhst_auto.*'))
         #rmfiles.extend(glob.glob('zeropoints.lis'))
@@ -953,7 +953,7 @@ Pipeline to process a set of grism/direct exposures.
 
     os.chdir('../')
 
-    logfile = ROOT_DIRECT+'.threedhst.param'
+    logfile = ROOT_GRISM+'.threedhst.param'
     print '\nthreedhst: Parameter log in <%s>.\n' %logfile
     
     threedhst.showOptions(to_file = logfile)
@@ -1029,6 +1029,7 @@ swarpOtherBands()
     import glob
     
     ROOT_DIRECT = threedhst.options['ROOT_DIRECT']
+    ROOT_GRISM = threedhst.options['ROOT_GRISM']
     DIRECT_MOSAIC = threedhst.options['DIRECT_MOSAIC']
     
     other_bands = threedhst.options['OTHER_BANDS']
@@ -1075,7 +1076,7 @@ swarpOtherBands()
         direct = pyfits.open(DIRECT_MOSAIC)
         new = pyfits.open('coadd.fits')
         direct[1].data = new[0].data
-        direct.writeto(ROOT_DIRECT+'_'+band[1]+'_drz.fits', clobber=True)
+        direct.writeto(ROOT_GRISM+'_'+band[1]+'_drz.fits', clobber=True)
         del(direct)
         try:
             os.remove('coadd.fits')
@@ -1318,10 +1319,10 @@ asn_grism_file = threedhst.currentRun['asn_grism_file']
 asn_direct_file = threedhst.currentRun['asn_direct_file']
 ROOT_GRISM = threedhst.options['ROOT_GRISM']
 ROOT_DIRECT = threedhst.options['ROOT_DIRECT']
-sexCat = threedhst.sex.mySexCat(ROOT_DIRECT+'_drz.cat')
+sexCat = threedhst.sex.mySexCat(ROOT_GRISM+'_drz.cat')
 if 'conf' in threedhst.currentRun.keys():
     conf = threedhst.currentRun['conf']
-SPC = threedhst.plotting.SPCFile(ROOT_DIRECT+'_2_opt.SPC.fits')
+SPC = threedhst.plotting.SPCFile(ROOT_GRISM+'_2_opt.SPC.fits')
 """ %threedhst.currentRun['step']
     raise IOError
 
