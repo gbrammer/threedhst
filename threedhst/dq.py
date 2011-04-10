@@ -65,17 +65,17 @@ delete_all_frames(self)
 
 class checkDQ:
     """
-checkDQ(asn_grism_file='ib3704060_asn.fits',
-            asn_direct_file='ib3704050_asn.fits'
-            path_to_flt='../RAW/'):
+checkDQ(asn_direct_file='ib3704050_asn.fits',
+        asn_grism_file='ib3704060_asn.fits',
+        path_to_flt='../RAW/'):
 
     `master` is an instance of Tkinter.tk()
     
     Widget application.
     """
     
-    def __init__(self, asn_grism_file='ib3704060_asn.fits',
-           asn_direct_file='ib3704050_asn.fits',
+    def __init__(self, asn_direct_file='ib3704050_asn.fits',
+           asn_grism_file='ib3704060_asn.fits',a
            path_to_flt='../RAW/'):
            
         master = tk.Tk()
