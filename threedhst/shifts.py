@@ -31,7 +31,7 @@ run_tweakshifts(asn_direct)
     the direct images
     """
     
-    root = asn_direct.split('_asn.fits')[0].lower()
+    root = asn_direct.split('_asn.fits')[0]#.lower()
 
     try:
         os.remove(root+'_tweak.fits')
@@ -393,8 +393,8 @@ make_grism_shiftfile(asn_direct, grism_direct)
     corresponding direct images
     """
     from threedhst.utils import ASNFile
-    ROOT_DIRECT = asn_direct.split('_asn.fits')[0].lower()
-    ROOT_GRISM  =  asn_grism.split('_asn.fits')[0].lower()
+    ROOT_DIRECT = asn_direct.split('_asn.fits')[0]#.lower()
+    ROOT_GRISM  =  asn_grism.split('a_asn.fits')[0]#.lower()
     #### Read shiftfile and ASN table
     sf = ShiftFile(ROOT_DIRECT+'_shifts.txt')
     asn = ASNFile(asn_grism)
