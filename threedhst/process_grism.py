@@ -150,7 +150,7 @@ Pipeline to process a set of grism/direct exposures.
     import glob
     import numpy as np
     import aXe2html.sexcat.sextractcat
-    import threedhst.dq
+    #import threedhst.dq
     if threedhst.options['USE_TAXE']:
         try:
             from iraf import taxe21
@@ -984,7 +984,8 @@ safe_chdir(dir)
 def fresh_flt_files(asn_filename, from_path="../RAW"):
     """
     """ 
-    import threedhst.dq
+    #import threedhst.dq
+    import threedhst.fresh_flt_files
     
     ASN  = threedhst.utils.ASNFile(file=asn_filename)
     
@@ -1003,6 +1004,7 @@ def fresh_flt_files(asn_filename, from_path="../RAW"):
         print exp
         
         fi.writeto('./'+exp+'_flt.fits', clobber=True)
+        threedhst.prep_flt_files.apply_best_flat(exp+'_flt.fits', verbose=True)
         
         #### Apply DQ mask (.mask.reg), if it exists
         threedhst.regions.apply_dq_mask(os.path.basename(fits_file.split('.gz')[0]),
