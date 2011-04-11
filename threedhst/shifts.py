@@ -394,7 +394,7 @@ make_grism_shiftfile(asn_direct, grism_direct)
     """
     from threedhst.utils import ASNFile
     ROOT_DIRECT = asn_direct.split('_asn.fits')[0]#.lower()
-    ROOT_GRISM  =  asn_grism.split('a_asn.fits')[0]#.lower()
+    ROOT_GRISM  =  asn_grism.split('_asn.fits')[0]#.lower()
     #### Read shiftfile and ASN table
     sf = ShiftFile(ROOT_DIRECT+'_shifts.txt')
     asn = ASNFile(asn_grism)
