@@ -122,74 +122,7 @@ make_data_products()
         pass
     
     mapParams = threedhst.gmap.makeAllTiles(ROOT_DIRECT, ROOT_GRISM)
-    
-    # #### Make XML file of the catalog, coordinates and ID number
-    # threedhst.gmap.makeCatXML(catFile=ROOT_GRISM.lower()+'_drz.cat',
-    #                           xmlFile='../HTML/'+ROOT_GRISM+'.xml')
-    # 
-    # threedhst.gmap.makeCirclePNG(outfile='../HTML/scripts/circle.php')            
-    # 
-    # #### Need to swarp the drz images to the correct pixel scale for 
-    # #### the pixel size of the google map tiles
-    # m = threedhst.gmap.MercatorProjection()
-    # aperpix = 1./np.array(m.pixels_per_lon_degree)*3600
-    # sw = threedhst.sex.SWarp()
-    # sw.swarpMatchImage(ROOT_GRISM.lower()+'_drz.fits')
-    # 
-    # ########### Prepare map tiles for different zoom levels:
-    # ########### 0.07 x [1,2,4,8] arcsec/pix
-    # for aper in range(13,17):
-    #     ### base image
-    #     sw.options['IMAGE_SIZE']='0'
-    #     sw.options['PIXELSCALE_TYPE']='MANUAL'
-    #     sw.options['PIXEL_SCALE']='%10.6f' %aperpix[aper]
-    #     
-    #     zmin = -0.1
-    #     zmax = 1
-    #     
-    #     if aper == 16:
-    #         zmin*=0.2
-    #         zmax*=0.2
-    #     
-    #     #### Direct
-    #     sw.swarpImage(ROOT_GRISM.lower()+'_drz.fits[1]', mode='direct')
-    #     im = pyfits.open('coadd.fits')
-    #     #im[0].data *= 4**(aper-15)
-    #     if aper <= 14:
-    #         im[0].data /= 2
-    #     im.writeto('scale.fits', clobber=True)
-    #     mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
-    #                                              outPath='../HTML/tiles/',
-    #                                              tileroot=ROOT_GRISM+'_d',
-    #                                              extension=0)
-    #     
-    #     if (aper == 16):
-    #         mapParams=mapParamsD.copy()
-    #         
-    #     #### Grism
-    #     sw.swarpImage(ROOT_GRISM.lower()+'_drz.fits[1]', mode='direct')
-    #     im = pyfits.open('coadd.fits')
-    #     #im[0].data *= 4**(aper-15)
-    #     if aper <= 14:
-    #         im[0].data /= 2
-    #     im.writeto('scale.fits', clobber=True)
-    #     mapParamsG = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
-    #                                              outPath='../HTML/tiles/',
-    #                                              tileroot=ROOT_GRISM+'_g',
-    #                                              extension=0)
-    #     
-    #     #### Model
-    #     sw.swarpImage(ROOT_GRISM.lower()+'CONT_drz.fits[1]', mode='direct')
-    #     im = pyfits.open('coadd.fits')
-    #     #im[0].data *= 4**(aper-15)
-    #     if aper <= 14:
-    #         im[0].data /= 2
-    #     im.writeto('scale.fits', clobber=True)
-    #     mapParamsM = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
-    #                                              outPath='../HTML/tiles/',
-    #                                              tileroot=ROOT_GRISM+'_m',
-    #                                              extension=0)
-            
+                
     #### Done making the map tiles
     threedhst.currentRun['step'] = 'MAKE_GMAP_TILES'
     
