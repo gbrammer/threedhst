@@ -108,17 +108,24 @@ SExtractor()
         SExtractor._parinfo = parinfo
         SExtractor._parorder = parorder #TODO:OrderedDict for 2.7
     
-    def copyConvFile(self):
+    def copyConvFile(self, grism=False):
         """
         copyConvFile()
         
         Copy default.conv from threedhst/data to ./
         """
-        self.conv = threedhst.utils.get_package_data('default.conv')
-        fp = open('default.conv','w')
-        fp.write(self.conv)
-        fp.close()
-        self.conv = self.conv.split('\n')
+        if grism:
+            self.conv = threedhst.utils.get_package_data('grism.conv')
+            fp = open('grism.conv','w')
+            fp.write(self.conv)
+            fp.close()
+            self.conv = self.conv.split('\n')
+        else:
+            self.conv = threedhst.utils.get_package_data('default.conv')
+            fp = open('default.conv','w')
+            fp.write(self.conv)
+            fp.close()
+            self.conv = self.conv.split('\n')
         
     @staticmethod   
     def getOptInfo(aslist=False):
@@ -490,7 +497,6 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
             if verbose:
                 print lineOut
         
-        
         allheads    = self.makeheads(self.headerlines)
         self.ncols  = len(allheads)
         self.nrows  = self.makecols(allheads, self.rowlines)
@@ -498,7 +504,7 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         #### repopulate columns
         self._easy_columns()
         
-    def write(self, outfile=None):
+    def write(self, outfile=None, reformat_header=False):
         """
         write(self, outfile=None)
         
@@ -508,7 +514,21 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         if not outfile:
             outfile = self.filename
         fp = open(outfile,'w')
-        fp.writelines(self.headerlines)
+        if reformat_header:
+            """ 
+            Make a header like
+            
+            # id ra dec ....
+            
+            rather than the SExtractor format.
+            """
+            head = '# '
+            for col in self.column_names:
+                head+=' '+col
+            fp.write(head+'\n')
+        else:
+            fp.writelines(self.headerlines)
+        
         fp.writelines(self.rowlines)
         fp.close()
     
@@ -536,10 +556,9 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
             success     = self.makeorder()
             #### repopulate columns
             self._easy_columns()
-            
         else:
             warn('change_MAG_AUTO_for_aXe: No MAG_AUTO column found\n')
-        
+    
     def _easy_columns(self):
         """
 easy_columns()
@@ -589,6 +608,36 @@ makeRaDec()
             self.ra = np.cast[float](np.array(self.X_WORLD))
         if 'Y_WORLD' in self.column_names:
             self.dec = np.cast[float](np.array(self.Y_WORLD))
+    
+    def addColumn(self, data=np.arange(2), format='%f', name='NEWDATA', comment='', verbose=False):
+        """
+        Add a column to a SExtractor catalog
+        """
+        if not isinstance(data,np.array(1).__class__):
+            print "ERROR: `data` is not a numpy array."
+            return False
+                
+        if data.shape != (self.nrows,):
+            print "ERROR: `data` must have shape (%0d,); has" %(self.nrows), data.shape
+            return False
+        
+        #### Data array checks out.
+        self.ncols += 1
+        self.headerlines.append('#%4d %-23s %s\n' %(self.ncols, name, comment))
+        
+        self.rowlines    = self.extractrows(self.linelist)
+        for i,line in enumerate(self.rowlines):
+            self.rowlines[i] = line.split('\n')[0]+' '+format %(data[i])+'\n'
+            
+        allheads    = self.makeheads(self.headerlines)
+        self.nrows  = self.makecols(allheads, self.rowlines)
+        success     = self.makeorder()
+        self._easy_columns()
+        
+        if verbose:
+            print 'Added column, %s, with format, %s' %(name, format)
+            
+        return success == 0
         
 class SWarp(object):
     """
