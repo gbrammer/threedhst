@@ -259,7 +259,7 @@ multiple times for each zoom level and image combination.
 """)
 
     #### Make XML file of the catalog, coordinates and ID number
-    threedhst.gmap.makeCatXML(catFile=ROOT_GRISM.lower()+'_drz.cat',
+    threedhst.gmap.makeCatXML(catFile=ROOT_GRISM+'_drz.cat',
                               xmlFile='../HTML/'+ROOT_GRISM+'.xml',
                               SPCFile = threedhst.currentRun['SPC'])
     
