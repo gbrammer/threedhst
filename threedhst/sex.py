@@ -628,7 +628,8 @@ makeRaDec()
         self.rowlines    = self.extractrows(self.linelist)
         for i,line in enumerate(self.rowlines):
             self.rowlines[i] = line.split('\n')[0]+' '+format %(data[i])+'\n'
-            
+        
+        ## Reprocess lines
         allheads    = self.makeheads(self.headerlines)
         self.nrows  = self.makecols(allheads, self.rowlines)
         success     = self.makeorder()
