@@ -75,7 +75,7 @@ checkDQ(asn_direct_file='ib3704050_asn.fits',
     """
     
     def __init__(self, asn_direct_file='ib3704050_asn.fits',
-           asn_grism_file='ib3704060_asn.fits',a
+           asn_grism_file='ib3704060_asn.fits',
            path_to_flt='../RAW/'):
            
         master = tk.Tk()
