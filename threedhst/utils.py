@@ -516,7 +516,7 @@ def replace_OrIg():
         print file, out
         shutil.move(file, out)
 
-def biweight(xarr, both=False):
+def biweight(xarr, both=False, mean=False):
     """
     Compute the biweight estimator for an input array.
     
@@ -554,6 +554,9 @@ def biweight(xarr, both=False):
     else:
         sbi = -99
     
+    if mean:
+        return cbi
+        
     if both:
         return cbi, sbi
     else:
