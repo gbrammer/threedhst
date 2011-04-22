@@ -16,6 +16,7 @@ from pyraf import iraf
 from iraf import stsdas,dither
 
 import threedhst
+import threedhst.prep_flt_files
 
 no = iraf.no
 yes = iraf.yes
@@ -118,13 +119,19 @@ refine_shifts(ROOT_DIRECT='f160w',
     threedhst.showMessage('Aligning WCS to %s (%s)'
               %(threedhst.options['ALIGN_IMAGE'], fitgeometry))
     
-    run = threedhst.process_grism.MultidrizzleRun(ROOT_DIRECT.upper())
+    run = threedhst.prep_flt_files.MultidrizzleRun(ROOT_DIRECT.upper())
     
-    xshift, yshift, rot, scale = threedhst.shifts.align_to_reference(
+    ## radius for match is 2**toler.  Make it larger if fit comes out bad
+    toler, maxtoler = 3, 5  
+    xrms, yrms = 100, 100
+    while ((xrms > 1) | (yrms > 1)) & (toler <= maxtoler):
+        xshift, yshift, rot, scale, xrms, yrms = threedhst.shifts.align_to_reference(
                         ROOT_DIRECT,
                         ALIGN_IMAGE,
                         fitgeometry=fitgeometry, clean=clean,
-                        ALIGN_EXTENSION=ALIGN_EXTENSION)
+                        ALIGN_EXTENSION=ALIGN_EXTENSION,
+                        toler=toler, skip_swarp=(toler == 3))
+        toler+=1
 
     #### shifts measured in DRZ frame.  Translate to FLT frame
     drz = pyfits.open(ROOT_DIRECT+'_drz.fits')
@@ -150,9 +157,9 @@ refine_shifts(ROOT_DIRECT='f160w',
     shiftF.write(ROOT_DIRECT+'_shifts.txt')
     
 def align_to_reference(ROOT_DIRECT, ALIGN_IMAGE, fitgeometry="shift",
-    clean=True, verbose=False, ALIGN_EXTENSION=0):
+    clean=True, verbose=False, ALIGN_EXTENSION=0, toler=3, skip_swarp=False):
     """
-xshift, yshift, rot, scale = align_to_reference()
+xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     """        
     import os
     import glob
@@ -181,7 +188,8 @@ xshift, yshift, rot, scale = align_to_reference()
     
     #### Use swarp to combine the alignment images to the same image 
     #### dimensions as the direct mosaic
-    matchImagePixels(input=align_img_list,
+    if not skip_swarp:
+        matchImagePixels(input=align_img_list,
                      matchImage=ROOT_DIRECT+'_drz.fits',
                      output=ROOT_DIRECT+'_align.fits', match_extension = 1)
                      
@@ -243,11 +251,11 @@ xshift, yshift, rot, scale = align_to_reference()
         iraf.flpr()
         iraf.flpr()
         #### iraf.xyxymatch to find matches between the two catalogs
+        pow = toler*1.
         status1 = iraf.xyxymatch(input="direct.xy", reference="align.xy",
                        output="align.match",
-                       tolerance=8, separation=0, verbose=yes, Stdout=1)
+                       tolerance=2**pow, separation=0, verbose=yes, Stdout=1)
         
-        pow=3
         while status1[-1].startswith('0'):
             pow+=1
             status1 = iraf.xyxymatch(input="direct.xy", reference="align.xy",
@@ -292,12 +300,16 @@ xshift, yshift, rot, scale = align_to_reference()
                 rot = float(spl[1])    
             if spl[0].startswith('xmag'):
                 scale = float(spl[1])    
-        
+            if spl[0].startswith('xrms'):
+                xrms = float(spl[1])    
+            if spl[0].startswith('yrms'):
+                yrms = float(spl[1])    
+            
         fp.close()
         
         #os.system('wc align.match')
-        print 'Shift iteration #%d, xshift=%f, yshift=%f, rot=%f, scl=%f' %(IT,
-            xshift, yshift, rot, scale)
+        print 'Shift iteration #%d, xshift=%f, yshift=%f, rot=%f, scl=%f (rms: %5.2f,%5.2f)' %(IT,
+            xshift, yshift, rot, scale,xrms,yrms)
     
     im = pyfits.open('SCI.fits')
         
@@ -316,7 +328,7 @@ xshift, yshift, rot, scale = align_to_reference()
             except:
                 pass
         
-    return xshift, yshift, rot, scale
+    return xshift, yshift, rot, scale, xrms, yrms
     
 def matchImagePixels(input=None,matchImage=None,output=None,
                      match_extension=0):
@@ -399,10 +411,32 @@ make_grism_shiftfile(asn_direct, grism_direct)
     sf = ShiftFile(ROOT_DIRECT+'_shifts.txt')
     asn = ASNFile(asn_grism)
     
-    #### Change the image names in the shiftfile to the grism exposures
-    for i,exp in enumerate(asn.exposures):
-        sf.images[i] = exp+'_flt.fits'
-    
+    if sf.nrows == len(asn.exposures):
+        #### Assume one direct image for each grism images, so just
+        #### change the image names in the shiftfile to the grism exposures
+        for i,exp in enumerate(asn.exposures):
+            sf.images[i] = exp+'_flt.fits'
+    else:
+        #### Have different number of grism and direct images.  Just use the 
+        #### shifts/rotations for the first direct image
+        xs = sf.xshift[0]
+        ys = sf.yshift[0]
+        rot = sf.rotate[0]
+        scl = sf.scale[0]
+        sf.images = []
+        sf.xshift = []
+        sf.yshift = []
+        sf.rotate = []
+        sf.scale = []
+        for i,exp in enumerate(asn.exposures):
+            sf.images.append(exp+'_flt.fits')
+            sf.xshift.append(xs)
+            sf.yshift.append(ys)
+            sf.rotate.append(rot)
+            sf.scale.append(scl)
+        
+        sf.nrows = len(asn.exposures)
+        
     #### Write the new shiftfile
     sf.write(ROOT_GRISM+'_shifts.txt')
     
