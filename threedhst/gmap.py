@@ -242,7 +242,8 @@ makeOtherTiles
                                                  tileroot=tileroot,
                                                  extension=0,
                                                  zmin=zmin, zmax=zmax)
-    
+        os.remove('scale.fits')
+        
 def makeAllTiles(ROOT_DIRECT, ROOT_GRISM, zmin=-0.1, zmax=1, verbose=False,
                  PARAM_ONLY=False):
     """
@@ -363,7 +364,13 @@ multiple times for each zoom level and image combination.
     
     #### Done making the map tiles
     threedhst.currentRun['step'] = 'MAKE_GMAP_TILES'
-    
+    try:
+        os.remove('scale.fits')
+        os.remove('coadd.fits')
+        os.remove('coadd.weight.fits')
+    except:
+        pass
+        
     return mapParams
     
 def makeMapHTML(llSW, llNE, lng_offset=90):
