@@ -255,14 +255,15 @@ ASNFile()
         
     Class for handling ASN fits files.
         
-    >>> asn = ASNFile(file='ib3701050_asn.fits')
+    >>> asn = ASNFile(file='ib3701050_asn.fits', grow=False)
     >>> asn.exposures
     ['ib3701ryq', 'ib3701sbq', 'ib3701sdq', 'ib3701sqq']
     >>> asn.product
     'IB3701050'
-    >>> asn.
+    
+    If grow=True, allow file rootnames to be 20 characters rather than 14.
      """
-    def _read_asn_file(self):
+    def _read_asn_file(self, grow=True):
         """
 _read_asn_file(self)
         
@@ -272,7 +273,25 @@ _read_asn_file(self)
         from warnings import warn
         
         self.in_fits = pyfits.open(self.file)
+        
         data = self.in_fits[1].data
+        
+        if grow:
+            #### Allow more characters in the MEMNAME column
+            memname = pyfits.Column(name='MEMNAME', format='20A', array=self.in_fits[1].columns[0].array.astype('S20'))
+            memtype = self.in_fits[1].columns[1]
+            memprsnt = self.in_fits[1].columns[2]
+            coldefs = pyfits.ColDefs([memname, memtype, memprsnt])
+            hdu = pyfits.new_table(coldefs)
+            hdu.header = self.in_fits[1].header
+            hdu.header['TFORM1'] = '20A'
+            hdu.header['TDISP1'] = 'A20'
+            hdu.header['NAXIS1'] += 6
+            self.in_fits[1] = hdu        
+    
+        data = self.in_fits[1].data
+        #print data
+        
         self.header = self.in_fits[0].header
         
         names = data.field('MEMNAME')
@@ -296,12 +315,12 @@ _read_asn_file(self)
             self.product = names[prod_idx[0]][0].upper()
     
     
-    def __init__(self, file=None):
+    def __init__(self, file=None, grow=True):
         self.file = file
         self.exposures = []
         self.product = None
         if file:
-            self._read_asn_file()
+            self._read_asn_file(grow=grow)
     
     
     def write(self, out_file=None, clobber=True):
