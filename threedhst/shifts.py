@@ -130,7 +130,7 @@ refine_shifts(ROOT_DIRECT='f160w',
                         ALIGN_IMAGE,
                         fitgeometry=fitgeometry, clean=clean,
                         ALIGN_EXTENSION=ALIGN_EXTENSION,
-                        toler=toler, skip_swarp=(toler == 3))
+                        toler=toler, skip_swarp=(toler > 3))
         toler+=1
 
     #### shifts measured in DRZ frame.  Translate to FLT frame
@@ -169,7 +169,6 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     #### Clean slate    
     rmfiles = ['SCI.fits','WHT.fits','align.cat',
                'align.map','align.match','align.reg','align.xy', 
-               ROOT_DIRECT+'_align.fits',
                'direct.cat','direct.reg','direct.xy']
     
     for file in rmfiles:
@@ -189,6 +188,10 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     #### Use swarp to combine the alignment images to the same image 
     #### dimensions as the direct mosaic
     if not skip_swarp:
+        try:
+            os.remove(ROOT_DIRECT+'_align.fits')
+        except:
+            pass
         matchImagePixels(input=align_img_list,
                      matchImage=ROOT_DIRECT+'_drz.fits',
                      output=ROOT_DIRECT+'_align.fits', match_extension = 1)
