@@ -70,7 +70,7 @@ run_tweakshifts(asn_direct)
     
     return status
     
-def find_align_images_that_overlap(DIRECT_MOSAIC, ALIGN_IMAGE, ALIGN_EXTENSION=0):
+def find_align_images_that_overlap(DIRECT_MOSAIC, ALIGN_IMAGE, ALIGN_EXTENSION=0, is_region=False):
     """
 align_img_list = find_align_images_that_overlap()
     
@@ -83,8 +83,8 @@ align_img_list = find_align_images_that_overlap()
     don't overlap with the target image.
     """
     import glob
+    import numpy as np
     import threedhst.regions
-    
     #ROOT_DIRECT = threedhst.options['ROOT_DIRECT']
     align_images = glob.glob(ALIGN_IMAGE)
     
@@ -95,8 +95,20 @@ align_img_list = find_align_images_that_overlap()
     #### direct mosaic
     align_img_list = []
     for align_image in align_images:
-        qx, qy = threedhst.regions.wcs_polygon(align_image,
-            extension=ALIGN_EXTENSION)
+        if is_region:
+            #### Read a polygon defined in a region file
+            lines = open(align_image).readlines()
+            for line in lines:
+                if line.startswith('polygon'):
+                    spl = line.split('(')[1].split(')')[0].split(',')
+                    qx = np.cast[float](spl[::2])
+                    qy = np.cast[float](spl[1::2])
+                    break
+            align_image = align_image.replace('pointing.reg','fits')
+        else:
+            qx, qy = threedhst.regions.wcs_polygon(align_image,
+                extension=ALIGN_EXTENSION)
+                
         if threedhst.regions.polygons_intersect(px, py, qx, qy):
             align_img_list.append(align_image)
     
@@ -135,7 +147,10 @@ refine_shifts(ROOT_DIRECT='f160w',
 
     #### shifts measured in DRZ frame.  Translate to FLT frame
     drz = pyfits.open(ROOT_DIRECT+'_drz.fits')
-    alpha = (180.-drz[1].header['PA_APER'])/360.*2*np.pi
+    #alpha = (180.-drz[1].header['PA_APER'])/360.*2*np.pi
+    #### Get reference angle from first image in the ASN file
+    asn = threedhst.utils.ASNFile(ROOT_DIRECT+'_asn.fits')
+    alpha = (180.-pyfits.getheader(asn.exposures[0]+'_flt.fits',1)['PA_APER'])/360.*2*np.pi
     
     xsh = (xshift*np.cos(alpha)-yshift*np.sin(alpha))*np.float(run.scl)
     ysh = (xshift*np.sin(alpha)+yshift*np.cos(alpha))*np.float(run.scl)
@@ -145,9 +160,9 @@ refine_shifts(ROOT_DIRECT='f160w',
     fp.write('%s %8.3f %8.3f %8.3f\n' %(ALIGN_IMAGE, xsh, ysh, rot)) 
     fp.close()
     
-    #### Read the shiftfile       
+    #### Read the shiftfile
     shiftF = threedhst.shifts.ShiftFile(ROOT_DIRECT+'_shifts.txt')
-    
+            
     #### Apply the alignment shifts to the shiftfile
     shiftF.xshift = list(np.array(shiftF.xshift)-xsh)
     shiftF.yshift = list(np.array(shiftF.yshift)-ysh)
@@ -167,9 +182,9 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     import numpy as np
     
     #### Clean slate    
-    rmfiles = ['SCI.fits','WHT.fits','align.cat',
+    rmfiles = ['SCI.fits','WHT.fits','align.cat','direct.cat'
                'align.map','align.match','align.reg','align.xy', 
-               'direct.cat','direct.reg','direct.xy']
+               'direct.reg','direct.xy']
     
     for file in rmfiles:
         try:
@@ -194,7 +209,8 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
             pass
         matchImagePixels(input=align_img_list,
                      matchImage=ROOT_DIRECT+'_drz.fits',
-                     output=ROOT_DIRECT+'_align.fits', match_extension = 1)
+                     output=ROOT_DIRECT+'_align.fits', match_extension = 1,
+                     input_extension=ALIGN_EXTENSION)
                      
     #### Run SExtractor on the direct image, with the WHT 
     #### extension as a weight image
@@ -217,15 +233,15 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     iraf.imcopy(ROOT_DIRECT+'_drz.fits[1]',"SCI.fits")
     iraf.imcopy(ROOT_DIRECT+'_drz.fits[2]',"WHT.fits")
     status = se.sextractImage('SCI.fits')
-    
+
     ## alignment image
     se.options['CATALOG_NAME']    = 'align.cat'
     status = se.sextractImage(ROOT_DIRECT+'_align.fits')
-    
+
     ## Read the catalogs
     directCat = threedhst.sex.mySexCat('direct.cat')
     alignCat = threedhst.sex.mySexCat('align.cat')
-    
+        
     xshift = 0
     yshift = 0
     rot = 0
@@ -291,6 +307,8 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
         #fp.writelines(status2)
         #fp.close()
         
+        xshift, yshift, rot, scale, xrms, yrms = 0,0,0,1,2,2
+        
         #### Parse geomap.output 
         fp = open("align.map","r")
         for line in fp.readlines():
@@ -311,8 +329,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
         fp.close()
         
         #os.system('wc align.match')
-        print 'Shift iteration #%d, xshift=%f, yshift=%f, rot=%f, scl=%f (rms: %5.2f,%5.2f)' %(IT,
-            xshift, yshift, rot, scale,xrms,yrms)
+        print 'Shift iteration #%d, xshift=%f, yshift=%f, rot=%f, scl=%f (rms: %5.2f,%5.2f)' %(IT, xshift, yshift, rot, scale, xrms, yrms)
     
     im = pyfits.open('SCI.fits')
         
@@ -334,7 +351,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     return xshift, yshift, rot, scale, xrms, yrms
     
 def matchImagePixels(input=None,matchImage=None,output=None,
-                     match_extension=0):
+                     input_extension=0, match_extension=0):
     """
 matchImagePixels(input=None,matchImage=None,output=None,
                  match_extension=0)
@@ -371,6 +388,9 @@ matchImagePixels(input=None,matchImage=None,output=None,
     #### Make the final output image
     sw.options['IMAGEOUT_NAME'] = output
     #sw.options['WEIGHTOUT_NAME'] = base+'.match.weight.fits'
+    
+    for i,im in enumerate(input):
+        input[i] += '[%d]' %input_extension
     status = sw.swarpImage(input,mode='direct')
     os.remove('coadd.weight.fits')
 
