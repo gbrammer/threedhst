@@ -126,6 +126,12 @@ SExtractor()
             fp.write(self.conv)
             fp.close()
             self.conv = self.conv.split('\n')
+        #
+        #### NNW file for CLASS_STAR
+        nnw = threedhst.utils.get_package_data('default.nnw')
+        fp = open('default.nnw','w')
+        fp.write(nnw)
+        fp.close()
         
     @staticmethod   
     def getOptInfo(aslist=False):
