@@ -490,8 +490,6 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
     from scipy import polyfit, polyval
     
     twod = pyfits.open('%s/images/%s_%05d_2D.fits.gz' %(path, root, ID))
-    spec = catIO.ReadASCIICat('%s/ascii/%s_%05d.dat' %(path, root, ID))    
-    spec.lam = spec.field('lambda')
     
     head = twod[1].header
     data = twod[1].data
@@ -501,8 +499,8 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
     
     flux_limit = model.max()*1.e-2    
     ### Mask where the 2D flux is less than 1% of the maximum
-    mask = (model < flux_limit) & (cont < flux_limit)
-    mask_model = (model < flux_limit)
+    mask = (model < flux_limit) & (cont < flux_limit) & (data != 0)
+    mask_model = (model < flux_limit) & (data != 0)
     #mask = mask & (data < 0.5*model.max())
     
     # ma = model
@@ -519,7 +517,7 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
     #ds9.view(data/rms)
     
     ### 1D profile
-    contam_mask = (cont > 1.e-3)
+    contam_mask = (cont > 1.e-3) & (data != 0)
     tt = data*1.
     tt[contam_mask] = 0
     N = data*0+1
@@ -622,6 +620,9 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
     
     #### Show results
     if show:
+        spec = catIO.ReadASCIICat('%s/ascii/%s_%05d.dat' %(path, root, ID))    
+        spec.lam = spec.field('lam')
+        
         fig = plt.figure(figsize=[6,4.1],dpi=100)
         fig.subplots_adjust(wspace=0.2,hspace=0.02,left=0.16,
                             bottom=0.15,right=0.98,top=0.98)
@@ -645,17 +646,81 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
         
     if out2d:
         ## return the masked 2D thumbnails for the background and object extractions
-        return background, masked, model, cont
+        return background, masked, model, cont, data
     else:
         ## return a structure that looks like the 1D spec FITS files
         out = {}
-        out['lambda'] = lam
+        out['lam'] = lam
         out['flux'] = oned_flux
         out['error'] = oned_flux_err
         out['contam'] = oned_flux_cont
         out['background'] = oned_flux_bg_fit
         return out
-        
+
+def show_extract1D():
+    import os
+    
+    import threedhst
+    import matplotlib.pyplot as plt
+    
+    os.chdir('/research/HST/GRISM/3DHST/COSMOS/DATA')
+    
+    ID=110
+    root='COSMOS-26-G141'
+    background, masked, model, cont, data = threedhst.spec1d.extract1D(ID, root=root, path='../HTML/', out2d=True)
+    
+    plt.rcParams['font.family'] = 'serif'
+    plt.rcParams['font.serif'] = ['Times']
+    plt.rcParams['font.size'] = 9
+    
+    fig = plt.figure(figsize=[4.7,7.2],dpi=100)
+    fig.subplots_adjust(wspace=0.02,hspace=0.02,left=0.02,
+                        bottom=0.01,right=0.98,top=0.97)
+    
+    vmi, vma = -0.02, 0.07
+    inter = 'nearest'
+    
+    ax = fig.add_subplot(5,1,1)
+    ax.imshow(data, vmin=vmi, vmax=vma, interpolation=inter)
+    ax.set_yticklabels([])
+    ax.set_xticklabels([])
+    plt.title('2D spectrum')
+
+    ax = fig.add_subplot(5,1,2)
+    ax.imshow(cont, vmin=vmi, vmax=vma, interpolation=inter)
+    ax.set_yticklabels([])
+    ax.set_xticklabels([])
+    plt.title('Contamination model')
+
+    ax = fig.add_subplot(5,1,3)
+    ax.imshow(model, vmin=vmi, vmax=vma, interpolation=inter)
+    ax.set_yticklabels([])
+    ax.set_xticklabels([])
+    plt.title('Object model')
+
+    ax = fig.add_subplot(5,1,4)
+    ax.imshow(masked-cont, vmin=vmi, vmax=vma, interpolation=inter)
+    ax.set_yticklabels([])
+    ax.set_xticklabels([])
+    plt.title('Extraction region')
+    
+    ax = fig.add_subplot(5,1,5)
+    ax.imshow(background, vmin=vmi, vmax=vma, interpolation=inter)
+    ax.set_yticklabels([])
+    ax.set_xticklabels([])
+    plt.title('Background')
+    
+    plt.savefig('/tmp/example_extract1D.pdf')
+    
+    SPC = threedhst.plotting.SPCFile(root+'_2_opt.SPC.fits',
+                    axe_drizzle_dir=os.environ['AXE_DRIZZLE_PATH'])
+    
+    threedhst.plotting.plot1Dspec(SPC, ID, outfile='/tmp/own_extraction.pdf',
+                  close_window=True, show_test_lines=False, own_extraction=True)
+    #
+    threedhst.plotting.plot1Dspec(SPC, ID, outfile='/tmp/axe_extraction.pdf',
+                  close_window=True, show_test_lines=False, own_extraction=False)
+    
 def setlabel():
     import matplotlib.pyplot as plt
 

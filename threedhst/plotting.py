@@ -36,6 +36,31 @@ def defaultPlotParameters():
     #pyplot.rcParams['text.usetex'] = True
     #pyplot.rcParams['text.latex.preamble'] = ''
 
+def redo_1dall():
+    
+    import glob
+    
+    for dir in ['COSMOS','GOODS-N','AEGIS','SN-PRIMO','SN-GEORGE']:
+        os.chdir('/research/HST/GRISM/3DHST/'+dir+'/DATA/')
+        files=glob.glob('*G141_asn.fits')
+        for file in files:
+            threedhst.plotting.redo_1dspec(file.split('_asn')[0])
+        
+def redo_1dspec(ROOT_GRISM):
+    """
+    Run the 1D grism plots again after the plotting routine changed
+    """
+    import os
+    sexCat = threedhst.sex.mySexCat(ROOT_GRISM+'_drz.cat')
+    
+    #### Read the SPC file containing the 1D extractions
+    SPC = threedhst.plotting.SPCFile(ROOT_GRISM+'_2_opt.SPC.fits',
+                    axe_drizzle_dir=os.environ['AXE_DRIZZLE_PATH'])
+    
+    threedhst.plotting.asciiSpec(SPC,root=ROOT_GRISM,path='../HTML/ascii')
+    print ''
+    threedhst.plotting.makeSpec1dImages(SPC, path='../HTML/images/')
+
 def make_data_products(ROOT_DIRECT, ROOT_GRISM):
     """
 make_data_products()
@@ -84,20 +109,24 @@ make_data_products()
     #     fptar.add(file)
     # fptar.close()
     # os.chdir(oldwd)
-    
-    #############################################
-    #### 1D spectra images
-    #############################################
-    print '\nTHREEDHST.plotting.makeSpec1dImages: Creating 1D spectra '+ \
-          'thumbnails...\n\n'
-    threedhst.plotting.makeSpec1dImages(SPC, path='../HTML/images/')
-
+        
     #############################################
     #### 2D spectra images showing the Model, contamination, and G141 spectra
     #############################################
     print '\nmakeSpec1dImages: Creating 2D spectra '+ \
           'thumbnails...\n\n'
     threedhst.plotting.makeSpec2dImages(SPC, path='../HTML/images/')
+
+    #### Make ASCII spectra from the SPC file
+    print '\n Making ASCII spectra in ../HTML/ascii/\n'
+    threedhst.plotting.asciiSpec(SPC,root=ROOT_GRISM,path='../HTML/ascii')
+
+    #############################################
+    #### 1D spectra images
+    #############################################
+    print '\nTHREEDHST.plotting.makeSpec1dImages: Creating 1D spectra '+ \
+          'thumbnails...\n\n'
+    threedhst.plotting.makeSpec1dImages(SPC, path='../HTML/images/')
     
     # fptar = tarfile.open('../HTML/images/'+ROOT_GRISM+'_2D.tar.gz','w|gz')
     # oldwd = os.getcwd()
@@ -140,11 +169,7 @@ make_data_products()
     threedhst.plotting.makeJavascript()
     
     threedhst.currentRun['step'] = 'MAKE_HTML'
-    
-    #### Make ASCII spectra from the SPC file
-    print '\n Making ASCII spectra in ../HTML/ascii/\n'
-    threedhst.plotting.asciiSpec(SPC,root=ROOT_GRISM,path='../HTML/ascii')
-    
+        
     
 def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128, 
               outfile='/tmp/thumb.png', close_window=False):
@@ -644,7 +669,7 @@ def makeSpec2dImages(SPCFile, path='./HTML/', add_FITS=True):
             os.system('gzip '+out_file)
         
 def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
-               close_window=False, show_test_lines=False):
+               close_window=False, show_test_lines=False, own_extraction=True):
     """
     plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png', 
                close_window=False, show_test_lines=False)
@@ -660,38 +685,40 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     defaultPlotParameters()
     #object_number = 42
     spec = SPCFile.getSpec(object_number)
+    lam  = spec.field('LAMBDA')
     flux = spec.field('FLUX')
     ferr = spec.field('FERROR') 
+    sflux = np.sum(flux[(lam > 1.3e4) & (lam < 1.5e4)])
+    if sflux == 0:
+        sflux = 1
     
     contam = spec.field('CONTAM')
-    lam  = spec.field('LAMBDA')
+    ferr_axe = ferr*1.
+    error_color=(0,1,0)
     
+    #### Own extraction
+    if own_extraction:
+        sp1d = threedhst.spec1d.extract1D(object_number, root=SPCFile.filename.split('_2_opt')[0], path='../HTML', show=False, out2d=False)
+        lam = sp1d['lam']
+        flux = sp1d['flux']
+        
+        #### Scale it to roughly match the normalization of the aXe extraction
+        scl = np.sum(flux[(lam > 1.3e4) & (lam < 1.5e4)])/sflux
+        if scl == 0:
+            scl = 1
+        
+        flux /= scl
+        ferr = sp1d['error']/scl
+        contam = sp1d['contam']/scl
+        error_color=(0,0,1)
+        
     #### Need to convert to e- / s for ACS.  aXe bug for ACS?????
     if threedhst.options['GRISM_NAME'] == 'G800L':
         drz = pyfits.getheader(threedhst.options['ROOT_GRISM']+'_drz.fits',0)
         flux /= (drz.get('EXPTIME')/drz.get('NDRIZIM')*2)
         ferr /= (drz.get('EXPTIME')/drz.get('NDRIZIM')*2)
-        
-    ### Initialize plot
-    # fig = pyplot.figure(figsize=[6,4],dpi=100)
-    # fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.07,
-    #                     bottom=0.11,right=0.99,top=0.93)
-    fig = pyplot.figure(figsize=[4.8,3.2]) #,dpi=100)
-    fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.08,
-                        bottom=0.125,right=0.99,top=0.93)
-
-    ### plot window
-    ax = fig.add_subplot(111)
-        
-    ### Plot Flux and Contamination
-    ax.plot(lam, flux-contam, linewidth=1.0, color='blue',alpha=1)
-    ax.plot(lam, contam, linewidth=1.0, color='red',alpha=1)
-    ax.plot(lam, flux,
-               color='red',linewidth=1.0,alpha=0.2)
-    ax.errorbar(lam, flux-contam,
-               yerr= ferr,ecolor='blue',
-               color='blue',fmt='.',alpha=0.2)
     
+    ###
     xmin = 10800
     xmax = 16800
     
@@ -706,6 +733,33 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     sub = np.where((lam > xmin) & (lam < xmax))[0]
     ymax = np.max((flux-0*contam)[sub])
     
+    ### Initialize plot
+    # fig = pyplot.figure(figsize=[6,4],dpi=100)
+    # fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.07,
+    #                     bottom=0.11,right=0.99,top=0.93)
+    fig = pyplot.figure(figsize=[5,3.4]) #,dpi=100)
+    # fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.08,
+    #                     bottom=0.125,right=0.99,top=0.93)
+    fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.10,
+                        bottom=0.15,right=0.99,top=0.90)
+
+    ### plot window
+    ax = fig.add_subplot(111)
+        
+    ### Plot Flux and Contamination
+    ax.plot(lam, flux-contam, linewidth=1.0, color='blue',alpha=0.8)
+    ax.plot(lam, contam, linewidth=1.0, color='red',alpha=1)
+    ax.plot(lam, flux, color='red',linewidth=1.0,alpha=0.2)
+    # ax.errorbar(lam, flux-contam,
+    #            yerr= ferr,ecolor='blue', ealpha=0.3,
+    #            color='blue',fmt='.',alpha=0.2) #, linestyle='none')
+    
+    lok = (lam > xmin) & (lam < xmax)
+    ax.fill_between(lam[lok], (flux-contam+ferr)[lok], (flux-contam-ferr)[lok], color=error_color, alpha=0.3)
+    #print ferr_axe.shape, ferr.shape
+    
+    # ax.fill_between(lam[lok], (flux-contam+ferr_axe)[lok], (flux-contam-ferr_axe)[lok], color=(0,0,1), alpha=0.1)
+        
     #### Search for lines
     lines = threedhst.spec1d.findLines(SPCFile, idx=object_number)
     out_lines = []
@@ -1321,17 +1375,23 @@ asciiSpec(SPCFile, root="spec", path="../HTML/ascii")
         flux = spec.field('FLUX')
         ferr = spec.field('FERROR')
         contam = spec.field('CONTAM')
-    
+        
+        sp1d = threedhst.spec1d.extract1D(id, root=SPCFile.filename.split('_2_opt')[0], path='../HTML', show=False, out2d=False)
+        lam2 = sp1d['lam']
+        flux2 = sp1d['flux']
+        ferr2 = sp1d['error']
+        contam2 = sp1d['contam']
+        
         out = root+'_%05d.dat' %id
         print noNewLine+out
         
         # fp = gzip.open(path+'/'+out+'.gz','wb')
         fp = open(path+'/'+out,'w')
-        fp.write('# lambda flux error contam\n')
+        fp.write('# lam flux error contam flux2 error2 contam2\n')
         
         NL = len(lam)
         for i in range(NL):
-            fp.write('%11.5e %10.3e %10.3e %10.3e\n' %(lam[i],flux[i],ferr[i],contam[i]))
+            fp.write('%11.5e %10.3e %10.3e %10.3e %10.3e %10.3e %10.3e\n' %(lam[i],flux[i],ferr[i],contam[i], flux2[i], ferr2[i], contam2[i]))
         fp.close()
         
     ### make a tarfile
@@ -1363,7 +1423,7 @@ class SPCFile(object):
         elif os.getcwd().split('/')[-1] == self.axe_drizzle_dir:
             self.path = './'
         else:
-            self.path = './'+self.axe_drizzle_dir+'/'
+            self.path = self.axe_drizzle_dir+'/'
     
     def _mapFitsExtensions(self):
         """

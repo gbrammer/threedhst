@@ -278,15 +278,15 @@ _read_asn_file(self)
         
         if grow:
             #### Allow more characters in the MEMNAME column
-            memname = pyfits.Column(name='MEMNAME', format='20A', array=self.in_fits[1].columns[0].array.astype('S20'))
+            memname = pyfits.Column(name='MEMNAME', format='30A', array=self.in_fits[1].columns[0].array.astype('S30'), disp='A30')
             memtype = self.in_fits[1].columns[1]
             memprsnt = self.in_fits[1].columns[2]
             coldefs = pyfits.ColDefs([memname, memtype, memprsnt])
             hdu = pyfits.new_table(coldefs)
             hdu.header = self.in_fits[1].header
-            hdu.header['TFORM1'] = '20A'
-            hdu.header['TDISP1'] = 'A20'
-            hdu.header['NAXIS1'] += 6
+            hdu.header['TFORM1'] = '30A'
+            hdu.header['TDISP1'] = 'A30'
+            hdu.header['NAXIS1'] += 16
             self.in_fits[1] = hdu        
     
         data = self.in_fits[1].data
@@ -548,28 +548,48 @@ def biweight(xarr, both=False, mean=False):
     >>> print mu, sigma, np.median(x), np.std(x)
     
     """
-    bigm = np.median(xarr)
-    mad = np.median(np.abs(xarr-bigm))
-    
+    bigm = np.median(xarr, axis=0)
+    sh = xarr.shape
+    if len(sh) == 2:
+        bigm2 = np.dot(np.ones((sh[0],1)), bigm.reshape((1,sh[1])))
+    else:
+        bigm2 = np.ones((sh[0],))*bigm
+            
+    mad = np.median(np.abs(xarr-bigm2), axis=0)
+    if len(sh) == 2:
+        mad2 = np.dot(np.ones((sh[0],1)), mad.reshape((1,sh[1])))
+    else:
+        mad2 = np.ones((sh[0],))*mad
+        
     c = 6.0
-    u = (xarr-bigm)/c/mad
+    u = (xarr-bigm2)/c/mad2
     u1 = np.abs(u) < 1
+    
+    #### Force flagged items in sum to be zero
+    u1x = (np.abs(u) > 1) & (not np.isfinite(xarr))
+    xarr[u1x] = bigm2[u1x]
+    u[u1x] = 1
     
     #### biweight mean
     if (u[u1].size > 0):
-        cbi = bigm + np.sum((xarr[u1]-bigm)*(1-u[u1]**2)**2)/ \
-                  np.sum((1-u[u1]**2)**2)
+        cbi = bigm + np.sum((xarr-bigm2)*(1-u**2)**2, axis=0)/ \
+                  np.sum((1-u**2)**2, axis=0)
     else:
         cbi = -99
         
     #### biweight sigma
     c=9.0
-    u = (xarr-bigm)/c/mad
+    u = (xarr-bigm2)/c/mad2
     u1 = np.abs(u) < 1
-
+    
+    ####
+    u1x = (np.abs(u) > 1) & (not np.isfinite(xarr))
+    xarr[u1x] = bigm2[u1x]
+    u[u1x] = 1
+    
     if (u[u1].size > 0):
-        sbi = (np.sqrt(xarr.size)*np.sqrt(np.sum((xarr[u1]-bigm)**2*(1-u[u1]**2)**4))/ \
-                                  np.abs(np.sum((1-u[u1]**2)*(1-5*u[u1]**2))))
+        sbi = (np.sqrt(xarr.shape[0])*np.sqrt(np.sum((xarr-bigm2)**2*(1-u**2)**4, axis=0))/ \
+                                  np.abs(np.sum((1-u**2)*(1-5*u**2), axis=0)))
     else:
         sbi = -99
     
@@ -580,4 +600,21 @@ def biweight(xarr, both=False, mean=False):
         return cbi, sbi
     else:
         return sbi
-    
+
+def runmed(xi, yi, NBIN=10):
+        
+        NPER = xi.size/NBIN
+        xm = np.arange(NBIN)*1.
+        xs = xm*0
+        ym = xm*0
+        ys = xm*0
+        N = np.arange(NBIN)
+        
+        so = np.argsort(xi)
+        idx = np.arange(NPER)
+        for i in range(NBIN):
+            ym[i], ys[i] = biweight(yi[so][idx+NPER*i], both=True)
+            xm[i], xs[i] = biweight(xi[so][idx+NPER*i], both=True)
+            N[i] = xi[so][idx+NPER*i].size
+        
+        return xm, ym, ys, N

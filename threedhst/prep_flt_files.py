@@ -234,10 +234,14 @@ fit_image(self, root, A=None, overwrite=False, show=True)
             plt.imshow(DQ,vmin=0,vmax=10)
         
         if save_fit:
-            hdu = pyfits.PrimaryHDU()
-            save_im = pyfits.HDUList([hdu])
-            save_im[0].data = IMGout
-            save_im.writeto(root+'_flt.BG.fits', clobber=True)
+            hdu0 = pyfits.PrimaryHDU(header=fi[0].header)
+            hdu1 = pyfits.ImageHDU(data=IMG, header=fi[1].header)
+            hdu2 = pyfits.ImageHDU(data=IMGb, header=fi[1].header)
+            hdu3 = pyfits.ImageHDU(data=IMGout, header=fi[1].header)
+            save_im = pyfits.HDUList([hdu0,hdu1,hdu2,hdu3])
+            #save_im[0].data = IMGout
+            id=len(glob.glob(root+'_flt.BG*fits'))
+            save_im.writeto(root+'_flt.BG_%02d.fits' %(id+1), clobber=True)
         
         #### Subtract fitted background, write
         #### bg-subtracted image to original FLT file if `overwrite` is True
@@ -425,7 +429,9 @@ prep_all(asn_files='ib*050_asn.fits', get_shift=True,
         prep_flt(asn_file=file, get_shift=get_shift, bg_skip=bg_skip,
                     redo_background=redo_background,
                     bg_only=bg_only, ALIGN_IMAGE=ALIGN_IMAGE,
-                    skip_drz=skip_drz,final_scale=final_scale, pixfrac=pixfrac,
+                    ALIGN_EXT=ALIGN_EXT,
+                    skip_drz=skip_drz,final_scale=final_scale,
+                    pixfrac=pixfrac,
                     IMAGES=IMAGES,
                     initial_order=initial_order,
                     align_geometry=align_geometry, clean=clean,
@@ -437,7 +443,9 @@ def prep_flt(asn_file=None, get_shift=True, bg_only=False, bg_skip=False,
                 skip_drz=False, final_scale=0.06, pixfrac=0.8,
                 IMAGES=['/research/HST/GRISM/CONF/G141_sky_cleaned.fits'],
                 align_geometry='rxyscale,shift', clean=True,
-                initial_order=-1, save_fit=False):
+                initial_order=-1, save_fit=False,
+                TWEAKSHIFTS_ONLY=False,
+                oned_background=True):
     """
 prep_flt(asn_file=None, get_shift=True, bg_only=False,
             redo_background=True)
@@ -539,14 +547,24 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
         for i,exp in enumerate(asn.exposures):
             run.blot_back(ii=i*skip, copy_new=(i is 0))
             make_segmap(run.flt[i])
-    
-    if get_shift:
+        
+        ### Flag bright stars in segmentation map
+        asn_mask = asn_file+'.mask.reg'
+        if os.path.exists(asn_mask):
+            threedhst.showMessage("Apply ASN mask: %s" %(asn_mask))
+            for flt in asn.exposures:
+                seg = flt+'_flt.seg.fits'
+                threedhst.regions.apply_dq_mask(seg, extension=0, 
+                    mask_file = asn_mask)
+                            
+    if get_shift & (not TWEAKSHIFTS_ONLY):
         #### If shift routine gets confused, run the following instead
         #for geom in ['shift','rxyscale','shift']:
         # for geom in ['rxyscale','shift']:
         for geom in align_geometry.split(','):
             threedhst.shifts.refine_shifts(ROOT_DIRECT=ROOT_DIRECT,
-                          ALIGN_IMAGE=ALIGN_IMAGE, ALIGN_EXTENSION = ALIGN_EXT,
+                          ALIGN_IMAGE=ALIGN_IMAGE, 
+                          ALIGN_EXTENSION = ALIGN_EXT,
                           fitgeometry=geom.strip(), clean=clean)
             
             startMultidrizzle(asn_file, use_shiftfile=True, skysub=True,
@@ -563,7 +581,9 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
                           save_fit=save_fit)
             
             #### 1-D background, measured
-            test = oned_grism_background_subtract(exp, nbin=26, savefig=True, verbose=False)
+            if oned_background:
+                print '\n Extract 1D background \n'
+                test = oned_grism_background_subtract(exp, nbin=26, savefig=True, verbose=False)
             
         startMultidrizzle(asn_file, use_shiftfile=True, skysub=False,
             final_scale=final_scale, pixfrac=pixfrac, driz_cr=False,
@@ -571,6 +591,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
     
     if clean:
         files=glob.glob('*BLOT*')
+        files.extend(glob.glob('drz_???.fits'))
         for file in files: 
             #print 'rm '+file
             os.remove(file)
@@ -608,11 +629,20 @@ def flag_data_quality():
     threedhst.dq.checkDQ('ibfuw1070_asn.fits','ibfuw1070_asn.fits', 
                          path_to_flt='./')
     
+    
+    ####********************************************####
+    ####                 GOODS-N
+    ####********************************************####
+    
+    threedhst.dq.checkDQ('ib3749050_asn.fits','ib3749050_asn.fits',                                               path_to_flt='./')
+    threedhst.dq.checkDQ('ib3703050_asn.fits','ib3703060_asn.fits',                                               path_to_flt='./')
+    
 def process_all():
     """
     Initial processing of all 3D-HST frames
     """
     from threedhst.prep_flt_files import process_3dhst_pair as pair
+    import threedhst.prep_flt_files
     
     ####********************************************####
     ####                 GOODS-N
@@ -620,24 +650,46 @@ def process_all():
     os.chdir('/research/HST/GRISM/3DHST/GOODS-N/PREP_FLT')
     ALIGN = '../ACS/h_nz*drz_img.fits'
     
-    direct = glob.glob('ib*050_asn.fits')
-    grism = glob.glob('ib*060_asn.fits')
+    direct = glob.glob('ib37[012]*050_asn.fits')
+    grism = glob.glob('ib37[012]*060_asn.fits')
     
     for i  in range(28):
-        pair(direct[i], grism[i], ALIGN_IMAGE = ALIGN, SKIP_GRISM=True,
-             GET_SHIFT=False, DIRECT_HIGHER_ORDER=2)
-         
-    #### GOODS-N-22-G_drz.fits has a bad 1-D subtraction
+        pair(direct[i], grism[i], ALIGN_IMAGE = ALIGN, SKIP_GRISM=False,
+             GET_SHIFT=True, DIRECT_HIGHER_ORDER=2)
+    
+    #### Shifts for 26, 27 need to be fixed!
+    
+    #### New visits for earlier failed ones
+    direct = glob.glob('ib374*060_asn.fits')
+    grism = glob.glob('ib374*050_asn.fits')
+    for i  in range(len(direct)):
+        old = threedhst.prep_flt_files.make_targname_asn(direct[i], newfile=False, use_filtname=False).replace('N2','N').replace('asn','drz')+'[1]'
+        try:
+            os.remove('/tmp/align.fits')
+        except:
+            pass
+        #
+        iraf.imcopy(old,'/tmp/align.fits')
+        pair(direct[i], grism[i], ALIGN_IMAGE = '/tmp/align.fits',
+             SKIP_GRISM=False,
+             SKIP_DIRECT=False,
+             GET_SHIFT=True, DIRECT_HIGHER_ORDER=2)
+    # Compare
+    threedhst.prep_flt_files.startMultidrizzle('GOODS-N-31-G141_asn.fits',
+            use_shiftfile=True, skysub=False,
+            final_scale=0.06, pixfrac=0.8, driz_cr=False,
+            updatewcs=False, clean=True, median=False,
+            refimage='GOODS-N2-31-G_drz.fits[1]')
     
     # Make mosaic
-    direct_files = glob.glob('GOODS-N*-D_asn.fits')
-    threedhst.utils.combine_asn_shifts(direct_files, out_root='GOODS-N',
+    direct_files = glob.glob('GOODS-N*[0-9]*-F140W_asn.fits')
+    threedhst.utils.combine_asn_shifts(direct_files, out_root='GOODS-N-F140W',
                        path_to_FLT='./', run_multidrizzle=False)
     
     SCALE = 0.06
-    NX = np.int(0.25/SCALE*2326)
-    NY = np.int(0.25/SCALE*3919)
-    threedhst.prep_flt_files.startMultidrizzle('GOODS-N_asn.fits',
+    NX = np.round(0.25/SCALE*2326)
+    NY = np.round(0.25/SCALE*3919)
+    threedhst.prep_flt_files.startMultidrizzle('GOODS-N-F140W_asn.fits',
              use_shiftfile=True, skysub=False,
              final_scale=SCALE, pixfrac=0.8, driz_cr=False,
              updatewcs=False, clean=True, median=False,
@@ -646,10 +698,10 @@ def process_all():
     
     #### Make direct image for each pointing that also include 
     #### neighboring pointings
-    files = glob.glob('GOODS-N-*D_asn.fits')
+    files = glob.glob('GOODS-N-[0-9]*-F140W_asn.fits')
     for file in files:
         pointing = file.split('_asn.fits')[0]
-        threedhst.prep_flt_files.mosaic_to_pointing(mosaic_list='GOODS-N-*D',
+        threedhst.prep_flt_files.mosaic_to_pointing(mosaic_list='GOODS-N*[0-9]*F140W',
                                     pointing=pointing,
                                     run_multidrizzle=True)
                                                                     
@@ -657,28 +709,40 @@ def process_all():
     ####                      AEGIS
     ####********************************************####
     os.chdir('/research/HST/GRISM/3DHST/AEGIS/PREP_FLT')
-    ALIGN = '../NMBS/AEGIS-N2_K_sci.fits'
     
+    ALIGN = '../NMBS/AEGIS-N2_K_sci.fits'
     pair('ibhj42030_asn.fits','ibhj42040_asn.fits', ALIGN_IMAGE = ALIGN)
     pair('ibhj43030_asn.fits','ibhj43040_asn.fits', ALIGN_IMAGE = ALIGN)
     
+    ALIGN = '/research/HST/CANDELS/EGS/WIRDS/WIRDS_Ks_141927+524056_T0002.SUB2.fits'
+    pair('ibhj49030_asn.fits','ibhj49040_asn.fits', ALIGN_IMAGE = ALIGN)
+    pair('ibhj40030_asn.fits','ibhj40040_asn.fits', ALIGN_IMAGE = ALIGN)
+    pair('ibhj39030_asn.fits','ibhj39040_asn.fits', ALIGN_IMAGE = ALIGN)
+    
     ### Make mosaic
-    direct_files = glob.glob('AEGIS*-D_asn.fits')
-    threedhst.utils.combine_asn_shifts(direct_files, out_root='AEGIS-D',
+    direct_files = glob.glob('AEGIS*-F140W_asn.fits')
+    threedhst.utils.combine_asn_shifts(direct_files, out_root='AEGIS-F140W',
                        path_to_FLT='./', run_multidrizzle=False)
-    threedhst.prep_flt_files.startMultidrizzle('AEGIS-D_asn.fits',
+    threedhst.prep_flt_files.startMultidrizzle('AEGIS-F140W_asn.fits',
              use_shiftfile=True, skysub=True,
              final_scale=0.06, pixfrac=0.8, driz_cr=False,
              updatewcs=False, clean=True, median=False)
+    #
+    files = glob.glob('AEGIS-*-F140W_asn.fits')
+    for file in files:
+        pointing = file.split('_asn.fits')[0]
+        threedhst.prep_flt_files.mosaic_to_pointing(mosaic_list='AEGIS-*-F140W',
+                                    pointing=pointing,
+                                    run_multidrizzle=True, grow=400)
     
-    threedhst.prep_flt_files.make_grism_subsets(root='AEGIS')
+    # threedhst.prep_flt_files.make_grism_subsets(root='AEGIS')
     
     ####********************************************####
     ####                     COSMOS
     ####********************************************####
     os.chdir('/research/HST/GRISM/3DHST/COSMOS/PREP_FLT')
     ALIGN = '../NMBS/COSMOS-1.V4.K_nosky.fits'
-    SKIP = True
+    SKIP = False
     pair('ibhm51030_asn.fits','ibhm51040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
     pair('ibhm31030_asn.fits','ibhm31040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
     pair('ibhm46030_asn.fits','ibhm46040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
@@ -694,11 +758,29 @@ def process_all():
     pair('ibhm55030_asn.fits','ibhm55040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
     pair('ibhm56030_asn.fits','ibhm56040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
     
+    threedhst.prep_flt_files.startMultidrizzle('COSMOS-23-F140W_asn.fits',
+             use_shiftfile=True, skysub=False,
+             final_scale=0.06, pixfrac=0.8, driz_cr=False,
+             updatewcs=False, clean=True, median=False)
+    
+    # LAEs
+    threedhst.prep_flt_files.startMultidrizzle('COSMOS-1-F140W_asn.fits',
+            use_shiftfile=True, skysub=False,
+            final_scale=0.06, pixfrac=0.8, driz_cr=False,
+            ra=150.06581, dec=2.4083496, final_outnx=420, final_outny=185,
+            updatewcs=False, clean=True, median=False)
+
+    threedhst.prep_flt_files.startMultidrizzle('COSMOS-23-G141_asn.fits',
+            use_shiftfile=True, skysub=False,
+            final_scale=0.06, pixfrac=0.8, driz_cr=False,
+            ra=150.13029, dec=2.3016245, final_outnx=530, final_outny=300,
+            updatewcs=False, clean=True, median=False)
+    
     ### Make mosaic
-    direct_files = glob.glob('COSMOS-*-D_asn.fits')
-    threedhst.utils.combine_asn_shifts(direct_files, out_root='COSMOS-D',
+    direct_files = glob.glob('COSMOS-*-F140W_asn.fits')
+    threedhst.utils.combine_asn_shifts(direct_files, out_root='COSMOS-F140W',
                        path_to_FLT='./', run_multidrizzle=False)
-    threedhst.prep_flt_files.startMultidrizzle('COSMOS-D_asn.fits',
+    threedhst.prep_flt_files.startMultidrizzle('COSMOS-F140W_asn.fits',
              use_shiftfile=True, skysub=False,
              final_scale=0.06, pixfrac=0.8, driz_cr=False,
              updatewcs=False, clean=True, median=False,
@@ -706,6 +788,15 @@ def process_all():
              final_outnx = 9355, final_outny=11501)
              
     threedhst.prep_flt_files.make_grism_subsets(root='COSMOS')
+    
+    #### Make direct image for each pointing that also include 
+    #### neighboring pointings
+    files = glob.glob('COSMOS-[0-9]*-F140W_asn.fits')
+    for file in files:
+        pointing = file.split('_asn.fits')[0]
+        threedhst.prep_flt_files.mosaic_to_pointing(mosaic_list='COSMOS-*[0-9]*F140W',
+                                    pointing=pointing,
+                                    run_multidrizzle=True, grow=400)
     
     ####********************************************####
     ####                   GOODS-S
@@ -718,10 +809,10 @@ def process_all():
     pair('ibhj28030_asn.fits','ibhj28040_asn.fits', ALIGN_IMAGE = ALIGN)
     
     ### Make mosaic
-    direct_files = glob.glob('GOODS-S*-D_asn.fits')
-    threedhst.utils.combine_asn_shifts(direct_files, out_root='GOODS-S-D',
+    direct_files = glob.glob('GOODS-S*-F140W_asn.fits')
+    threedhst.utils.combine_asn_shifts(direct_files, out_root='GOODS-S-F140W',
                        path_to_FLT='./', run_multidrizzle=False)
-    threedhst.prep_flt_files.startMultidrizzle('GOODS-S-D_asn.fits',
+    threedhst.prep_flt_files.startMultidrizzle('GOODS-S-F140W_asn.fits',
              use_shiftfile=True, skysub=False,
              final_scale=0.06, pixfrac=0.8, driz_cr=False,
              updatewcs=False, clean=True, median=False,
@@ -736,16 +827,16 @@ def process_all():
     ## Shifts and direct images determined separately
     os.chdir('/research/HST/GRISM/3DHST/SN-MARSHALL/PREP_FLT')
     #### First orientation
-    for i in range(3,6,2):
+    for i in range(1,2,2):
         ist = '%0d' %(i)
         shutil.copy('ibfuw'+ist+'070_shifts.txt',
-                    'MARSHALL'+ist+'-G_shifts.txt')
+                    'MARSHALL-'+ist+'-G141_shifts.txt')
         pair(None,'ibfuw'+ist+'070_asn.fits', ALIGN_IMAGE = None, SKIP_DIRECT=True, SKIP_GRISM=False, GRISM_HIGHER_ORDER=2)
     
-    asn_list = glob.glob('MARSHALL[135]-G_asn.fits')
-    threedhst.utils.combine_asn_shifts(asn_list, out_root='MARSHALLa',
+    asn_list = glob.glob('MARSHALL-[135]-G141_asn.fits')
+    threedhst.utils.combine_asn_shifts(asn_list, out_root='MARSHALL-225-G141',
                     path_to_FLT='./', run_multidrizzle=False)
-    threedhst.prep_flt_files.startMultidrizzle('MARSHALLa_asn.fits',
+    threedhst.prep_flt_files.startMultidrizzle('MARSHALL-225-G141_asn.fits',
                  use_shiftfile=True, skysub=False,
                  final_scale=0.06, pixfrac=0.8, driz_cr=False,
                  updatewcs=False, clean=True, median=False)
@@ -754,51 +845,223 @@ def process_all():
     for i in range(2,7,2):
         ist = '%0d' %(i)
         shutil.copy('ibfuw'+ist+'070_shifts.txt',
-                    'MARSHALL'+ist+'-G_shifts.txt')
+                    'MARSHALL-'+ist+'-G141_shifts.txt')
         pair(None,'ibfuw'+ist+'070_asn.fits', ALIGN_IMAGE = None, SKIP_DIRECT=True, SKIP_GRISM=False, GRISM_HIGHER_ORDER=2)
     
-    asn_list = glob.glob('MARSHALL[246]-G_asn.fits')
-    threedhst.utils.combine_asn_shifts(asn_list, out_root='MARSHALLb',
+    asn_list = glob.glob('MARSHALL-[246]-G141_asn.fits')
+    threedhst.utils.combine_asn_shifts(asn_list, out_root='MARSHALL-245-G141',
                     path_to_FLT='./', run_multidrizzle=False)
-    threedhst.prep_flt_files.startMultidrizzle('MARSHALLb_asn.fits',
+    threedhst.prep_flt_files.startMultidrizzle('MARSHALL-245-G141_asn.fits',
                  use_shiftfile=True, skysub=False,
                  final_scale=0.06, pixfrac=0.8, driz_cr=False,
                  updatewcs=False, clean=True, median=False)
+        
     
     ####********************************************####
     ####         SN-PRIMO (GOODS-S, UDF)
     ####********************************************####
-    ## Shifts and direct images determined separately
+    ## Shifts determined separately
     os.chdir('/research/HST/GRISM/3DHST/SN-PRIMO/PREP_FLT')
-    shutil.copy('G141_1026_shifts.txt','PRIMO-1026-G_shifts.txt')
+    shutil.copy('G141_1026_shifts.txt','PRIMO-1026-G141_shifts.txt')
     pair(None,'G141_1026_asn.fits', ALIGN_IMAGE = None, SKIP_DIRECT=True, SKIP_GRISM=False, IMAGES=['G141_fixed_sky.fits'], GRISM_HIGHER_ORDER=2)
     
-    shutil.copy('G141_1101_shifts.txt','PRIMO-1101-G_shifts.txt')
+    shutil.copy('G141_1101_shifts.txt','PRIMO-1101-G141_shifts.txt')
     pair(None,'G141_1101_asn.fits', ALIGN_IMAGE = None, SKIP_DIRECT=True, SKIP_GRISM=False, IMAGES=['G141_fixed_sky.fits'], GRISM_HIGHER_ORDER=2)
+    
+    
+    #### Direct image
+    CANDELS='/research/HST/CANDELS/GOODS-S/PREP_FLT/'
+    f125w_list = threedhst.shifts.find_align_images_that_overlap('PRIMO-1101-G141_drz.fits', CANDELS+'*F125W*pointing.reg', is_region=True)
+    threedhst.utils.combine_asn_shifts(f125w_list, out_root='PRIMO_F125W',
+                    path_to_FLT=CANDELS, run_multidrizzle=False)
+    threedhst.process_grism.fresh_flt_files('PRIMO_F125W_asn.fits', from_path=CANDELS)
+    threedhst.prep_flt_files.startMultidrizzle('PRIMO_F125W_asn.fits',
+                 use_shiftfile=True, skysub=False,
+                 final_scale=0.06, pixfrac=0.8, driz_cr=False,
+                 updatewcs=False, clean=True, median=False,
+                 refimage='PRIMO-1101-G141_drz.fits[1]')
+    # Shifts aren't quite right, due to differen scales
+    threedhst.shifts.refine_shifts(ROOT_DIRECT='PRIMO_F125W',
+                      ALIGN_IMAGE='F125W_drz.fits',
+                      fitgeometry='shift', clean=True,
+                      ALIGN_EXTENSION=1)
+    #
+    threedhst.prep_flt_files.startMultidrizzle('PRIMO_F125W_asn.fits',
+                 use_shiftfile=True, skysub=False,
+                 final_scale=0.06, pixfrac=0.7, driz_cr=False,
+                 updatewcs=False, clean=True, median=False,
+                 ra=53.159487, dec=-27.776371,
+                 final_outnx=2980, final_outny=2380)
+    
+    threedhst.process_grism.clean_flt_files('PRIMO_F125W_asn.fits')
+    
+    ##### F160W
+    f160w_list = threedhst.shifts.find_align_images_that_overlap('PRIMO-1101-G141_drz.fits', CANDELS+'*F160W*pointing.reg', is_region=True)
+    threedhst.utils.combine_asn_shifts(f160w_list, out_root='PRIMO_F160W',
+                    path_to_FLT=CANDELS, run_multidrizzle=False)
+    threedhst.process_grism.fresh_flt_files('PRIMO_F160W_asn.fits', from_path=CANDELS)
+    threedhst.prep_flt_files.startMultidrizzle('PRIMO_F160W_asn.fits',
+                 use_shiftfile=True, skysub=False,
+                 final_scale=0.06, pixfrac=0.8, driz_cr=False,
+                 updatewcs=False, clean=True, median=False,
+                 refimage='PRIMO-1101-G141_drz.fits[1]')
+    # Shifts aren't quite right, due to differen scales
+    threedhst.shifts.refine_shifts(ROOT_DIRECT='PRIMO_F160W',
+                      ALIGN_IMAGE='F125W_drz.fits',
+                      fitgeometry='shift', clean=True,
+                      ALIGN_EXTENSION=1)
+    #
+    threedhst.prep_flt_files.startMultidrizzle('PRIMO_F160W_asn.fits',
+                 use_shiftfile=True, skysub=False,
+                 final_scale=0.06, pixfrac=0.7, driz_cr=False,
+                 updatewcs=False, clean=True, median=False,
+                 ra=53.159487, dec=-27.776371,
+                 final_outnx=2980, final_outny=2380)
+                 
+    threedhst.process_grism.clean_flt_files('PRIMO_F160W_asn.fits')
+    
+    ##### ACS F850LP
+    acs_list = threedhst.shifts.find_align_images_that_overlap('PRIMO_F160W_drz.fits', '../ACS/h_sz*drz_img.fits')
+
+    threedhst.shifts.matchImagePixels(input=acs_list,
+                     matchImage='PRIMO_F160W_drz.fits',
+                     output='PRIMO_F850LP.fits', match_extension = 1,
+                     input_extension=0)
+    
+    files = glob.glob('[rgb].fits')
+    for file in files: os.remove(file)
+    s = 10**(-0.4*(26.25-25.96))
+    iraf.imcalc('PRIMO_F125W_drz.fits[1]','g.fits','im1*%f' %s)
+    s = 10**(-0.4*(25.84-25.96))*3.5
+    iraf.imcalc('PRIMO_F850LP.fits[0]','b.fits','im1*%f' %s)
+    iraf.imcalc('PRIMO_F160W_drz.fits[1]','r.fits','im1')
     
     ####********************************************####
     ####            SN-GEORGE (GOODS-S)
     ####********************************************####
     ## Shifts and direct images determined separately
-    shutil.copy('ibfug1040_shifts.txt','GEORGE-1-G_shifts.txt')
+    os.chdir('/research/HST/GRISM/3DHST/SN-GEORGE/PREP_FLT')
+    shutil.copy('ibfug1040_shifts.txt','GEORGE-1-G141_shifts.txt')
     pair(None,'ibfug1040_asn.fits', ALIGN_IMAGE = None, SKIP_DIRECT=True, SKIP_GRISM=False,  GRISM_HIGHER_ORDER=2)
 
-    shutil.copy('ibfug2040_shifts.txt','GEORGE-2-G_shifts.txt')
+    shutil.copy('ibfug2040_shifts.txt','GEORGE-2-G141_shifts.txt')
     pair(None,'ibfug2040_asn.fits', ALIGN_IMAGE = None, SKIP_DIRECT=True, SKIP_GRISM=False,  GRISM_HIGHER_ORDER=2)
     
-    asn_files = glob.glob('GEORGE-?-G_asn.fits')
-    threedhst.utils.combine_asn_shifts(asn_files, out_root='GEORGE',
+    asn_files = glob.glob('GEORGE-?-G141_asn.fits')
+    threedhst.utils.combine_asn_shifts(asn_files, out_root='GEORGE-G141',
                     path_to_FLT='./', run_multidrizzle=False)
     
-    threedhst.prep_flt_files.startMultidrizzle('GEORGE_asn.fits',
+    threedhst.prep_flt_files.startMultidrizzle('GEORGE-G141_asn.fits',
                  use_shiftfile=True, skysub=False,
                  final_scale=0.06, pixfrac=0.8, driz_cr=False,
                  updatewcs=False, clean=True, median=False)
     
+    ###### Direct image
+    # Shifts aren't quite right, due to differen scales, use direct as reference
+    threedhst.utils.combine_asn_shifts(['ibfug1030_asn.fits'],
+                    out_root='GEORGE_DIRECT',
+                    path_to_FLT='../RAW/', run_multidrizzle=False)
+    #
+    threedhst.process_grism.fresh_flt_files('GEORGE_DIRECT_asn.fits', from_path='../RAW/')
+    threedhst.prep_flt_files.startMultidrizzle('GEORGE_DIRECT_asn.fits',
+                 use_shiftfile=True, skysub=True,
+                 final_scale=0.06, pixfrac=0.8, driz_cr=True,
+                 updatewcs=True, clean=True, median=True,
+                 ra=53.084992, dec=-27.835811,
+                 final_outnx=3450, final_outny=3100)
+                 
+    threedhst.process_grism.clean_flt_files('GEORGE_DIRECT_asn.fits')
     
-def mosaic_to_pointing(mosaic_list='GOODS-N-*D',
-                       pointing='GOODS-N-43-D',
-                       run_multidrizzle=True):
+    
+    CANDELS='/research/HST/CANDELS/GOODS-S/PREP_FLT/'
+    ##### Full F125W
+    
+    f125w_list = threedhst.shifts.find_align_images_that_overlap('GEORGE-G141_drz.fits', CANDELS+'*F125W*pointing.reg', is_region=True)
+    threedhst.utils.combine_asn_shifts(f125w_list, out_root='GEORGE_F125W',
+                    path_to_FLT=CANDELS, run_multidrizzle=False)
+    threedhst.process_grism.fresh_flt_files('GEORGE_F125W_asn.fits', from_path=CANDELS)
+    threedhst.prep_flt_files.startMultidrizzle('GEORGE_F125W_asn.fits',
+                 use_shiftfile=True, skysub=False,
+                 final_scale=0.06, pixfrac=0.8, driz_cr=False,
+                 updatewcs=False, clean=True, median=False,
+                 ra=53.084992, dec=-27.835811,
+                 final_outnx=3450, final_outny=3100)
+                      
+    threedhst.shifts.refine_shifts(ROOT_DIRECT='GEORGE_F125W',
+                      ALIGN_IMAGE='GEORGE_DIRECT_drz.fits',
+                      fitgeometry='shift', clean=False,
+                      ALIGN_EXTENSION=1)
+    #
+    threedhst.prep_flt_files.startMultidrizzle('GEORGE_F125W_asn.fits',
+                 use_shiftfile=True, skysub=False,
+                 final_scale=0.06, pixfrac=0.7, driz_cr=False,
+                 updatewcs=False, clean=True, median=False,
+                 ra=53.084992, dec=-27.835811,
+                 final_outnx=3450, final_outny=3100)
+                     
+    threedhst.process_grism.clean_flt_files('GEORGE_F125W_asn.fits')
+    
+    ##### Full F160W
+    
+    f160w_list = threedhst.shifts.find_align_images_that_overlap('GEORGE-G141_drz.fits', CANDELS+'*F160W*pointing.reg', is_region=True)
+    threedhst.utils.combine_asn_shifts(f160w_list, out_root='GEORGE_F160W',
+                    path_to_FLT=CANDELS, run_multidrizzle=False)
+    threedhst.process_grism.fresh_flt_files('GEORGE_F160W_asn.fits', from_path=CANDELS)
+    threedhst.prep_flt_files.startMultidrizzle('GEORGE_F160W_asn.fits',
+                 use_shiftfile=True, skysub=False,
+                 final_scale=0.06, pixfrac=0.8, driz_cr=False,
+                 updatewcs=False, clean=True, median=False,
+                 ra=53.084992, dec=-27.835811,
+                 final_outnx=3450, final_outny=3100)
+                      
+    threedhst.shifts.refine_shifts(ROOT_DIRECT='GEORGE_F160W',
+                      ALIGN_IMAGE='GEORGE_DIRECT_drz.fits',
+                      fitgeometry='shift', clean=False,
+                      ALIGN_EXTENSION=1)
+    #
+    threedhst.prep_flt_files.startMultidrizzle('GEORGE_F160W_asn.fits',
+                 use_shiftfile=True, skysub=False,
+                 final_scale=0.06, pixfrac=0.7, driz_cr=False,
+                 updatewcs=False, clean=True, median=False,
+                 ra=53.084992, dec=-27.835811,
+                 final_outnx=3450, final_outny=3100)
+                     
+    threedhst.process_grism.clean_flt_files('GEORGE_F160W_asn.fits')
+    
+    ##### ACS F850LP
+    acs_list = threedhst.shifts.find_align_images_that_overlap('GEORGE_DIRECT_drz.fits', '../ACS/h_sz*drz_img.fits')
+
+    threedhst.shifts.matchImagePixels(input=acs_list,
+                     matchImage='GEORGE_DIRECT_drz.fits',
+                     output='GEORGE_F850LP.fits', match_extension = 1,
+                     input_extension=0)
+    
+    files = glob.glob('[rgb].fits')
+    for file in files: os.remove(file)
+    s = 10**(-0.4*(26.25-25.96))
+    iraf.imcalc('GEORGE_F125W_drz.fits[1]','g.fits','im1*%f' %s)
+    s = 10**(-0.4*(25.84-25.96))*3.5
+    iraf.imcalc('GEORGE_F850LP.fits[0]','b.fits','im1*%f' %s)
+    iraf.imcalc('GEORGE_F160W_drz.fits[1]','r.fits','im1')
+    
+    ####********************************************####
+    ####              Stanford clusters in NDWFS
+    ####********************************************####
+    os.chdir('/research/HST/GRISM/3DHST/STANFORD/PREP_FLT')
+    ALIGN = '../NMBS/AEGIS-N2_K_sci.fits'
+    
+    pair('ib5l06020_asn.fits','ib5l06030_asn.fits', ALIGN_IMAGE = None, GET_SHIFT=True, TWEAKSHIFTS_ONLY=True)
+    pair('ib5l09020_asn.fits','ib5l09030_asn.fits', ALIGN_IMAGE = None, GET_SHIFT=True, TWEAKSHIFTS_ONLY=True)
+    pair('ib5l13020_asn.fits','ib5l13030_asn.fits', ALIGN_IMAGE = None, GET_SHIFT=True, TWEAKSHIFTS_ONLY=True)
+    pair('ib5l17020_asn.fits','ib5l17030_asn.fits', ALIGN_IMAGE = None, GET_SHIFT=True, TWEAKSHIFTS_ONLY=True)
+    pair('ib5l01020_asn.fits','ib5l01030_asn.fits', ALIGN_IMAGE = None, GET_SHIFT=True, TWEAKSHIFTS_ONLY=True)
+    pair('ib5l04020_asn.fits','ib5l04030_asn.fits', ALIGN_IMAGE = None, GET_SHIFT=True, TWEAKSHIFTS_ONLY=True)
+    pair('ib5l18020_asn.fits','ib5l18030_asn.fits', ALIGN_IMAGE = None, GET_SHIFT=True, TWEAKSHIFTS_ONLY=True)
+    
+    
+def mosaic_to_pointing(mosaic_list='GOODS-N-*F140W',
+                       pointing='GOODS-N-43-F140W',
+                       run_multidrizzle=True, grow=0):
     """ 
     Given an input list of ASN tables that could be combined to form a mosaic,
     find only those that overlap with the input pointing and make a new ASN
@@ -821,11 +1084,28 @@ def mosaic_to_pointing(mosaic_list='GOODS-N-*D',
     threedhst.utils.combine_asn_shifts(asn_files, out_root='mostmp',
                     path_to_FLT='./', run_multidrizzle=False)
     
+    #### Make the output area a bit larger than the original to allow for 
+    #### extracting grism objects near the edges
+    header = pyfits.getheader(pointing+'_drz.fits',1)
+    NX = header.get('NAXIS1')
+    NY = header.get('NAXIS2')
+    RA_CENTER = header.get('CRVAL1')
+    DEC_CENTER = header.get('CRVAL2')
+    SCALE = np.sqrt((header.get('CD1_1')*3600.)**2+
+                    (header.get('CD1_2')*3600.)**2)
+    
+    ANGLE = np.arctan2(header.get('CD2_1'),
+                       header.get('CD2_2'))/2/np.pi*360.
+    
+    # print 'NX NY RA DEC SCALE'
+    # print '%d %d %13.6f %13.6f %6.3f' %(NX, NY, RA_CENTER, DEC_CENTER, SCALE)
+    
     threedhst.prep_flt_files.startMultidrizzle('mostmp_asn.fits',
                  use_shiftfile=True, skysub=False,
-                 final_scale=0.06, pixfrac=0.8, driz_cr=False,
+                 final_scale=SCALE, pixfrac=0.8, driz_cr=False,
                  updatewcs=False, clean=True, median=False,
-                 refimage=pointing+'_drz.fits[1]')
+                 final_outnx=NX+grow, final_outny=NY+grow, 
+                 final_rot=0., ra=RA_CENTER, dec=DEC_CENTER) #refimage=pointing+'_drz.fits[1]')
     
     os.remove('mostmp_shifts.txt')
     os.remove('mostmp_asn.fits')
@@ -867,7 +1147,7 @@ def make_grism_subsets(root='GOODS-S', run_multidrizzle=True, single=None):
         targets = np.unique(info.targname[info.pa_v3 == angle])
         list = []
         for targ in targets:
-            list.append("%s-G_asn.fits" %(targ))
+            list.append("%s-G141_asn.fits" %(targ))
         #
         out_root = root+'-%03d' %(angle)
         print out_root
@@ -876,7 +1156,7 @@ def make_grism_subsets(root='GOODS-S', run_multidrizzle=True, single=None):
                    path_to_FLT='./', run_multidrizzle=False)
         #
         if run_multidrizzle:
-            direct_ref = root+'-D_drz.fits'
+            direct_ref = root+'-F140W_drz.fits'
             if not os.path.exists(direct_ref):
                 direct_ref=''
             else:
@@ -889,21 +1169,30 @@ def make_grism_subsets(root='GOODS-S', run_multidrizzle=True, single=None):
                  refimage=direct_ref)
                  
         
-def make_targname_asn(asn_file, newfile=True):
+def make_targname_asn(asn_file, newfile=True, use_filtname=True, path_to_flt='../RAW/'):
     """
     Take an ASN file like 'ibhm51030_asn.fits' and turn it into 
     'COSMOS-3-D_asn.fits'
     """
     asn = threedhst.utils.ASNFile(asn_file)
     
-    im = pyfits.open('../RAW/'+asn.exposures[0]+'_flt.fits.gz')
-    filter = im[0].header['FILTER']
+    flt_file = threedhst.utils.find_fits_gz(path_to_flt+'/'+asn.exposures[0]+'_flt.fits')
+    im = pyfits.open(flt_file)
     
+    instrum = im[0].header['INSTRUME']
+    if instrum == 'ACS':
+        filter=im[0].header['FILTER1']
+    else:
+        filter=im[0].header['FILTER']
+        
     if filter.startswith('F'):
         type='D'
     else:
         type='G'
     
+    if use_filtname:
+        type=filter
+        
     target = im[0].header['TARGNAME']
     target = target.replace('SOUTH','S')
     target = target.replace('GNGRISM','GOODS-N-')
@@ -912,7 +1201,7 @@ def make_targname_asn(asn_file, newfile=True):
     if target == 'MARSHALL':
         #### Add the pointing number, 1-6
         ID = asn.exposures[0][5]
-        target+=ID
+        target+='-'+ID
 
     if target == 'PRIMO':
         #### Add the date, like "1026"
@@ -926,7 +1215,12 @@ def make_targname_asn(asn_file, newfile=True):
             target='GEORGE-2'
         else:
             target='GEORGE-1'
-            
+    
+    if target.startswith('GOODS-N'):
+        #### Some Visits were classi
+        date = im[0].header['DATE-OBS']
+        if date > '2011-04-01':
+            target = target.replace('GOODS-N','GOODS-N2')
     
     product = target+'-'+type
     asn.product = product
@@ -937,6 +1231,7 @@ def make_targname_asn(asn_file, newfile=True):
 def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                        asn_grism_file='ib3706060_asn.fits',
                        ALIGN_IMAGE='../ACS/h_nz_sect*img.fits',
+                       ALIGN_EXTENSION=0,
                        PATH_TO_RAW='../RAW',
             IMAGES = ['/research/HST/GRISM/CONF/G141_sky_cleaned.fits',
                       '/research/HST/GRISM/CONF/G141wLO_fixed_sky.fits', 
@@ -944,8 +1239,10 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                        SKIP_GRISM=False,
                        SKIP_DIRECT=False,
                        GET_SHIFT=True,
+                       TWEAKSHIFTS_ONLY=False,
                        DIRECT_HIGHER_ORDER=2,
-                       GRISM_HIGHER_ORDER=1):
+                       GRISM_HIGHER_ORDER=1,
+                       save_fit=False):
     
     import threedhst
     import threedhst.prep_flt_files
@@ -971,11 +1268,13 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
         threedhst.prep_flt_files.prep_flt(asn_file=asn_direct_file,
                         get_shift=GET_SHIFT, 
                         bg_only=False, bg_skip=False, redo_background=True,
-                        ALIGN_IMAGE=ALIGN_IMAGE,
+                        ALIGN_IMAGE=ALIGN_IMAGE, 
+                        ALIGN_EXT=ALIGN_EXTENSION,
                         skip_drz=False, final_scale=0.06, pixfrac=0.8,
                         IMAGES=[],
                         align_geometry='rxyscale,shift', clean=True,
-                        initial_order=0, save_fit=False)
+                        initial_order=0, save_fit=save_fit,
+                        TWEAKSHIFTS_ONLY=TWEAKSHIFTS_ONLY)
         
         if DIRECT_HIGHER_ORDER > 0:
             threedhst.prep_flt_files.prep_flt(asn_file=asn_direct_file,
@@ -983,8 +1282,8 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                         bg_only=False, bg_skip=False, redo_background=False,
                         skip_drz=False, final_scale=0.06, pixfrac=0.8,
                         IMAGES=[], clean=True,
-                        initial_order=DIRECT_HIGHER_ORDER, save_fit=False)
-    
+                        initial_order=DIRECT_HIGHER_ORDER, save_fit=save_fit)
+        
     #### Grism images
     if not SKIP_GRISM:
         if asn_direct_file:
@@ -1002,7 +1301,7 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                         bg_only=False, bg_skip=False, redo_background=True,
                         skip_drz=False, final_scale=0.06, pixfrac=0.8,
                         IMAGES=IMAGES, clean=True,
-                        initial_order=-1, save_fit=False)
+                        initial_order=-1, save_fit=save_fit)
 
         if GRISM_HIGHER_ORDER > 0:
             threedhst.prep_flt_files.prep_flt(asn_file=asn_grism_file,
@@ -1010,9 +1309,10 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                         bg_only=False, bg_skip=False, redo_background=False,
                         skip_drz=False, final_scale=0.06, pixfrac=0.8,
                         IMAGES=[], clean=True,
-                        initial_order=GRISM_HIGHER_ORDER, save_fit=False)
+                        initial_order=GRISM_HIGHER_ORDER, save_fit=save_fit)
     
-
+    threedhst.showMessage("""FLT prep done.  Run gzip *flt.fits to save disk space.""")
+    
 def startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
     skysub=True, updatewcs=True, driz_cr=True, median=True,
     final_scale=0.06, pixfrac=0.8, clean=True,
@@ -1238,7 +1538,7 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
                 interpol='poly5', sinscl='1.0', expout=exptime, 
                 expkey='EXPTIME',fillval=0.0)
         
-        iraf.delete('drz_*.fits')
+        #iraf.delete('drz_*.fits')
         
 class DRZFile(MultidrizzleRun):
     """
@@ -1395,11 +1695,15 @@ def apply_best_flat(fits_file, verbose=False):
         USED_PFL = im[0].header['PFLTFILE'].split('$')[1]
         BEST_PFL = find_best_flat(file, verbose=False)
         
-        IREF = os.path.dirname(BEST_PFL)+'/'
-        BEST_PFL = os.path.basename(BEST_PFL)
-        
         MSG = 'PFLAT, %s: Used= %s, Best= %s' %(file, USED_PFL, BEST_PFL)
         
+        if BEST_PFL is None:
+            threedhst.showMessage("No PFL file found! (NEED %s)" %(USED_PFL), warn=True)
+            exit
+            
+        IREF = os.path.dirname(BEST_PFL)+'/'
+        BEST_PFL = os.path.basename(BEST_PFL)
+                
         if USED_PFL != BEST_PFL:
             MSG += ' *'
             used = pyfits.open(IREF+USED_PFL)
@@ -1445,4 +1749,48 @@ def find_best_flat(flt_fits, verbose=True): #, IREF='/research/HST/GRISM/IREF/')
     
     return best_pfl #, the_filter, time.ctime(latest)
     
+def prep_acs(force=False):
+    """
+    Apply destripe and CTE correction to ACS images.
     
+    Run this in a 'RAW' directory and results will be put in ../FIXED.
+    
+    *** requires irafx, i.e. type 'irafx' before starting pyraf ***
+    
+    """
+    from acstools import acs_destripe
+    from acstools import PixCteCorr
+    
+    if not (os.getcwd().endswith('RAW') or force):
+        threedhst.showMessage("CWD is not 'RAW'.  Run with force=True if this is OK.", warn=True)
+        return
+    
+    #### Make a ../FIXED directory if it doesn't exist
+    if not os.path.exists('../FIXED'):
+        print "Making output directory ../FIXED"
+        os.mkdir('../FIXED')
+        
+    files = glob.glob('*flt.fits')
+    for file in files:
+        #epar acs_destripe # *flt.fits dstrp clobber+
+        acs_destripe.clean(file,'dstrp',clobber=True)
+        
+    files=glob.glob('*dstrp*')
+    for file in files:
+        iraf.hedit(images=file+'[0]', fields='PCTEFILE',
+            value='jref$pctefile_101109.fits', add=iraf.yes, verify=iraf.no, 
+            update=iraf.yes, show=iraf.no)
+    
+    ## epar PixCteCorr # *dstrp*fits ''
+    PixCteCorr.CteCorr('*dstrp*fits')
+    files=glob.glob('*cte.fits')
+    for file in files:
+        out=file.replace('cte','flt')
+        shutil.move(file,'../FIXED/'+out)
+    
+    ### Clean up dstrp files
+    files=glob.glob('*dstrp*fits')
+    for file in files:
+        print file
+        os.remove(file)
+        

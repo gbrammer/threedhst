@@ -3,6 +3,33 @@ Test
 Miscellaneous notes
 ===================
 
+---------
+
+**** Done! *** 4/25/11 - analysis.make_fluximage()
+
+Idea for adding color information to the 3D-HST fluxcubes:
+
+1) Specify a given root name, which has F140W detection + segm. images
+
+2) Loop through all of the objects in the detected catalog:
+
+	a) For each object, look for a match in the photometric catalog
+	b) Interpolate an observed-frame F140W photometric flux
+	c) Make a fake "J" image by taking the F140W segmentation image and scaling it by the "J-F140W" catalog color.
+	d) If no match found in the photometric catalog, just use the F140W flux
+	
+The trickiest part will be getting the interpolated F140W flux, which needs to be done because the F140W MAG_AUTO might not correspond exactly to total fluxes in the photometric catalog (though could try it as it is for a start).
+
+---------
+
+Idea for fitting redshifts:  take the eazy templates and convolve them with the thumbnails to generate 2D spectra.  Then do a sort of redshift-fitting code on the 2D spectra themselves.  Could use the photometric p(z) as a prior, for example.
+
+It's pretty easy to generate the 2D convolved spectra.  Note that you have to multiply them by the grism response curve to be able to compare to the aXe 2D spectra.
+
+---------
+
+*** DONE *** (process_grism.update_catalogs) (Apr. 24)
+
 Add a flag to the catalog that indicates if an object won't have a grism spectrum or 2d thumbnail because it falls off of the grism coverage.
 
 ---------

@@ -19,7 +19,7 @@ import numpy as np
 
 import threedhst
 
-def asn_region(asn_file):
+def asn_region(asn_file, path_to_flt='./'):
     """
 asn_region(asn_file)
     
@@ -37,7 +37,7 @@ Create a DS9 region file for the exposures defined in an ASN file.
     DECcenters = np.zeros(NEXP)
     ##### Loop through exposures and get footprints
     for i, exp_root in enumerate(asn.exposures):
-        flt_file = threedhst.utils.find_fits_gz(exp_root.lower()+'_flt.fits', hard_break = True)
+        flt_file =threedhst.utils.find_fits_gz(path_to_flt + '/' + exp_root.lower()+'_flt.fits', hard_break = True)
         
         #head = pyfits.getheader(exp_root.lower()+'_flt.fits')
         head = pyfits.getheader(flt_file)
@@ -274,7 +274,7 @@ Note: something like this could be used to flag grism 0th order contaminants
     dq[flag_idx] = 1
     return dq
 
-def apply_dq_mask(flt_file, extension=3, mask_file=None, addval=2048):
+def apply_dq_mask(flt_file, extension=3, mask_file=None, addval=2048, fk5=False, verbose=False):
     """
 apply_dq_mask(flt_file, addval=2048)
 
@@ -283,6 +283,9 @@ apply_dq_mask(flt_file, addval=2048)
     
     DQnew = DQold + `addval` within the polygon.
     """
+    if fk5:
+        import pywcs
+        
     try:
         if mask_file is None:
             mask_file = flt_file.split('.gz')[0]+'.mask.reg'
@@ -308,11 +311,22 @@ apply_dq_mask(flt_file, addval=2048)
             #region = 'polygon(375.05333,642.2,465.18667,642.2,751.36,
             # 709.8,393.08,326.73333,210.56,461.93333,465.18667,
             # 552.06667,375.05333,552.06667,221.82667,509.25333)'
+            if verbose:
+                print region
+            
             spl = np.float_(np.array(
                      region[region.find('(')+1:region.find(')')].split(',')
                      ))
             px = spl[0::2]
             py = spl[1::2]
+            if fk5:
+                pra = px
+                pdec = py
+                wcs = pywcs.WCS(fi[extension].header)
+                xy = wcs.wcs_sky2pix(pra, pdec, 1)
+                px = xy[0]
+                py = xy[1]
+                
             dqflag += threedhst.regions.region_mask(fi[extension].data.shape,px,py)
     
     ##### Set DQ bit
@@ -356,6 +370,8 @@ Test if coordinates (x,y) are inside polygon defined by (px, py)
         return True
     else:
         return False
+    
+    # return np.abs(np.sum(theta)) > np.pi
 
 class PointXY():
     def __init__(self, x, y):
