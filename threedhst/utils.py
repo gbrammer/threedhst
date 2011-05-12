@@ -548,6 +548,52 @@ def biweight(xarr, both=False, mean=False):
     >>> print mu, sigma, np.median(x), np.std(x)
     
     """
+    bigm = np.median(xarr)
+    mad = np.median(np.abs(xarr-bigm))
+    
+    c = 6.0
+    u = (xarr-bigm)/c/mad
+    u1 = np.abs(u) < 1
+    
+    #### biweight mean
+    if (u[u1].size > 0):
+        cbi = bigm + np.sum((xarr[u1]-bigm)*(1-u[u1]**2)**2)/ \
+                  np.sum((1-u[u1]**2)**2)
+    else:
+        cbi = -99
+        
+    #### biweight sigma
+    c=9.0
+    u = (xarr-bigm)/c/mad
+    u1 = np.abs(u) < 1
+
+    if (u[u1].size > 0):
+        sbi = (np.sqrt(xarr.size)*np.sqrt(np.sum((xarr[u1]-bigm)**2*(1-u[u1]**2)**4))/ \
+                                  np.abs(np.sum((1-u[u1]**2)*(1-5*u[u1]**2))))
+    else:
+        sbi = -99
+    
+    if mean:
+        return cbi
+        
+    if both:
+        return cbi, sbi
+    else:
+        return sbi
+
+def biweight2(xarr, both=False, mean=False):
+    """
+    Compute the biweight estimator for an input array.
+    
+    Example:
+    
+    >>> x = np.random.randn(1000)
+    >>> x[0:5] = 5000
+    >>> mu, sigma = biweight(x, both=True)
+    >>> sig = biweight(x, both=False)            # get just sigma
+    >>> print mu, sigma, np.median(x), np.std(x)
+    
+    """
     bigm = np.median(xarr, axis=0)
     sh = xarr.shape
     if len(sh) == 2:
