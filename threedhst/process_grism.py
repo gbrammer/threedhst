@@ -430,7 +430,9 @@ Pipeline to process a set of grism/direct exposures.
         threedhst.currentRun['conf'] = conf
 
         #### Need to scale the 0th order sensitivity curve
-        if conf.params['SENSITIVITY_B'] == 'wfc3_abscal_IRg141_0th_sens.fits':
+        # if conf.params['SENSITIVITY_B'] == 'wfc3_abscal_IRg141_0th_sens.fits':
+        zeroth_list = ['wfc3_abscal_IRg141_0th_sens.fitsX', 'WFC3.IR.G141.0th.sens.1.fitsX']
+        if conf.params['SENSITIVITY_B'] in zeroth_list:
             zeroth_file = pyfits.open(conf.path+'/'+conf.params['SENSITIVITY_B'])
             zeroth_data = zeroth_file[1].data
             sens = zeroth_data.field('SENSITIVITY')
@@ -450,7 +452,9 @@ Pipeline to process a set of grism/direct exposures.
 
         #### Make sure 4096 is set in CONF.DQMASK, which is the value 
         #### DQ uses for flagging problem regions
-        conf.params['DQMASK'] = np.str(np.int(conf.params['DQMASK']) | 4096 | 2048)
+        #print conf.params['DQMASK']
+        
+        conf.params['DQMASK'] = np.str(np.int(conf.params['DQMASK'].split()[0]) | 4096 | 2048)
 
         #### Workaround to get 0th order contam. in the right place for the fluxcube
         if threedhst.options['CONFIG_FILE'] == 'WFC3.IR.G141.V1.0.conf':
@@ -549,6 +553,10 @@ Pipeline to process a set of grism/direct exposures.
     #### Make 'lis' file for input into aXe
     status = make_aXe_lis(asn_grism_file, asn_direct_file,
                           mode=threedhst.options['CATALOG_MODE'])
+    try:
+        os.remove('../'+prep_name(asn_grism_file))
+    except:
+        pass
     shutil.move(prep_name(asn_grism_file),'..')
     
     #############################################

@@ -13,10 +13,19 @@ __version__ = "$Rev$"
 import pyfits
 
 import numpy as np
+errs = np.seterr(divide='ignore', invalid='ignore')
+errs = np.seterr(divide='ignore', invalid='ignore')
+
 import matplotlib
-import matplotlib.pyplot as pyplot
+import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import pylab
+
+USE_PLOT_GUI=False
+
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+
 
 from pyraf import iraf
 from iraf import dither
@@ -27,14 +36,14 @@ def defaultPlotParameters():
     """
     defaultPlotParameters()
     """
-    pyplot.rcParams['font.family'] = 'serif'
-    pyplot.rcParams['font.serif'] = ['Times']
-    pyplot.rcParams['ps.useafm'] = True
-    pyplot.rcParams['patch.linewidth'] = 0.
-    pyplot.rcParams['patch.edgecolor'] = 'black'
-    pyplot.rcParams['text.usetex'] = False
-    #pyplot.rcParams['text.usetex'] = True
-    #pyplot.rcParams['text.latex.preamble'] = ''
+    #plt.rcParams['font.family'] = 'serif'
+    #plt.rcParams['font.serif'] = ['Times']
+    plt.rcParams['ps.useafm'] = True
+    plt.rcParams['patch.linewidth'] = 0.
+    plt.rcParams['patch.edgecolor'] = 'black'
+    plt.rcParams['text.usetex'] = False
+    #plt.rcParams['text.usetex'] = True
+    #plt.rcParams['text.latex.preamble'] = ''
 
 def redo_1dall():
     
@@ -100,6 +109,7 @@ make_data_products()
     print '\nTHREEDHST.plotting.makeThumbs: Creating direct image ' + \
           'thumbnails...\n\n'
     threedhst.plotting.makeThumbs(SPC, sexCat, path='../HTML/images/')
+    
     # 
     # fptar = tarfile.open('../HTML/images/'+ROOT_GRISM+'_thumbs.tar.gz','w|gz')
     # oldwd = os.getcwd()
@@ -221,9 +231,9 @@ def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128,
     
     defaultPlotParameters()
     
-    pyplot.gray()
+    plt.gray()
     
-    fig = pyplot.figure(figsize=[3,3],dpi=100)
+    fig = plt.figure(figsize=[3,3],dpi=100)
     fig.subplots_adjust(wspace=0.2,hspace=0.02,left=0.02,
                         bottom=0.02,right=0.98,top=0.98)
     ax = fig.add_subplot(111)
@@ -242,9 +252,9 @@ def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128,
         fig.savefig(outfile,dpi=100,transparent=False)
     
     if close_window:
-        status = pyplot.close()
+        status = plt.close()
     
-    #pyplot.show()
+    #plt.show()
 
 def plotThumbNew(object_number, mySexCat, SPCFile,
                  outfile='/tmp/thumb.png', close_window=False):
@@ -468,12 +478,18 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     
     defaultPlotParameters()
     
-    pyplot.gray()
+    plt.gray()
     
-    fig = pyplot.figure(figsize=[3,3],dpi=100)
+    if USE_PLOT_GUI:
+        fig = plt.figure(figsize=[3,3],dpi=100)
+    else:
+        fig = Figure(figsize=[3,3], dpi=100)
+        
     fig.subplots_adjust(wspace=0.2,hspace=0.02,left=0.02,
                         bottom=0.02,right=0.98,top=0.98)
+    
     ax = fig.add_subplot(111)
+    
     ax.imshow(0-sub, interpolation=interp,aspect=asp,vmin=vmin,vmax=vmax)    
     
     asec_pix = 1./pixel_scale
@@ -488,12 +504,16 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     
     ### Save to PNG
     if outfile:
-        fig.savefig(outfile,dpi=100,transparent=False)
+        if USE_PLOT_GUI:
+            fig.savefig(outfile,dpi=100,transparent=False)
+        else:
+            canvas = FigureCanvasAgg(fig)
+            canvas.print_figure(outfile, dpi=100, transparent=False)
     
-    if close_window:
-        status = pyplot.close()
+    if close_window & (USE_PLOT_GUI):
+        status = plt.close()
     
-    #pyplot.show()
+    #plt.show()
     
 def makeThumbs(SPCFile, mySexCat, path='./HTML/'):
     """
@@ -554,19 +574,21 @@ plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
     xmax = (lmax-head['CRVAL1'])/head['CDELT1']+head['CRPIX1']
     
     defaultPlotParameters()
-    fig = pyplot.figure(figsize=[6,4],dpi=100)
+    
+    if USE_PLOT_GUI:
+        fig = plt.figure(figsize=[6,4],dpi=100)
+    else:
+        fig = Figure(figsize=[6,4], dpi=100)
+    
     fig.subplots_adjust(wspace=0.2,hspace=0.02,left=0.06,
                         bottom=0.12,right=0.99,top=0.99)
-    # fig = pyplot.figure(figsize=[4.2,2.8]) #,dpi=100)
-    # fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.07,
-    #                     bottom=0.11,right=0.99,top=0.93)
         
     interp = 'nearest'
     asp = 'auto'
     vmin = -0.6 
     vmax = 0.1
     
-    pyplot.gray()
+    plt.gray()
     
     mod_max = np.max(mef['MOD'].data)
     if mod_max > 0:
@@ -593,7 +615,7 @@ plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
        np.ceil(lmax/1000.)*1000,1000)-head['CRVAL1'])/head['CDELT1']
        +head['CRPIX1'])
     ax.set_xticklabels([])
-    pyplot.ylabel(threedhst.options['GRISM_NAME'])
+    plt.ylabel(threedhst.options['GRISM_NAME'])
     
     ax = fig.add_subplot(312)
     ax.imshow(0-mef['MOD'].data, interpolation=interp, aspect=asp,
@@ -604,7 +626,7 @@ plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
         np.ceil(lmax/1000.)*1000,1000)-head['CRVAL1'])/head['CDELT1']
         +head['CRPIX1'])
     ax.set_xticklabels([])
-    pyplot.ylabel('Model')
+    plt.ylabel('Model')
 
     ax = fig.add_subplot(313)
     if clean:
@@ -623,21 +645,25 @@ plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
         np.ceil(lmax/1000.)*1000,1000)/1.e4)
     
     if clean:
-        pyplot.ylabel('Cleaned')
+        plt.ylabel('Cleaned')
     else:
-        pyplot.ylabel('Contam.')
+        plt.ylabel('Contam.')
     
-    pyplot.xlabel(r'$\lambda$ [$\mu$m]')
+    plt.xlabel(r'$\lambda$ [$\mu$m]')
     
     #ax.set_xticklabels([])
-    #pyplot.show()
+    #plt.show()
     
     ### Save to PNG
     if outfile:
-        fig.savefig(outfile,dpi=100,transparent=False)
-    
-    if close_window:
-        status = pyplot.close()
+        if USE_PLOT_GUI:
+            fig.savefig(outfile,dpi=100,transparent=False)
+        else:
+            canvas = FigureCanvasAgg(fig)
+            canvas.print_figure(outfile, dpi=100, transparent=False)
+            
+    if close_window & USE_PLOT_GUI:
+        status = plt.close()
 
 def makeSpec2dImages(SPCFile, path='./HTML/', add_FITS=True):
     """
@@ -676,7 +702,7 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     """
     import os
     import scipy.optimize
-    from scipy.interpolate import interp1d
+    #from scipy.interpolate import interp1d
     
     #import threedhst.plotting as pl
     #reload pl
@@ -734,12 +760,11 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     ymax = np.max((flux-0*contam)[sub])
     
     ### Initialize plot
-    # fig = pyplot.figure(figsize=[6,4],dpi=100)
-    # fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.07,
-    #                     bottom=0.11,right=0.99,top=0.93)
-    fig = pyplot.figure(figsize=[5,3.4]) #,dpi=100)
-    # fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.08,
-    #                     bottom=0.125,right=0.99,top=0.93)
+    if USE_PLOT_GUI:
+        fig = plt.figure(figsize=[5,3.4],dpi=100)
+    else:
+        fig = Figure(figsize=[5,3.4], dpi=100)
+    
     fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.10,
                         bottom=0.15,right=0.99,top=0.90)
 
@@ -788,12 +813,13 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
                 #if len(near) > 2:                    
                     p0 = np.array([np.max(flux[near]), line.wave,
                          50, np.median(flux[sub]), 0.])
-                    fi = interp1d(lam[near], (flux-contam)[near], kind='cubic')       
+                    #fi = interp1d(lam[near], (flux-contam)[near], kind='cubic')       
                     xnew = np.linspace(lam[near[0]], lam[near[-1]], len(near)*3)
-                    ok = np.isfinite(fi(xnew))
+                    fi = np.interp(xnew, lam[near], (flux-contam)[near])
+                    ok = np.isfinite(fi)
                     if len(xnew[ok]) > 10:
                         pout = threedhst.plotting.gaussfit(xnew[ok], 
-                                                           fi(xnew[ok]), p0)
+                                                           fi[ok], p0)
                     else:
                         pout = -1
                         
@@ -864,33 +890,35 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     #     ax.scatter(line*(1+zb),yz,marker='o',color='black',alpha=0.1)
     
     ### Axes
-    #pyplot.semilogx(subsx=[11000,12500,15000])
+    #plt.semilogx(subsx=[11000,12500,15000])
     ax.set_xlim(xmin,xmax)
     ax.set_ylim(-0.05*ymax,1.1*ymax)
     
     ### Labels
     root = os.path.basename(SPCFile.filename).split('_2')[0]
-    if pyplot.rcParams['text.usetex']:
-        pyplot.title(r'%s: \#%d' %(root.replace('_','\_'),object_number))
-        pyplot.xlabel(r'$\lambda~\left[$\AA$\right]')
-        pyplot.ylabel(r'$\mathit{f}_{\lambda}$')
+    if plt.rcParams['text.usetex']:
+        plt.title(r'%s: \#%d' %(root.replace('_','\_'),object_number))
+        plt.xlabel(r'$\lambda~\left[$\AA$\right]')
+        plt.ylabel(r'$\mathit{f}_{\lambda}$')
     else:
-        pyplot.title(r'%s: #%d' %(root.replace('_','\_'),object_number))
-        pyplot.xlabel(r'$\lambda$ [$\AA$]')
-        pyplot.ylabel(r'$f_{\lambda}$')
+        plt.title(r'%s: #%d' %(root.replace('_','\_'),object_number))
+        plt.xlabel(r'$\lambda$ [$\AA$]')
+        plt.ylabel(r'$f_{\lambda}$')
         
     ### Save to PNG
     if outfile:
-        fig.savefig(outfile,dpi=75,transparent=False)
-    
-    if close_window:
-        pyplot.close()
+        if USE_PLOT_GUI:
+            fig.savefig(outfile,dpi=80,transparent=False)
+        else:
+            canvas = FigureCanvasAgg(fig)
+            canvas.print_figure(outfile, dpi=80, transparent=False)
+        
+    if close_window & USE_PLOT_GUI:
+        plt.close()
     
     return out_lines
 
 def test_gaussfit():
-    import numpy as np
-    import matplotlib.pyplot as plt
     
     fitfunc = lambda p, x: p[0]*np.exp(-(x-p[1])**2/(2.0*p[2]**2))+p[3]+p[4]*(x-p[1])/1.e4
     continuum = lambda p, x: p[3]+p[4]*(x-p[1])/1.e4
@@ -909,7 +937,6 @@ def test_gaussfit():
 def gaussfit(x,y,p0):
     import scipy
     import scipy.optimize
-    import numpy as np
     
     # define a gaussian fitting function where
     # p[0] = amplitude
@@ -975,6 +1002,14 @@ def makeHTML(SPCFile, mySexCat, mapParams,
              output='./HTML/index.html', title=None)
     """
     import os
+    from socket import gethostname as hostname
+    
+    if hostname().startswith('uni'):
+        GMAPS_KEY = 'ABQIAAAAzSrfHr_4F2D2YfSuYQD2ZBRWJmdnNuPtXxsK1b3ql6FJMkf8bxT-OiTDeKiGIrffKkTBi-in1FVtrw'
+    else:
+        # localhost
+        GMAPS_KEY = 'ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb_rzgcy5bqzSaTV8cyi2Bgsx3g'
+    
     root = os.path.basename(SPCFile.filename).split('_2')[0]
     if not title:
         title = root
@@ -999,8 +1034,8 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     --> 
     
     <!-- localhost -->
-    <script src="http://maps.google.com/maps?file=api&amp;v=3&amp;key=ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb_rzgcy5bqzSaTV8cyi2Bgsx3g" type="text/javascript"></script> 
-    """]
+    <script src="http://maps.google.com/maps?file=api&amp;v=3&amp;key=%s" type="text/javascript"></script> 
+    """ %(GMAPS_KEY)]
         
     #### Script for the Google map
     llSW = mapParams['LLSW']

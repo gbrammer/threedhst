@@ -53,7 +53,18 @@ def goods_s():
 def aegis():
     import threedhst.go_3dhst as go
     import threedhst.process_grism as proc
+    
     import threedhst.analysis
+    
+    ##### Test!
+    go.set_parameters(direct='F140W', LIMITING_MAGNITUDE=21)
+    threedhst.options['AXE_EDGES'] = "250,0,0,0"
+    threedhst.options['USE_TAXE'] = False
+    
+    threedhst.options['PREFAB_DIRECT_IMAGE'] = '../PREP_FLT/AEGIS-11-F140W_drz.fits'
+    # threedhst.options['PREFAB_GRISM_IMAGE'] = '../PREP_FLT/AEGIS-11-G141_drz.fits'
+    proc.reduction_script(asn_grism_file='AEGIS-11-G141_asn.fits')
+    
     
     os.chdir('/research/HST/GRISM/3DHST/AEGIS')
     

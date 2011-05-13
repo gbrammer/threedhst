@@ -615,7 +615,7 @@ def flag_data_quality():
     ####                 COSMOS
     ####********************************************####
     os.chdir('/research/HST/GRISM/3DHST/COSMOS/PREP_FLT')
-
+    
     threedhst.dq.checkDQ('ibhm31030_asn.fits','ibhm31040_asn.fits')
     threedhst.dq.checkDQ('ibhm44030_asn.fits','ibhm44040_asn.fits')
     threedhst.dq.checkDQ('ibhm51030_asn.fits','ibhm51040_asn.fits')
@@ -1233,9 +1233,9 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                        ALIGN_IMAGE='../ACS/h_nz_sect*img.fits',
                        ALIGN_EXTENSION=0,
                        PATH_TO_RAW='../RAW',
-            IMAGES = ['/research/HST/GRISM/CONF/G141_sky_cleaned.fits',
-                      '/research/HST/GRISM/CONF/G141wLO_fixed_sky.fits', 
-                      '/research/HST/GRISM/CONF/G141wHI_fixed_sky.fits'],
+            IMAGES = ['../CONF/G141_sky_cleaned.fits',
+                      '../CONF/G141wLO_fixed_sky.fits', 
+                      '../CONF/G141wHI_fixed_sky.fits'],
                        SKIP_GRISM=False,
                        SKIP_DIRECT=False,
                        GET_SHIFT=True,

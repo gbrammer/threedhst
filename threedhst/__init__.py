@@ -86,7 +86,7 @@ defaultOptions()
     
     >>> threedhst.defaultOptions()
     >>> threedhst.showOptions()
-    """
+    """    
     showMessage('Initializing THREEDHST parameters')
     #### Delete all keywords and reset
     for key in options.keys():
@@ -140,7 +140,7 @@ defaultOptions()
     
     #### Config options
     #options['CONFIG_FILE'] = 'WFC3.IR.G141.V1.0.conf'
-    options['CONFIG_FILE'] = 'WFC3.IR.G141.V1.5.conf'
+    options['CONFIG_FILE'] = 'WFC3.IR.G141.V2.0.conf'
     options['SKY_BACKGROUND'] = 'WFC3.IR.G141.sky.V1.0.fits'
     options['DRZRESOLA'] = '46.5'
     options['DRZSCALE'] = '0.128254'

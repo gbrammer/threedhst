@@ -605,7 +605,7 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
     #print 'Fit ORDER: %d' %(ORDER)
     
     ### sensitivity
-    sens = pyfits.open('/research/HST/GRISM/CONF/WFC3.IR.G141.1st.sens.1.fits')[1].data
+    sens = pyfits.open('../CONF/WFC3.IR.G141.1st.sens.2.fits')[1].data
     yint = np.interp(lam, sens.WAVELENGTH, sens.SENSITIVITY)
     
     ### Final fluxed spectra

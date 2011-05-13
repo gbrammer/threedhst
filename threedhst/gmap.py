@@ -162,11 +162,15 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1,
     tileX0 = int(pixSW.tilex)
     tileY0 = int(pixNE.tiley)
         
-    for i in range(NX):
-        for j in range(NY):
+    for i in np.arange(NX):
+        for j in np.arange(NY):
             #i,j = 0,0
             sub = full_image[fully-(j+1)*TILE_SIZE:fully-j*TILE_SIZE,
                              i*TILE_SIZE:(i+1)*TILE_SIZE]
+            
+            if (sub.shape[0] == 0) | (sub.shape[1] == 0):
+                continue
+                
             subim = data2image(sub, zmin=zmin, zmax=zmax)
             outfile = outPath+'%s_%d_%d_%d.png' %(tileroot,
                             tileX0+i,tileY0+j,zoomLevel)
