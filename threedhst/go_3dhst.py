@@ -56,15 +56,13 @@ def aegis():
     
     import threedhst.analysis
     
-    ##### Test!
+    ######################## Test!
     go.set_parameters(direct='F140W', LIMITING_MAGNITUDE=21)
-    threedhst.options['AXE_EDGES'] = "250,0,0,0"
-    threedhst.options['USE_TAXE'] = False
     
     threedhst.options['PREFAB_DIRECT_IMAGE'] = '../PREP_FLT/AEGIS-11-F140W_drz.fits'
     # threedhst.options['PREFAB_GRISM_IMAGE'] = '../PREP_FLT/AEGIS-11-G141_drz.fits'
     proc.reduction_script(asn_grism_file='AEGIS-11-G141_asn.fits')
-    
+    ########################
     
     os.chdir('/research/HST/GRISM/3DHST/AEGIS')
     
@@ -317,7 +315,7 @@ def set_parameters(direct='F140W', LIMITING_MAGNITUDE=25):
     threedhst.options['DRZSCALE'] = '0.06'
 
     threedhst.options['AXE_EDGES'] = "250,0,0,0"
-    threedhst.options['USE_TAXE'] = True
+    threedhst.options['USE_TAXE'] = False
 
     #### Use F140W as detection image
     threedhst.options['MAG_ZEROPOINT'] = 26.46

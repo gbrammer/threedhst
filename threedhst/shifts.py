@@ -271,6 +271,10 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
         iraf.flpr()
         #### iraf.xyxymatch to find matches between the two catalogs
         pow = toler*1.
+        try:
+            os.remove('align.match')
+        except:
+            pass
         status1 = iraf.xyxymatch(input="direct.xy", reference="align.xy",
                        output="align.match",
                        tolerance=2**pow, separation=0, verbose=yes, Stdout=1)

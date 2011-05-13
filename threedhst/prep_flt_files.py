@@ -715,6 +715,8 @@ def process_all():
     pair('ibhj43030_asn.fits','ibhj43040_asn.fits', ALIGN_IMAGE = ALIGN)
     
     ALIGN = '/research/HST/CANDELS/EGS/WIRDS/WIRDS_Ks_141927+524056_T0002.SUB2.fits'
+    ALIGN = '../WIRDS/WIRDS_Ks_141927+524056_T0002.fits'
+
     pair('ibhj49030_asn.fits','ibhj49040_asn.fits', ALIGN_IMAGE = ALIGN)
     pair('ibhj40030_asn.fits','ibhj40040_asn.fits', ALIGN_IMAGE = ALIGN)
     pair('ibhj39030_asn.fits','ibhj39040_asn.fits', ALIGN_IMAGE = ALIGN)
