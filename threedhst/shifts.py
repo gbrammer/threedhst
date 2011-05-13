@@ -281,6 +281,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
         
         while status1[-1].startswith('0'):
             pow+=1
+            os.remove('align.match')
             status1 = iraf.xyxymatch(input="direct.xy", reference="align.xy",
                            output="align.match",
                            tolerance=2**pow, separation=0, verbose=yes, Stdout=1)
