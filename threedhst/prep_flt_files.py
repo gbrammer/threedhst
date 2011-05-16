@@ -1451,6 +1451,13 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
         #flt_orig = pyfits.open('../RAW/'+self.flt[ii]+'.fits.gz')
         threedhst.process_grism.flprMulti()
         
+        ## Copy the coeffs1.dat file if necessary
+        if not os.path.exists(self.flt[ii]+'_coeffs1.dat'):
+            coeffs = threedhst.utils.get_package_data('wfc3_coeffs1.dat')
+            fp = open(self.flt[ii]+'_coeffs1.dat','w')
+            fp.writelines(coeffs)
+            fp.close()
+            
         if self.exptime[ii] < 0:
             try:
                 flt_orig = pyfits.open(self.flt[ii]+'.fits')
@@ -1627,7 +1634,7 @@ jitter_info()
 #     for file in files:
 #         make_segmap(root=file.split('.BLOT')[0])
         
-def make_segmap(root='ib3701ryq_flt', sigma=0.5):
+def make_segmap(root='ib3701ryq_flt', sigma=0.5, IS_GRISM=None):
     """
 make_segmap(root='ib3701ryq_flt', sigma=1)
     
@@ -1639,9 +1646,10 @@ make_segmap(root='ib3701ryq_flt', sigma=1)
     import threedhst
     
     ## Find if image is for grism or direct image
-    flt = pyfits.open(root+'.fits')
-    IS_GRISM = flt[0].header.get('FILTER').startswith('G')
-    flt.close()
+    if IS_GRISM is None:
+        flt = pyfits.open(root+'.fits')
+        IS_GRISM = flt[0].header.get('FILTER').startswith('G')
+        flt.close()
     
     se = threedhst.sex.SExtractor()
     ## Set the output parameters required for aXe 
@@ -1655,6 +1663,9 @@ make_segmap(root='ib3701ryq_flt', sigma=1)
     se.options['CHECKIMAGE_NAME'] = root+'.seg.fits, bg.fits'
     se.options['CHECKIMAGE_TYPE'] = 'SEGMENTATION, BACKGROUND'
     se.options['WEIGHT_TYPE']     = 'MAP_WEIGHT'
+    if IS_GRISM:
+        se.options['WEIGHT_TYPE'] = 'NONE'
+        
     se.options['WEIGHT_IMAGE']    = root+'.BLOT.WHT.fits'
     se.options['FILTER']    = 'Y'
 
