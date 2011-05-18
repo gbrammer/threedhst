@@ -767,64 +767,123 @@ def congrid(a, newdims, method='linear', centre=False, minusone=False):
         return None
         
 #
-def makeImageMap(FITS_IMAGE, extension=1, zmin=-0.1, zmax=1, verbose=False,
-                 path='/Users/gbrammer/Sites/FITS/', tileroot='tile'):
+def parseImageString(IMAGE_STRING="test.fits[1]*1.", default_extension=1):
     """
-mapParams = makeAllTiles(ROOT_DIRECT, ROOT_GRISM, zmin=-0.1, zmax=1, 
-                         PARAM_ONLY=False)
+    The input image string is image.fits[extension]*scale.  
+    
+    Output is a tuple with (image.fits, extension, scale).
+    """
+    sp_scl = IMAGE_STRING.split('*')
+    if len(sp_scl) == 2:
+        scale = float(sp_scl[1])
+    else:
+        scale = 1.
+        
+    sp_ext = sp_scl[0].split('[')
+    if len(sp_ext) == 2:
+        extension=int(sp_ext[1][:-1])
+    else:
+        extension=default_extension
+    
+    image = sp_ext[0]
+    
+    return image, extension, scale
+    
+def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
+                 path='/Users/gbrammer/Sites/FITS/', tileroot='tile', aper_list=[15]):
+    """
+    Make a google map viewer for a FITS image.
     """
     import threedhst
     import pyfits
     import numpy as np
+    
+    #### Make into lists if not already
+    if FITS_IMAGES.__class__ == ''.__class__:
+        FITS_IMAGES = [FITS_IMAGES]
+    
+    if tileroot.__class__ == ''.__class__:
+        if len(FITS_IMAGES) > 1:
+            roots = []
+            for i,im in enumerate(FITS_IMAGES):
+                roots.append(tileroot+'%d' %(i))
+        else:
+            roots = [tileroot]
+    tileroot = roots
+    
+    print tileroot
     
     #### Need to swarp the drz images to the correct pixel scale for 
     #### the pixel size of the google map tiles
     m = threedhst.gmap.MercatorProjection()
     aperpix = 1./np.array(m.pixels_per_lon_degree)*3600
     sw = threedhst.sex.SWarp()
-    sw.swarpMatchImage(FITS_IMAGE, extension=extension, verbose=verbose)
+    
+    im0, ext0, scale0 = parseImageString(FITS_IMAGES[0], default_extension=extension)
+    sw.swarpMatchImage(im0, extension=ext0, verbose=verbose)
     
     ########### Prepare map tiles for different zoom levels:
     ########### 0.07 x [1,2,4,8] arcsec/pix
-    aper_list = range(13,17)
-        
+    #aper_list = range(12,18)
+
+    NX, NY = sw.options['IMAGE_SIZE'].split(',')
+    NX, NY = int(NX), int(NY)
+    NATIVE_SCALE = float(sw.options['PIXEL_SCALE'])
+    
     for aper in aper_list:
         ### base image
         
         threedhst.showMessage("Map tiles, zoom level: %10.6f arcsec/pix"
                               %aperpix[aper])
         
-        sw.options['IMAGE_SIZE']='0'
+        
+        sw.options['IMAGE_SIZE']='%d,%d' %(np.round(NX*NATIVE_SCALE/aperpix[aper]),
+                                           np.round(NY*NATIVE_SCALE/aperpix[aper]))
         sw.options['PIXELSCALE_TYPE']='MANUAL'
         sw.options['PIXEL_SCALE']='%10.6f' %aperpix[aper]
         
-        zmi = zmin
-        zma = zmax
+        for i,im in enumerate(FITS_IMAGES):
+            imi, exti, scalei = parseImageString(FITS_IMAGES[i],
+                                    default_extension=extension)
+            
+            print imi, exti, scalei
+            zmi = zmin/scalei
+            zma = zmax/scalei
                 
-        #### Direct
-        # sw.swarpImage(ROOT_DIRECT.lower()+'_drz.fits[1]', mode='wait')
-        sw.swarpImage(FITS_IMAGE+'[%0d]' %(extension), mode='wait')
-        im = pyfits.open('coadd.fits')
-        if aper <= 14:
-            im[0].data /= 2
-        im.writeto('scale.fits', clobber=True)
-        mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
-                                                 outPath=path+'tiles/',
-                                                 tileroot=tileroot,
-                                                 extension=0,
-                                                 zmin=zmi, zmax=zma,
-                                                 verbose=verbose)
+            #### Direct
+            # sw.swarpImage(ROOT_DIRECT.lower()+'_drz.fits[1]', mode='wait')
+            sw.swarpImage(imi+'[%0d]' %(exti), mode='wait')
+            im = pyfits.open('coadd.fits')
+            if aper <= 14:
+                im[0].data /= 4
+
+            im.writeto('scale.fits', clobber=True)
+            mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
+                                                     outPath=path+'tiles/',
+                                                     tileroot=tileroot[i],
+                                                     extension=0,
+                                                     zmin=zmi, zmax=zma,
+                                                     verbose=verbose)
         
         #### Get map parameters from high-resolution image
-        if (aper == 16):
+        if (aper == aper_list[-1]):
             mapParams=mapParamsD.copy()
     
-    threedhst.gmap.makeMapHTML(FITS_IMAGE, mapParams, output=path+'map.html')
+    mapParams['ZOOM_RANGE'] = [np.min(aper_list), np.max(aper_list)]
+    
+    threedhst.gmap.makeMapHTML(FITS_IMAGES, mapParams, output=path+'map.html')
     threedhst.plotting.makeCSS(path=path+'scripts/')
-    threedhst.gmap.makeJavascript(path=path+'scripts/', tileroot=tileroot)
+    threedhst.gmap.makeJavascript(path=path+'scripts/', tileroot=tileroot, mapParams=mapParams)
+    
+    try:
+        os.remove('scale.fits')
+        os.remove('coadd.fits')
+        os.remove('coadd.weight.fits')
+    except:
+        pass
     
 #
-def makeMapHTML(FITS_IMAGE, mapParams, output='./HTML/index.html', title=None):
+def makeMapHTML(FITS_IMAGES, mapParams, output='./HTML/index.html', title=None):
     """
 
     """
@@ -940,7 +999,7 @@ def makeMapHTML(FITS_IMAGE, mapParams, output='./HTML/index.html', title=None):
         <a id="vizierLink" href="http://vizier.u-strasbg.fr/viz-bin/VizieR?-c=12:36:36.85+%%2B62:06:58.7&-c.rs=1" target="_blank"><img src="scripts/glass.png" style="width:12px; margin:0px; padding:0px"></a>
     </div>
     
-    """ %(FITS_IMAGE))
+    """ %(', '.join(FITS_IMAGES)))
     
     lines.append("""
     </tbody>
@@ -956,11 +1015,18 @@ def makeMapHTML(FITS_IMAGE, mapParams, output='./HTML/index.html', title=None):
     fp.close()
     
 #
-def makeJavascript(tileroot='tile', path="../HTML/scripts"):
+def makeJavascript(tileroot=['tile'], path="../HTML/scripts", mapParams=None):
     """
 make_Javascript(path="../HTML/scripts")
     """
-
+    
+    if tileroot.__class__ == ''.__class__:
+        tileroot = [tileroot]
+    
+    if mapParams == None:
+        mapParams = {}
+        mapParams['ZOOM_RANGE'] = [12,17]
+    
     fp = open(path+"/threedhst.js","w")
     fp.write("""
     /////////////////// Ready function
@@ -1088,18 +1154,22 @@ make_Javascript(path="../HTML/scripts")
         
         var copyrightCollection = new GCopyrightCollection('Map Data:');
         copyrightCollection.addCopyright(copyright);
-        
+    """)
+    
+    for i,root in enumerate(tileroot):
+        fp.write("""
         // Direct image tiles
-        CustomGetDirectTileUrl=function(a,b){
+        CustomGetTileUrl%0d=function(a,b){
             return "tiles/%s_"+a.x+"_"+a.y+"_"+b+".png"
         }
-        var tilelayersDirect = [new GTileLayer(copyrightCollection,
-                                      zoomLevel-2,zoomLevel+1)];
-        tilelayersDirect[0].getTileUrl = CustomGetDirectTileUrl;
-        var custommapDirect = new GMapType(tilelayersDirect, 
-               new GMercatorProjection(zoomLevel+2), "Direct");
-        map.addMapType(custommapDirect);
-        
+        var tilelayers%0d = [new GTileLayer(copyrightCollection,%d,%d)];
+        tilelayers%0d[0].getTileUrl = CustomGetTileUrl%0d;
+        var customMap%0d = new GMapType(tilelayers%0d, 
+               new GMercatorProjection(%d), "%s");
+        map.addMapType(customMap%0d);
+    """ %(i, root, i, mapParams['ZOOM_RANGE'][0], mapParams['ZOOM_RANGE'][1], i, i, i, i, mapParams['ZOOM_RANGE'][1]+1, root, i))
+    
+    fp.write("""
         // Can't remove all three for some reason
         map.removeMapType(G_NORMAL_MAP);
         map.removeMapType(G_HYBRID_MAP);
@@ -1109,7 +1179,7 @@ make_Javascript(path="../HTML/scripts")
         
         // Set map center
         map.setCenter(new GLatLng(0.0, offset), zoomLevel,
-         custommapDirect);
+         customMap0);
 		
     }
     
@@ -1122,7 +1192,7 @@ make_Javascript(path="../HTML/scripts")
         c.animate({ opacity: 0.0}, 300, function() {
             document.getElementById("centerbox").style.display = "none";
         });
-    }""" %(tileroot))
+    }""" )
 
     fp.write("""
     ///// Convert RA/Dec to Map Lat/Lng coordinates, which are centered around 0,0
