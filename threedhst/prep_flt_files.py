@@ -26,6 +26,7 @@ import pyfits
 import scipy.linalg
 # from scipy import polyfit, polyval
 import matplotlib.pyplot as plt
+USE_PLOT_GUI = False
 
 from pyraf import iraf
 from iraf import stsdas,dither,slitless,axe 
@@ -327,7 +328,11 @@ def oned_grism_background_subtract(flt_root, nbin=8, path='./', savefig=True, fo
      
     #### Set up output plot  
     if savefig:
-        fig = plt.figure(figsize=[5,3],dpi=100)
+        if USE_PLOT_GUI:
+            fig = plt.figure(figsize=[5,3],dpi=100)
+        else:
+            fig = Figure(figsize=[5,3], dpi=100)
+        
         fig.subplots_adjust(wspace=0.2,hspace=0.02,left=0.17,
                             bottom=0.17,right=0.97,top=0.97)
         ax = fig.add_subplot(111)
@@ -371,8 +376,13 @@ def oned_grism_background_subtract(flt_root, nbin=8, path='./', savefig=True, fo
         plt.xlabel('x pixel')
         plt.ylabel('e-/s')
         plt.xlim(-1,1015)
-        plt.savefig(flt_root+'_flt.residual.png')
-        plt.close()
+        if USE_PLOT_GUI:
+            plt.savefig(flt_root+'_flt.residual.png')
+            plt.close()
+        else:
+            canvas = FigureCanvasAgg(fig)
+            canvas.print_figure(outfile, dpi=100, transparent=False)
+        
     
     #### Add a 'GRIS-BG' header keyword to the FLT[DATA] extension.
     flt[1].header.update('GRIS-BG',1)
