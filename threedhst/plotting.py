@@ -1201,7 +1201,7 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     fp.writelines(lines)
     fp.close()
     
-def makeCSS(path="../HTML/scripts"):
+def makeCSS(path="../HTML/scripts", title_size=18):
     """
 makeCSS(path="../HTML/scripts")
     """
@@ -1211,7 +1211,7 @@ makeCSS(path="../HTML/scripts")
     #title {
         border: solid 1px black;
         font-family:Verdana;
-        font-size: 18pt;
+        font-size: %0dpt;
         font-weight:bold;
         position:absolute;
         top:5px;
@@ -1375,7 +1375,7 @@ makeCSS(path="../HTML/scripts")
     table.tablesorter thead tr .headerSortDown, table.tablesorter thead tr .headerSortUp {
     background-color: #8dbdd8;
     }
-    """)
+    """ %(title_size))
     fp.close()
     
     
