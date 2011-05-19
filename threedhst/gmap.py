@@ -872,7 +872,7 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
     mapParams['ZOOM_RANGE'] = [np.min(aper_list), np.max(aper_list)]
     
     threedhst.gmap.makeMapHTML(FITS_IMAGES, mapParams, output=path+'map.html')
-    threedhst.plotting.makeCSS(path=path+'scripts/')
+    threedhst.plotting.makeCSS(path=path+'scripts/', title_size=9)
     threedhst.gmap.makeJavascript(path=path+'scripts/', tileroot=tileroot, mapParams=mapParams)
     
     try:
