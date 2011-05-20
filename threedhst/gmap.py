@@ -970,7 +970,7 @@ def makeMapHTML(FITS_IMAGES, mapParams, output='./HTML/index.html', title=None):
     
     FITS_LIST = []
     for im in FITS_IMAGES:
-        FITS_LIST.append(os.path.basename(FITS_IMAGES))
+        FITS_LIST.append(os.path.basename(im))
     
     #### HTML Body   
     lines.append("""
