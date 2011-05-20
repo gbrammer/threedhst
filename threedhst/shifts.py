@@ -46,7 +46,9 @@ run_tweakshifts(asn_direct)
         clean=iraf.yes
     else:
         clean=iraf.no
-        
+    
+    iraf.unlearn('tweakshifts')
+    
     status = iraf.tweakshifts(input=asn_direct, shiftfile='',
                      reference=root+'_tweak.fits',
                      output = root+'_shifts.txt', findmode = 'catalog',
@@ -59,7 +61,7 @@ run_tweakshifts(asn_direct)
        refnbright = INDEF, minobj = 15, nmatch = 30, matching = 'tolerance', \
        xyxin = INDEF, xyyin = INDEF, tolerance = 4.0, fwhmpsf = 1.5, \
        sigma = 0.0, datamin = INDEF, datamax = INDEF, threshold = 4.0, \
-       nsigma = 1.5, fitgeometry = 'rxyscale', function = 'polynomial', \
+       nsigma = 1.5, fitgeometry = 'shift', function = 'polynomial', \
        maxiter = 3, reject = 3.0, crossref = '', margin = 50, tapersz = 50, \
        pad = no, fwhm = 7.0, ellip = 0.05, pa = 45.0, fitbox = 7, \
     Stdout=1)
@@ -498,6 +500,23 @@ checkShiftfile(asn_direct)
     else:       
         #print "\n3DHST.shifts.checkShiftfile: %s looks OK.\n" %sf_file
         threedhst.showMessage('Shiftfile, %s, looks OK' %sf_file)
+
+def default_rotation(asn_direct, path_to_flt='./'):
+    """
+    Force rotation to be 0.09 degrees to account for shift in the current 
+    IDCTAB file (uab1537ci_idc.fits).
+    
+    http://www.stsci.edu/hst/wfc3/documents/newsletters/STAN_04_05_2011#section2
+    
+    """
+    sf_file = asn_direct.split('_asn.fits')[0]+'_shifts.txt'
+    sf = ShiftFile(sf_file)
+    
+    im = pyfits.open(threedhst.utils.find_fits_gz(sf.images[0]))
+    if im[0].header['IDCTAB'].startswith('iref$uab1537'):    
+        for i in range(sf.nrows):
+            sf.rotate[i] = 0.09
+        sf.write(sf_file)
     
 class ShiftFile():
     """

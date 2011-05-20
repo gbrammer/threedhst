@@ -415,7 +415,7 @@ def prep_all(asn_files='ib*050_asn.fits', get_shift=True, bg_skip=False,
              ALIGN_IMAGE='../ACS/h_nz_sect*img.fits', ALIGN_EXT = 0,
              skip_drz=False,final_scale=0.06, pixfrac=0.8,
              IMAGES=['/research/HST/GRISM/CONF/G141_sky_cleaned.fits'],
-             align_geometry='rxyscale,shift', 
+             align_geometry='shift', 
              initial_order=-1,
              clean=True,
              save_fit=False):
@@ -452,7 +452,7 @@ def prep_flt(asn_file=None, get_shift=True, bg_only=False, bg_skip=False,
                 ALIGN_IMAGE='../ACS/h_nz_sect*img.fits', ALIGN_EXT = 0, 
                 skip_drz=False, final_scale=0.06, pixfrac=0.8,
                 IMAGES=['/research/HST/GRISM/CONF/G141_sky_cleaned.fits'],
-                align_geometry='rxyscale,shift', clean=True,
+                align_geometry='shift', clean=True,
                 initial_order=-1, save_fit=False,
                 TWEAKSHIFTS_ONLY=False,
                 oned_background=True):
@@ -535,6 +535,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
     if get_shift:
         threedhst.shifts.run_tweakshifts(asn_file, verbose=True)
         threedhst.shifts.checkShiftfile(asn_file)
+        threedhst.shifts.default_rotation(asn_file, path_to_flt='./')
         
     if not skip_drz:
         startMultidrizzle(asn_file, use_shiftfile=True, 
@@ -754,6 +755,7 @@ def process_all():
     ####********************************************####
     os.chdir('/research/HST/GRISM/3DHST/COSMOS/PREP_FLT')
     ALIGN = '../NMBS/COSMOS-1.V4.K_nosky.fits'
+            
     SKIP = False
     pair('ibhm51030_asn.fits','ibhm51040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
     pair('ibhm31030_asn.fits','ibhm31040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
@@ -1284,7 +1286,7 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                         ALIGN_EXT=ALIGN_EXTENSION,
                         skip_drz=False, final_scale=0.06, pixfrac=0.8,
                         IMAGES=[],
-                        align_geometry='rxyscale,shift', clean=True,
+                        align_geometry='shift', clean=True,
                         initial_order=0, save_fit=save_fit,
                         TWEAKSHIFTS_ONLY=TWEAKSHIFTS_ONLY)
         
