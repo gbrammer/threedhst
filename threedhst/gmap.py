@@ -924,7 +924,7 @@ def makeMapHTML(FITS_IMAGES, mapParams, output='./HTML/index.html', title=None):
     llNE = mapParams['LLNE']
     center = mapParams['LLCENTER']
     lng_offset = mapParams['LNG_OFFSET']
-    
+            
     lines.append("""
     <script type="text/javascript"> 
     
@@ -968,6 +968,10 @@ def makeMapHTML(FITS_IMAGES, mapParams, output='./HTML/index.html', title=None):
     </script>
     """ %(center[0],center[1],lng_offset,mapParams['ZOOMLEVEL']))
     
+    FITS_LIST = []
+    for im in FITS_IMAGES:
+        FITS_LIST.append(os.path.basename(FITS_IMAGES))
+    
     #### HTML Body   
     lines.append("""
 
@@ -999,7 +1003,7 @@ def makeMapHTML(FITS_IMAGES, mapParams, output='./HTML/index.html', title=None):
         <a id="vizierLink" href="http://vizier.u-strasbg.fr/viz-bin/VizieR?-c=12:36:36.85+%%2B62:06:58.7&-c.rs=1" target="_blank"><img src="scripts/glass.png" style="width:12px; margin:0px; padding:0px"></a>
     </div>
     
-    """ %(', '.join(FITS_IMAGES)))
+    """ %(', '.join(FITS_LIST)))
     
     lines.append("""
     </tbody>
