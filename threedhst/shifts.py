@@ -249,6 +249,9 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     rot = 0
     scale = 1.
     
+    xrms = 2
+    yrms = 2
+    
     NITER = 5
     IT = 0
     while (IT < NITER):
@@ -313,9 +316,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
         #fp.writelines(status1)
         #fp.writelines(status2)
         #fp.close()
-        
-        xshift, yshift, rot, scale, xrms, yrms = 0,0,0,1,2,2
-        
+                
         #### Parse geomap.output 
         fp = open("align.map","r")
         for line in fp.readlines():
