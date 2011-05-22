@@ -1452,7 +1452,7 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
         iraf.dither.multidrizzle.setParam('ra','')
         iraf.dither.multidrizzle.setParam('dec','')
         iraf.dither.multidrizzle.setParam('dec','')
-        iraf.dither.multidrizzle.setParam('driz_cr_snr','3.5 3.0')
+        # iraf.dither.multidrizzle.setParam('driz_cr_snr','3.5 3.0')
         
     if ivar_weights:
         #### Generate inverse variance weight map, will need flat + dark images
