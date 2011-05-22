@@ -538,10 +538,18 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
         threedhst.shifts.default_rotation(asn_file, path_to_flt='./')
         
     if not skip_drz:
-        startMultidrizzle(asn_file, use_shiftfile=True, 
-            skysub=bg_skip, final_scale=final_scale, pixfrac=pixfrac,
-            driz_cr=first_run, median=first_run, updatewcs=first_run)
-                    
+        #### First MDRZ has native pixels to not flag stars as CRs
+        if first_run:
+            startMultidrizzle(asn_file, use_shiftfile=True, 
+                skysub=bg_skip, final_scale=0.128254, pixfrac=1.0,
+                driz_cr=first_run, median=first_run, updatewcs=first_run)
+        
+        if (final_scale != 0.128254) | (pixfrac != 1.0) | (not first_run):
+            startMultidrizzle(asn_file, use_shiftfile=True, 
+                skysub=bg_skip, final_scale=final_scale, pixfrac=pixfrac,
+                driz_cr=False, median=False, updatewcs=False)
+            
+                        
     #### Blot combined images back to reference frame and make a 
     #### segmentation mask
     run = MultidrizzleRun((asn_file.split('_asn.fits')[0]).upper())
@@ -1292,7 +1300,7 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
         
         if DIRECT_HIGHER_ORDER > 0:
             threedhst.prep_flt_files.prep_flt(asn_file=asn_direct_file,
-                        get_shift=False, 
+                        get_shift=False, first_run=False,
                         bg_only=False, bg_skip=False, redo_background=False,
                         skip_drz=False, final_scale=0.06, pixfrac=0.8,
                         IMAGES=[], clean=True,
@@ -1331,7 +1339,7 @@ def startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
     skysub=True, updatewcs=True, driz_cr=True, median=True,
     final_scale=0.06, pixfrac=0.8, clean=True,
     final_outnx='', final_outny='', final_rot=0., ra='', dec='', 
-    refimage='', unlearn=True):
+    refimage='', unlearn=True, use_mdz_defaults=True, ivar_weights=True):
     """
 startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
                   skysub=True, final_scale=0.06, updatewcs=True, driz_cr=True,
@@ -1391,6 +1399,58 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
     
     if unlearn:
         iraf.unlearn('multidrizzle')
+    
+    #### Set default parameters from pipeline mdz file
+    if use_mdz_defaults:
+        #### Read the first FLT image and read its MDRIZTAB file
+        flt = pyfits.open(asn_direct.exposures[0]+'_flt.fits')
+        mdz = pyfits.open(flt[0].header['MDRIZTAB'].replace('iref$',os.getenv('iref')+'/'))[1].data
+        
+        #### Get the filter string, WFC3 or ACS
+        if flt[0].header['INSTRUME'] == 'WFC3':
+            filter=flt[0].header['FILTER']
+        else:
+            filter=(flt[0].header['FILTER1']+','+flt[0].header['FILTER2']).strip()
+        
+        #### find 
+        idx = np.where(mdz.field('filter') == filter)[0]
+        if len(idx) == 0:
+            filter='ANY'
+            idx = np.where(mdz.field('filter') == filter)[0]
+        
+        #### Find right column for given "numimages" = len(exposures)  
+        use = idx[0]
+        for i in idx[1:]:
+            if len(asn_direct.exposures) >= mdz.field('numimages')[i]:
+                use = i
+        
+        #### Now set all of the parameters
+        for param in mdz.names:
+            try:
+                value = mdz.field(param)[use]
+                if (not np.isfinite(value)) | (value < -1000):
+                    value = iraf.INDEF
+                #
+                iraf.dither.multidrizzle.setParam(param, value)
+            except:
+                #### some columns in the MDZ file aren't actually parameters, skip
+                pass
+        
+        #### Don't use these default values from the mdrz file
+        iraf.dither.multidrizzle.setParam('crbit','')
+        iraf.dither.multidrizzle.setParam('combine_type','minmed')
+        iraf.dither.multidrizzle.setParam('mdriztab',iraf.no)
+        iraf.dither.multidrizzle.setParam('context',iraf.no)
+        iraf.dither.multidrizzle.setParam('clean',iraf.yes)
+        iraf.dither.multidrizzle.setParam('ra','')
+        iraf.dither.multidrizzle.setParam('dec','')
+        iraf.dither.multidrizzle.setParam('dec','')
+        iraf.dither.multidrizzle.setParam('driz_cr_snr','3.5 3.0')
+        
+    if ivar_weights:
+        #### Generate inverse variance weight map, will need flat + dark images
+        #### in the iref or jref directories
+        iraf.dither.multidrizzle.setParam('final_wht_type','IVM')
         
     #### Run Multidrizzle
     iraf.multidrizzle(input=asn_direct_file, \

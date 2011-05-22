@@ -802,6 +802,7 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
     if FITS_IMAGES.__class__ == ''.__class__:
         FITS_IMAGES = [FITS_IMAGES]
     
+    roots = tileroot
     if tileroot.__class__ == ''.__class__:
         if len(FITS_IMAGES) > 1:
             roots = []
