@@ -518,17 +518,29 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
     
     #### First guess at shifts
     if get_shift:
+
         threedhst.shifts.run_tweakshifts(asn_file, verbose=True)
         threedhst.shifts.checkShiftfile(asn_file)
         threedhst.shifts.default_rotation(asn_file, path_to_flt='./')
-    
-    if not skip_drz:
-        #### First MDRZ has native pixels to not flag stars as CRs
-        if first_run:
+            
+        if (not TWEAKSHIFTS_ONLY):
             startMultidrizzle(asn_file, use_shiftfile=True, 
-                skysub=True, final_scale=0.128254, pixfrac=1.0,
-                driz_cr=True, median=True, updatewcs=True)
-      
+                skysub=True, final_scale=final_scale, pixfrac=pixfrac,
+                driz_cr=True, median=True, updatewcs=True, clean=clean)
+
+            for geom in align_geometry.split(','):
+                threedhst.shifts.refine_shifts(ROOT_DIRECT=ROOT_DIRECT,
+                          ALIGN_IMAGE=ALIGN_IMAGE, 
+                          ALIGN_EXTENSION = ALIGN_EXT,
+                          fitgeometry=geom.strip(), clean=clean)
+            
+                startMultidrizzle(asn_file, use_shiftfile=True, skysub=True,
+                    final_scale=final_scale, pixfrac=pixfrac, driz_cr=False,
+                    updatewcs=False, clean=clean, median=False)
+        
+        ### Need fresh FLT files now
+        threedhst.process_grism.fresh_flt_files(asn_file)
+              
     #### First pass background subtraction
     if not bg_skip:
         #### Set up matrix for fitting
@@ -545,18 +557,17 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
         return
             
     if not skip_drz:
-        #### First MDRZ has native pixels to not flag stars as CRs
-        # if first_run:
-        #     startMultidrizzle(asn_file, use_shiftfile=True, 
-        #         skysub=True, final_scale=0.128254, pixfrac=1.0,
-        #         driz_cr=first_run, median=first_run, updatewcs=first_run)
+        if first_run:
+            #### First MDRZ run needs native pixels to avoid flagging stars as CRs
+            startMultidrizzle(asn_file, use_shiftfile=True, 
+                skysub=True, final_scale=0.128254, pixfrac=1.0,
+                driz_cr=True, median=True, updatewcs=True)
         
         if (final_scale != 0.128254) | (pixfrac != 1.0) | (not first_run):
             startMultidrizzle(asn_file, use_shiftfile=True, 
                 skysub=bg_skip, final_scale=final_scale, pixfrac=pixfrac,
                 driz_cr=False, median=False, updatewcs=False)
-        
-                        
+     
     #### Blot combined images back to reference frame and make a 
     #### segmentation mask
     run = MultidrizzleRun((asn_file.split('_asn.fits')[0]).upper())
@@ -583,19 +594,6 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
                 threedhst.regions.apply_dq_mask(seg, extension=0, 
                     mask_file = asn_mask)
                             
-    if get_shift & (not TWEAKSHIFTS_ONLY):
-        #### If shift routine gets confused, run the following instead
-        #for geom in ['shift','rxyscale','shift']:
-        # for geom in ['rxyscale','shift']:
-        for geom in align_geometry.split(','):
-            threedhst.shifts.refine_shifts(ROOT_DIRECT=ROOT_DIRECT,
-                          ALIGN_IMAGE=ALIGN_IMAGE, 
-                          ALIGN_EXTENSION = ALIGN_EXT,
-                          fitgeometry=geom.strip(), clean=clean)
-            
-            startMultidrizzle(asn_file, use_shiftfile=True, skysub=True,
-                final_scale=final_scale, pixfrac=pixfrac, driz_cr=False,
-                updatewcs=False, clean=clean, median=False)
                 
         
     #### Run BG subtraction with improved mask and run multidrizzle again
@@ -1295,7 +1293,7 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
             threedhst.regions.asn_region(asn_direct_file)
         
         threedhst.prep_flt_files.prep_flt(asn_file=asn_direct_file,
-                        get_shift=GET_SHIFT, 
+                        get_shift=GET_SHIFT, first_run=True,
                         bg_only=False, bg_skip=False, redo_background=True,
                         ALIGN_IMAGE=ALIGN_IMAGE, 
                         ALIGN_EXT=ALIGN_EXTENSION,
