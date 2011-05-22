@@ -515,7 +515,20 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
     # ALIGN_IMAGE = '../ACS/h_nz_sect*img.fits'
     
     asn = threedhst.utils.ASNFile(asn_file)
-        
+    
+    #### First guess at shifts
+    if get_shift:
+        threedhst.shifts.run_tweakshifts(asn_file, verbose=True)
+        threedhst.shifts.checkShiftfile(asn_file)
+        threedhst.shifts.default_rotation(asn_file, path_to_flt='./')
+    
+    if not skip_drz:
+        #### First MDRZ has native pixels to not flag stars as CRs
+        if first_run:
+            startMultidrizzle(asn_file, use_shiftfile=True, 
+                skysub=True, final_scale=0.128254, pixfrac=1.0,
+                driz_cr=True, median=True, updatewcs=True)
+      
     #### First pass background subtraction
     if not bg_skip:
         #### Set up matrix for fitting
@@ -530,25 +543,19 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
     #### Stop here if only want background subtraction
     if bg_only:
         return
-        
-    #### First guess at shifts
-    if get_shift:
-        threedhst.shifts.run_tweakshifts(asn_file, verbose=True)
-        threedhst.shifts.checkShiftfile(asn_file)
-        threedhst.shifts.default_rotation(asn_file, path_to_flt='./')
-        
+            
     if not skip_drz:
         #### First MDRZ has native pixels to not flag stars as CRs
-        if first_run:
-            startMultidrizzle(asn_file, use_shiftfile=True, 
-                skysub=bg_skip, final_scale=0.128254, pixfrac=1.0,
-                driz_cr=first_run, median=first_run, updatewcs=first_run)
+        # if first_run:
+        #     startMultidrizzle(asn_file, use_shiftfile=True, 
+        #         skysub=True, final_scale=0.128254, pixfrac=1.0,
+        #         driz_cr=first_run, median=first_run, updatewcs=first_run)
         
         if (final_scale != 0.128254) | (pixfrac != 1.0) | (not first_run):
             startMultidrizzle(asn_file, use_shiftfile=True, 
                 skysub=bg_skip, final_scale=final_scale, pixfrac=pixfrac,
                 driz_cr=False, median=False, updatewcs=False)
-            
+        
                         
     #### Blot combined images back to reference frame and make a 
     #### segmentation mask
@@ -1441,7 +1448,7 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
         iraf.dither.multidrizzle.setParam('combine_type','minmed')
         iraf.dither.multidrizzle.setParam('mdriztab',iraf.no)
         iraf.dither.multidrizzle.setParam('context',iraf.no)
-        iraf.dither.multidrizzle.setParam('clean',iraf.yes)
+        iraf.dither.multidrizzle.setParam('clean',iraf.no)
         iraf.dither.multidrizzle.setParam('ra','')
         iraf.dither.multidrizzle.setParam('dec','')
         iraf.dither.multidrizzle.setParam('dec','')
