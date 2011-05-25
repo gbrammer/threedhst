@@ -649,18 +649,44 @@ def biweight2(xarr, both=False, mean=False):
 
 def runmed(xi, yi, NBIN=10):
         
-        NPER = xi.size/NBIN
-        xm = np.arange(NBIN)*1.
-        xs = xm*0
-        ym = xm*0
-        ys = xm*0
-        N = np.arange(NBIN)
+    NPER = xi.size/NBIN
+    xm = np.arange(NBIN)*1.
+    xs = xm*0
+    ym = xm*0
+    ys = xm*0
+    N = np.arange(NBIN)
+    
+    so = np.argsort(xi)
+    idx = np.arange(NPER)
+    for i in range(NBIN):
+        ym[i], ys[i] = biweight(yi[so][idx+NPER*i], both=True)
+        xm[i], xs[i] = biweight(xi[so][idx+NPER*i], both=True)
+        N[i] = xi[so][idx+NPER*i].size
+    
+    return xm, ym, ys, N
+
+def xyrot(xin, yin, theta, x0=0., y0=0., radians=False, ccw=False):
+    """
+    Rotate (xin, yin) coordinates by an angle `theta`
+    """
+    
+    if radians:
+        rad = theta           
+    else:
+        rad=theta*2*np.pi/360.
+    
+    if ccw:
+        rad = 2*np.pi-rad
+    
+    mat = np.zeros((2,2))
+    mat[0,:] = np.array([np.cos(rad),-np.sin(rad)])
+    mat[1,:] = np.array([np.sin(rad),np.cos(rad)])
         
-        so = np.argsort(xi)
-        idx = np.arange(NPER)
-        for i in range(NBIN):
-            ym[i], ys[i] = biweight(yi[so][idx+NPER*i], both=True)
-            xm[i], xs[i] = biweight(xi[so][idx+NPER*i], both=True)
-            N[i] = xi[so][idx+NPER*i].size
-        
-        return xm, ym, ys, N
+    coo = np.zeros((2,len(xin)))
+    coo[0,:] = xin-x0
+    coo[1,:] = yin-y0
+
+    out = np.dot(mat.transpose(), coo)
+    xout = out[0,:]
+    yout = out[1,:]
+    return xout, yout
