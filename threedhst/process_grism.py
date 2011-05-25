@@ -1560,9 +1560,9 @@ class Conf(object):
         """
         import os
         if os.getcwd().split('/')[-1] == 'DATA':
-            self.path = '../CONF/'
+            self.path = os.getcwd()+'/../CONF/'
         else:
-            self.path = './CONF/'
+            self.path = os.getcwd()+'/CONF/'
         
     def _processLines(self):
         """
@@ -1584,14 +1584,19 @@ class Conf(object):
         """
         _readlines()
         """
-        self._getPath()
+        #self._getPath()
         fp = open(self.path+self.infile,'r')
         self.lines = fp.readlines()
         fp.close()
         
-    def __init__(self, infile='WFC3.IR.G141.V1.0.conf'):
+    def __init__(self, infile='WFC3.IR.G141.V1.0.conf', path=None):
         self.infile = infile
-        self._getPath()
+        if path is None:
+            self._getPath()
+        else:
+            if not path.startswith('/'):
+                path = os.getcwd()+'/'+path
+            self.path = path
         self._readLines()
         self._processLines()
         
@@ -1619,7 +1624,7 @@ class Conf(object):
         """
         writeto(output='tmp.conf')
         """ 
-        self._getPath()
+        #self._getPath()
         self._assignPars()
         fp = open(self.path+output,'w')
         fp.writelines(self.lines)
