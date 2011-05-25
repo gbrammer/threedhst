@@ -26,6 +26,9 @@ import pyfits
 import scipy.linalg
 # from scipy import polyfit, polyval
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+
 USE_PLOT_GUI = False
 
 from pyraf import iraf
@@ -381,7 +384,7 @@ def oned_grism_background_subtract(flt_root, nbin=8, path='./', savefig=True, fo
             plt.close()
         else:
             canvas = FigureCanvasAgg(fig)
-            canvas.print_figure(outfile, dpi=100, transparent=False)
+            canvas.print_figure(flt_root+'_flt.residual.png', dpi=100, transparent=False)
         
     
     #### Add a 'GRIS-BG' header keyword to the FLT[DATA] extension.
@@ -524,19 +527,17 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
         threedhst.shifts.default_rotation(asn_file, path_to_flt='./')
             
         if (not TWEAKSHIFTS_ONLY):
-            startMultidrizzle(asn_file, use_shiftfile=True, 
-                skysub=True, final_scale=final_scale, pixfrac=pixfrac,
-                driz_cr=True, median=True, updatewcs=True, clean=clean)
+            for ig, geom in enumerate(align_geometry.split(',')):
+                first = ig == 0
+                startMultidrizzle(asn_file, use_shiftfile=True, skysub=True,
+                    final_scale=final_scale, pixfrac=pixfrac, driz_cr=first,
+                    updatewcs=first, clean=True, median=first)
 
-            for geom in align_geometry.split(','):
                 threedhst.shifts.refine_shifts(ROOT_DIRECT=ROOT_DIRECT,
                           ALIGN_IMAGE=ALIGN_IMAGE, 
                           ALIGN_EXTENSION = ALIGN_EXT,
                           fitgeometry=geom.strip(), clean=clean)
             
-                startMultidrizzle(asn_file, use_shiftfile=True, skysub=True,
-                    final_scale=final_scale, pixfrac=pixfrac, driz_cr=False,
-                    updatewcs=False, clean=clean, median=False)
         
         ### Need fresh FLT files now
         threedhst.process_grism.fresh_flt_files(asn_file)
@@ -1417,6 +1418,13 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
         else:
             filter=(flt[0].header['FILTER1']+','+flt[0].header['FILTER2']).strip()
         
+        #### Force direct filter because parameters are a bit strange for grisms
+        if filter.startswith('G1'):
+            filter='F140W'
+        
+        if filter.startswith('G8'):
+            filter='F814W'
+        
         #### find 
         idx = np.where(mdz.field('filter') == filter)[0]
         if len(idx) == 0:
@@ -1450,6 +1458,7 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
         iraf.dither.multidrizzle.setParam('ra','')
         iraf.dither.multidrizzle.setParam('dec','')
         iraf.dither.multidrizzle.setParam('dec','')
+        iraf.dither.multidrizzle.setParam('runfile','')
         # iraf.dither.multidrizzle.setParam('driz_cr_snr','3.5 3.0')
         
     if ivar_weights:
