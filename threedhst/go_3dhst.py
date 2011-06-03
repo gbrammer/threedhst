@@ -133,16 +133,20 @@ def cosmos():
     for i, asn in enumerate(grism_asn):
         threedhst.options['PREFAB_DIRECT_IMAGE'] = '../PREP_FLT/' +  asn.replace('G141_asn','F140W_drz')
         
+        threedhst.options['PIXFRAC'] = 0.00001
+        threedhst.options['DRZRESOLA'] = '35'
+        threedhst.options['DRZSCALE'] = '0.10'
+        
         #### Images for a better fluxcube
         root=asn.replace('_asn.fits','')
         threedhst.options['OTHER_BANDS'] = []
-        for wave in [1.1e4,1.25e4,1.6e4]:
-            out = threedhst.analysis.make_fluximage(grism_root=root,
-                       wavelength=wave)
-            threedhst.options['OTHER_BANDS'].append([os.path.basename(out), 'F%03dW' %(wave/100), wave/10., 26.46])
+        # for wave in [1.1e4,1.25e4,1.6e4]:
+        #     out = threedhst.analysis.make_fluximage(grism_root=root,
+        #                wavelength=wave)
+        #     threedhst.options['OTHER_BANDS'].append([os.path.basename(out), 'F%03dW' %(wave/100), wave/10., 26.46])
                     
         proc.reduction_script(asn_grism_file=asn)
-        threedhst.analysis.cosmos_SED_plots(roots=[asn.split('_asn.fits')[0]])
+        threedhst.analysis.make_SED_plots(grism_root=asn.split('_asn.fits')[0])
         go.clean_up()
 
 def goodsn():
@@ -315,7 +319,7 @@ def set_parameters(direct='F140W', LIMITING_MAGNITUDE=25):
     threedhst.options['DRZSCALE'] = '0.06'
 
     threedhst.options['AXE_EDGES'] = "250,0,0,0"
-    threedhst.options['USE_TAXE'] = False
+    threedhst.options['USE_TAXE'] = True
 
     #### Use F140W as detection image
     threedhst.options['MAG_ZEROPOINT'] = 26.46
