@@ -32,6 +32,10 @@ myDS9(pysao.ds9)
     
     Add shortcut methods to extend `pysao.ds9`
     """
+    def v(self, img, vmin=0, vmax=3):
+        self.view(img)
+        self.set('scale limits %f %f' %(vmin,vmax))
+        
     def scale(self, min, max):
         """
 scale(self, min, max)
