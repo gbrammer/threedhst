@@ -495,9 +495,10 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
     data = twod[1].data
     cont = twod[4].data
     model = twod[5].data
+    weight = twod[7].data
     twod.close()
     
-    flux_limit = model.max()*1.e-2    
+    flux_limit = model.max()*5.e-3    
     ### Mask where the 2D flux is less than 1% of the maximum
     mask = (model < flux_limit) & (cont < flux_limit) & (data != 0)
     mask_model = (model < flux_limit) & (data != 0)
@@ -523,7 +524,10 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
     N = data*0+1
     N[contam_mask] = 0
     
-    profile = np.sum(tt, axis=1) / np.sum(N, axis=1)
+    N *= weight
+    
+    profile = np.sum(tt*N, axis=1) / np.sum(N, axis=1)
+    profile[np.sum(N, axis=1) == 0] = 0.
     profile /= np.sum(profile)
     
     model_profile = np.sum(model, axis=1)
@@ -573,9 +577,12 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
     #N[mask_model == True] = 0
     
     GAIN = 1 # WFC3 FLT images already in e-
+    sha = data.shape
+    twod_model_profile = np.dot(model_profile.reshape(sha[0],-1), np.ones((1,sha[1]))) * (data != 0)
+    N *= twod_model_profile #> 0# weight > 0
     
     oned_dn = np.sum(masked, axis=0) / np.sum(N, axis=0)
-    oned_dn_cont = np.sum(masked_cont, axis=0) / np.sum(N, axis=0)
+    oned_dn_cont = np.sum(masked_cont*N, axis=0) / np.sum(N, axis=0)
     poisson_var = oned_dn*head['EXPTIME']*GAIN ## GAIN = 2.5 e- / DN
     poisson_var[poisson_var < 0] = 0
 
@@ -595,7 +602,6 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
     xfit_use = (lam > 1.08e4) & (lam < 1.68e4) & (np.isfinite(oned_dn_bg)) & (oned_dn_bg != 0)
     oned_dn_bg_fit = oned_dn*0.
     if xfit[xfit_use].size > 0:
-        
         #print xfit_use.shape
         #print lam[xfit_use].min()
         if (lam[xfit_use].min() < 1.1e4) & (lam[xfit_use].max() > 1.6e4):
@@ -607,11 +613,13 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
     ### sensitivity
     sens = pyfits.open('../CONF/WFC3.IR.G141.1st.sens.2.fits')[1].data
     yint = np.interp(lam, sens.WAVELENGTH, sens.SENSITIVITY)
+    yint_err = np.interp(lam, sens.WAVELENGTH, sens.ERROR)
     
     ### Final fluxed spectra
     oned_flux = oned_dn * GAIN / yint
     oned_flux_cont = oned_dn_cont * GAIN / yint
-    oned_flux_err = oned_dn_err / yint
+    oned_flux_var = (oned_dn_err / yint)**2 + (oned_flux * yint_err / yint)**2
+    oned_flux_err = np.sqrt(oned_flux_var)
     oned_flux_bg = oned_dn_bg * GAIN / yint
     oned_flux_bg_fit = oned_dn_bg_fit * GAIN / yint
     
