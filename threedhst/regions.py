@@ -48,8 +48,7 @@ Create a DS9 region file for the exposures defined in an ASN file.
         
         for ext in extensions:
             regX, regY = wcs_polygon(flt_file,extension=ext)
-            line = "polygon(%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f)" \
-                %(regX[0],regY[0],regX[1],regY[1],regX[2],regY[2],regX[3],regY[3])
+            line = "polygon(%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f)"  %(regX[0],regY[0],regX[1],regY[1],regX[2],regY[2],regX[3],regY[3])
 
             RAcenters[i] += np.mean(regX)/len(extensions)
             DECcenters[i] += np.mean(regY)/len(extensions)
