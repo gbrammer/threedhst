@@ -455,7 +455,7 @@ Pipeline to process a set of grism/direct exposures.
         #print conf.params['DQMASK']
         
         conf.params['DQMASK'] = np.str(np.int(conf.params['DQMASK'].split()[0]) | 4096 | 2048)
-
+                
         #### Workaround to get 0th order contam. in the right place for the fluxcube
         if threedhst.options['CONFIG_FILE'] == 'WFC3.IR.G141.V1.0.conf':
             conf.params['BEAMB'] = '-220 220'    
@@ -1037,7 +1037,7 @@ def clean_flt_files(asn_filename):
     for exp in ASN.exposures:
         os.remove(exp+'_flt.fits')
         
-def fresh_flt_files(asn_filename, from_path="../RAW"):
+def fresh_flt_files(asn_filename, from_path="../RAW", preserve_dq = False):
     """
     """ 
     #import threedhst.dq
@@ -1060,6 +1060,12 @@ def fresh_flt_files(asn_filename, from_path="../RAW"):
         
         print exp
         
+        dq = fi[3]
+        if preserve_dq:
+            if os.path.exists('./'+exp+'_flt.fits'):
+                old = pyfits.open('./'+exp+'_flt.fits')
+                dq = old[3]
+            
         fi.writeto('./'+exp+'_flt.fits', clobber=True)
         threedhst.prep_flt_files.apply_best_flat(exp+'_flt.fits', verbose=True)
         
@@ -1067,9 +1073,12 @@ def fresh_flt_files(asn_filename, from_path="../RAW"):
         flt = pyfits.open(exp+'_flt.fits','update')
         head = flt[0].header
         if ('INSTRUME' in head.keys()) & ('DETECTOR' in head.keys()):
-            if (head['INSTRUME'].strip() == 'WFC3') & (head['DETECTOR'].strip() == 'IR') & (head['IDCTAB'].startswith('iref$tc')):
-                print 'IDCTAB %s -> iref$uab1537ci_idc.fits' %(head['IDCTAB'])
+            if (head['INSTRUME'].strip() == 'WFC3') & (head['DETECTOR'].strip() == 'IR'):
+                #print 'IDCTAB %s -> iref$uab1537ci_idc.fits' %(head['IDCTAB'])
                 #head.update('IDCTAB','iref$uab1537ci_idc.fits')
+                flt[0].header.update('IDCTAB','iref$v5r1512fi_idc.fits')
+        
+        flt[3] = dq
         flt.flush()
         
         #### Apply DQ mask (.mask.reg), if it exists

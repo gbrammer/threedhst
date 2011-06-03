@@ -39,6 +39,7 @@ no = iraf.no
 yes = iraf.yes
 
 import threedhst
+import threedhst.grism_sky
 
 class fit_2D_background():
     
@@ -449,7 +450,7 @@ prep_all(asn_files='ib*050_asn.fits', get_shift=True,
                     initial_order=initial_order,
                     align_geometry=align_geometry, clean=clean,
                     save_fit=save_fit)
-                
+
 def prep_flt(asn_file=None, get_shift=True, bg_only=False, bg_skip=False,
                 first_run=True, redo_background=True,
                 ALIGN_IMAGE='../ACS/h_nz_sect*img.fits', ALIGN_EXT = 0, 
@@ -595,8 +596,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
                 threedhst.regions.apply_dq_mask(seg, extension=0, 
                     mask_file = asn_mask)
                             
-                
-        
+    
     #### Run BG subtraction with improved mask and run multidrizzle again
     if redo_background:
         fit = fit_2D_background(ORDER=initial_order, IMAGES=IMAGES)
@@ -775,6 +775,8 @@ def process_all():
     pair('ibhm31030_asn.fits','ibhm31040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
     pair('ibhm46030_asn.fits','ibhm46040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
     pair('ibhm29030_asn.fits','ibhm29040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
+
+    pair('ibhm30030_asn.fits','ibhm30040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
     
     pair('ibhm43030_asn.fits','ibhm43040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
     pair('ibhm44030_asn.fits','ibhm44040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
@@ -835,6 +837,8 @@ def process_all():
     pair('ibhj06030_asn.fits','ibhj06040_asn.fits', ALIGN_IMAGE = ALIGN)
     pair('ibhj27030_asn.fits','ibhj27040_asn.fits', ALIGN_IMAGE = ALIGN)
     pair('ibhj28030_asn.fits','ibhj28040_asn.fits', ALIGN_IMAGE = ALIGN)
+
+    pair('ibhj24030_asn.fits','ibhj24040_asn.fits', ALIGN_IMAGE = ALIGN)
     
     ### Make mosaic
     direct_files = glob.glob('GOODS-S*-F140W_asn.fits')
@@ -1330,14 +1334,36 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                         skip_drz=False, final_scale=0.06, pixfrac=0.8,
                         IMAGES=IMAGES, clean=True,
                         initial_order=-1, save_fit=save_fit)
-
-        if GRISM_HIGHER_ORDER > 0:
-            threedhst.prep_flt_files.prep_flt(asn_file=asn_grism_file,
-                        get_shift=False, first_run=False,
-                        bg_only=False, bg_skip=False, redo_background=False,
-                        skip_drz=False, final_scale=0.06, pixfrac=0.8,
-                        IMAGES=[], clean=True,
-                        initial_order=GRISM_HIGHER_ORDER, save_fit=save_fit)
+        
+        #### Now that we have the segmentation masks for the grism, do the
+        #### division by the flat + sky image
+        threedhst.showMessage('Divide by the flat + sky images')
+        
+        ## Copy new FLT files
+        threedhst.process_grism.fresh_flt_files(asn_grism_file, 
+                     from_path=PATH_TO_RAW, preserve_dq=False)
+        
+        ## Run the sky background division             
+        asn_grism = threedhst.utils.ASNFile(asn_grism_file)
+        for exp in asn_grism.exposures:
+            threedhst.grism_sky.remove_grism_sky(flt=exp+'_flt.fits', path_to_sky='../CONF/')
+        
+        ## Run Multidrizzle twice, the first time to flag CRs + hot pixels
+        startMultidrizzle(asn_grism_file, use_shiftfile=True, skysub=False,
+                final_scale=0.128, pixfrac=1.0, driz_cr=True,
+                updatewcs=True, median=True, clean=True)
+                
+        startMultidrizzle(asn_grism_file, use_shiftfile=True, skysub=False,
+                final_scale=0.06, pixfrac=0.8, driz_cr=False,
+                updatewcs=False, median=False, clean=True)
+        
+        # if GRISM_HIGHER_ORDER > 0:
+        #     threedhst.prep_flt_files.prep_flt(asn_file=asn_grism_file,
+        #                 get_shift=False, first_run=False,
+        #                 bg_only=False, bg_skip=False, redo_background=False,
+        #                 skip_drz=False, final_scale=0.06, pixfrac=0.8,
+        #                 IMAGES=[], clean=True,
+        #                 initial_order=GRISM_HIGHER_ORDER, save_fit=save_fit)
     
     threedhst.showMessage("""FLT prep done.  Run gzip *flt.fits to save disk space.""")
     
