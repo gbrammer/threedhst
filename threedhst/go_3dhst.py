@@ -50,6 +50,11 @@ def goods_s():
     threedhst.analysis.make_SED_plots(grism_root='GOODS-S-27-G141')
     go.clean_up()
 
+    threedhst.options['PREFAB_DIRECT_IMAGE'] = '../PREP_FLT/GOODS-S-24-F140W_drz.fits'
+    proc.reduction_script(asn_grism_file='GOODS-S-24-G141_asn.fits')
+    threedhst.analysis.make_SED_plots(grism_root='GOODS-S-24-G141')
+    go.clean_up()
+
 def aegis():
     import threedhst.go_3dhst as go
     import threedhst.process_grism as proc
@@ -133,9 +138,9 @@ def cosmos():
     for i, asn in enumerate(grism_asn):
         threedhst.options['PREFAB_DIRECT_IMAGE'] = '../PREP_FLT/' +  asn.replace('G141_asn','F140W_drz')
         
-        threedhst.options['PIXFRAC'] = 0.00001
-        threedhst.options['DRZRESOLA'] = '35'
-        threedhst.options['DRZSCALE'] = '0.10'
+        # threedhst.options['PIXFRAC'] = 0.8
+        # threedhst.options['DRZRESOLA'] = '35'
+        # threedhst.options['DRZSCALE'] = '0.10'
         
         #### Images for a better fluxcube
         root=asn.replace('_asn.fits','')
@@ -301,7 +306,7 @@ def set_parameters(direct='F140W', LIMITING_MAGNITUDE=25):
     
     threedhst.defaultOptions()
     
-    threedhst.options['DETECT_THRESH'] = 3
+    threedhst.options['DETECT_THRESH'] = 2
     threedhst.options['ANALYSIS_THRESH'] = 1
     threedhst.options['LIMITING_MAGNITUDE'] = LIMITING_MAGNITUDE
 
