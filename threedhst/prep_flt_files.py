@@ -293,7 +293,6 @@ def oned_grism_background_subtract(flt_root, nbin=8, path='./', savefig=True, fo
     smooth out the profile.
     """
     from threedhst.utils import find_fits_gz
-    # 
     
     #### Find fits or fits.gz files
     flt_file = find_fits_gz(flt_root+'_flt.fits', hard_break=True)
@@ -366,7 +365,7 @@ def oned_grism_background_subtract(flt_root, nbin=8, path='./', savefig=True, fo
             # plt.plot(ypix[OK_PIXELS],polyval(poly,xx[OK_PIXELS]),marker='.', alpha=0.8, linestyle='None')
             
         if savefig:
-            plt.plot(xi, yi, color='red', alpha=1-it*0.8/(NITER-1))
+            ax.plot(xi, yi, color='red', alpha=1-it*0.8/(NITER-1))
         
         #### Interpolate smoothed back to individual pixels
         xpix = np.arange(1014)

@@ -4,6 +4,12 @@ import numpy as np
 import glob
 
 import matplotlib.pyplot as plt
+
+USE_PLOT_GUI=False
+
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+
 from pyraf import iraf
 from iraf import iraf
 
@@ -428,18 +434,24 @@ specphot(id)
     
     xs=5.8
     ys = xs/4.8*3.2
-    fig = plt.figure(figsize=[xs,ys]) #,dpi=100)
+    if USE_PLOT_GUI:
+        fig = plt.figure(figsize=[xs,ys],dpi=100)
+    else:
+        fig = Figure(figsize=[xs,ys], dpi=100)
+    
     fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.13*4.8/xs,
                         bottom=0.15*4.8/xs,right=1.-0.02*4.8/xs,top=1-0.10*4.8/xs)
+    
+    ax = fig.add_subplot(111)
     
     ymax = np.max((ffix[q])*anorm)
     
     if Verbose:
         print 'Make the plot'
         
-    plt.plot(lambdaz, temp_sed_sm, color='red')
+    ax.plot(lambdaz, temp_sed_sm, color='red')
     # plt.errorbar(lam[q], ffix[q]*anorm, yerr=ferr[q]*anorm, color='blue', alpha=0.8)
-    plt.plot(lam[q],ffix[q]*anorm, color='blue', alpha=0.2, linewidth=1)
+    ax.plot(lam[q],ffix[q]*anorm, color='blue', alpha=0.2, linewidth=1)
     
     #### Show own extraction
     sp1d = threedhst.spec1d.extract1D(id, root=grism_root, path='./HTML', show=False, out2d=False)
@@ -448,22 +460,22 @@ specphot(id)
     ffix = sp1d['flux']-sp1d['contam'] #-sp1d['background']
     ferr = sp1d['error']
     anorm = np.sum(yint*ffix[q])/np.sum(ffix[q]**2)
-    plt.plot(lam[q],ffix[q]*anorm, color='blue', alpha=0.6, linewidth=1)
+    ax.plot(lam[q],ffix[q]*anorm, color='blue', alpha=0.6, linewidth=1)
     
     #### Show photometry + eazy template
-    plt.errorbar(lci, fobs, yerr=efobs, color='orange', marker='o', markersize=10, linestyle='None', alpha=0.4)
-    plt.plot(lambdaz, temp_sed_sm, color='red', alpha=0.4)
+    ax.errorbar(lci, fobs, yerr=efobs, color='orange', marker='o', markersize=10, linestyle='None', alpha=0.4)
+    ax.plot(lambdaz, temp_sed_sm, color='red', alpha=0.4)
 
-    plt.ylabel(r'$f_{\lambda}$')
+    ax.ylabel(r'$f_{\lambda}$')
     
     if plt.rcParams['text.usetex']:
-        plt.xlabel(r'$\lambda$ [\AA]')
-        plt.title('%s: \#%d, z=%4.1f' 
+        ax.xlabel(r'$\lambda$ [\AA]')
+        ax.title('%s: \#%d, z=%4.1f' 
             %(SPC.filename.split('_2_opt')[0].replace('_','\_'),id,
               zout.z_peak[photom_idx]))
     else:
-        plt.xlabel(r'$\lambda$ [$\AA$]')
-        plt.title('%s: #%d, z=%4.1f' 
+        ax.xlabel(r'$\lambda$ [$\AA$]')
+        ax.title('%s: #%d, z=%4.1f' 
             %(SPC.filename.split('_2_opt')[0].replace('_','\_'),id,
               zout.z_peak[photom_idx]))
         
@@ -474,7 +486,7 @@ specphot(id)
     label = 'ID='+r'%s   K=%4.1f  $\log M$=%4.1f' %(np.int(cat.id[photom_idx]),
         kmag, fout.field('lmass')[photom_idx])
         
-    plt.text(5e3,1.08*ymax, label, horizontalalignment='left',
+    ax.text(5e3,1.08*ymax, label, horizontalalignment='left',
       verticalalignment='bottom')
     
     
@@ -483,11 +495,11 @@ specphot(id)
         label_color = 'red'
     else:
         label_color = 'black'
-    plt.text(2.2e4,1.08*ymax, label, horizontalalignment='right',
+    ax.text(2.2e4,1.08*ymax, label, horizontalalignment='right',
       color=label_color, verticalalignment='bottom')
     
-    plt.xlim(xmin,xmax)
-    plt.ylim(-0.1*ymax,1.2*ymax)
+    ax.xlim(xmin,xmax)
+    ax.ylim(-0.1*ymax,1.2*ymax)
     
     if Verbose:
         print 'Save the plot'
@@ -496,8 +508,13 @@ specphot(id)
         out_file = '%s_%05d_SED.png' %(grism_root, id)
     else:
         out_file = OUT_FILE
-    
-    plt.savefig(OUT_PATH+'/'+out_file)
+        
+    if USE_PLOT_GUI:
+        fig.savefig(OUT_PATH+'/'+out_file,dpi=100,transparent=False)
+        plt.close()
+    else:
+        canvas = FigureCanvasAgg(fig)
+        canvas.print_figure(OUT_PATH+'/'+out_file, dpi=100, transparent=False)
     
     noNewLine = '\x1b[1A\x1b[1M'
     print noNewLine+OUT_PATH+'/'+out_file
@@ -505,7 +522,6 @@ specphot(id)
     if Verbose:
         print 'Close the plot window'
         
-    plt.close()
     
 def match_grism_to_phot(grism_root='ibhm45',
         MAIN_OUTPUT_FILE = 'cosmos-1.v4.6',

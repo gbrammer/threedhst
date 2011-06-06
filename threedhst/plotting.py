@@ -26,7 +26,6 @@ USE_PLOT_GUI=False
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
-
 from pyraf import iraf
 from iraf import dither
 
@@ -42,6 +41,7 @@ def defaultPlotParameters():
     plt.rcParams['patch.linewidth'] = 0.
     plt.rcParams['patch.edgecolor'] = 'black'
     plt.rcParams['text.usetex'] = False
+    plt.rcParams['image.cmap'] = 'gray'
     #plt.rcParams['text.usetex'] = True
     #plt.rcParams['text.latex.preamble'] = ''
 
@@ -231,7 +231,6 @@ def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128,
     
     defaultPlotParameters()
     
-    plt.gray()
     
     fig = plt.figure(figsize=[3,3],dpi=100)
     fig.subplots_adjust(wspace=0.2,hspace=0.02,left=0.02,
@@ -478,8 +477,6 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     
     defaultPlotParameters()
     
-    plt.gray()
-    
     if USE_PLOT_GUI:
         fig = plt.figure(figsize=[3,3],dpi=100)
     else:
@@ -489,7 +486,7 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
                         bottom=0.02,right=0.98,top=0.98)
     
     ax = fig.add_subplot(111)
-    
+        
     ax.imshow(0-sub, interpolation=interp,aspect=asp,vmin=vmin,vmax=vmax)    
     
     asec_pix = 1./pixel_scale
@@ -587,9 +584,7 @@ plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
     asp = 'auto'
     vmin = -0.6 
     vmax = 0.1
-    
-    plt.gray()
-    
+        
     mod_max = np.max(mef['MOD'].data)
     if mod_max > 0:
         vmin = -1*mod_max
@@ -615,7 +610,7 @@ plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
        np.ceil(lmax/1000.)*1000,1000)-head['CRVAL1'])/head['CDELT1']
        +head['CRPIX1'])
     ax.set_xticklabels([])
-    plt.ylabel(threedhst.options['GRISM_NAME'])
+    ax.ylabel(threedhst.options['GRISM_NAME'])
     
     ax = fig.add_subplot(312)
     ax.imshow(0-mef['MOD'].data, interpolation=interp, aspect=asp,
@@ -626,7 +621,7 @@ plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
         np.ceil(lmax/1000.)*1000,1000)-head['CRVAL1'])/head['CDELT1']
         +head['CRPIX1'])
     ax.set_xticklabels([])
-    plt.ylabel('Model')
+    ax.ylabel('Model')
 
     ax = fig.add_subplot(313)
     if clean:
@@ -645,11 +640,11 @@ plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
         np.ceil(lmax/1000.)*1000,1000)/1.e4)
     
     if clean:
-        plt.ylabel('Cleaned')
+        ax.ylabel('Cleaned')
     else:
-        plt.ylabel('Contam.')
+        ax.ylabel('Contam.')
     
-    plt.xlabel(r'$\lambda$ [$\mu$m]')
+    ax.xlabel(r'$\lambda$ [$\mu$m]')
     
     #ax.set_xticklabels([])
     #plt.show()
@@ -897,13 +892,13 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     ### Labels
     root = os.path.basename(SPCFile.filename).split('_2')[0]
     if plt.rcParams['text.usetex']:
-        plt.title(r'%s: \#%d' %(root.replace('_','\_'),object_number))
-        plt.xlabel(r'$\lambda~\left[$\AA$\right]')
-        plt.ylabel(r'$\mathit{f}_{\lambda}$')
+        ax.title(r'%s: \#%d' %(root.replace('_','\_'),object_number))
+        ax.xlabel(r'$\lambda~\left[$\AA$\right]')
+        ax.ylabel(r'$\mathit{f}_{\lambda}$')
     else:
-        plt.title(r'%s: #%d' %(root.replace('_','\_'),object_number))
-        plt.xlabel(r'$\lambda$ [$\AA$]')
-        plt.ylabel(r'$f_{\lambda}$')
+        ax.title(r'%s: #%d' %(root.replace('_','\_'),object_number))
+        ax.xlabel(r'$\lambda$ [$\AA$]')
+        ax.ylabel(r'$f_{\lambda}$')
         
     ### Save to PNG
     if outfile:
