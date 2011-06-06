@@ -777,6 +777,8 @@ def process_all():
     pair('ibhm29030_asn.fits','ibhm29040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
 
     pair('ibhm30030_asn.fits','ibhm30040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
+    pair('ibhm32030_asn.fits','ibhm32040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
+    pair('ibhm33030_asn.fits','ibhm33040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
     
     pair('ibhm43030_asn.fits','ibhm43040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
     pair('ibhm44030_asn.fits','ibhm44040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
@@ -838,6 +840,7 @@ def process_all():
     pair('ibhj27030_asn.fits','ibhj27040_asn.fits', ALIGN_IMAGE = ALIGN)
     pair('ibhj28030_asn.fits','ibhj28040_asn.fits', ALIGN_IMAGE = ALIGN)
 
+    ALIGN = '../ACS/h_sz*drz_img.fits'
     pair('ibhj24030_asn.fits','ibhj24040_asn.fits', ALIGN_IMAGE = ALIGN)
     
     ### Make mosaic
