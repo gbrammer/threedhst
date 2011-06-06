@@ -496,6 +496,7 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
     cont = twod[4].data
     model = twod[5].data
     weight = twod[7].data
+    weight = weight*0+1
     twod.close()
     
     flux_limit = model.max()*5.e-3    
@@ -579,7 +580,7 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
     GAIN = 1 # WFC3 FLT images already in e-
     sha = data.shape
     twod_model_profile = np.dot(model_profile.reshape(sha[0],-1), np.ones((1,sha[1]))) * (data != 0)
-    N *= twod_model_profile #> 0# weight > 0
+    #N *= twod_model_profile #> 0# weight > 0
     
     oned_dn = np.sum(masked, axis=0) / np.sum(N, axis=0)
     oned_dn_cont = np.sum(masked_cont*N, axis=0) / np.sum(N, axis=0)
