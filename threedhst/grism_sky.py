@@ -33,7 +33,7 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
     and then dividing by a master sky image.  
     """
     import threedhst.grism_sky as bg
-    import scipy.signal as sign
+    #import scipy.signal as sign
     
     # flt = '../../GOODS-N/RAW/ib3708ilq_flt.fits.gz'
     im = pyfits.open(flt)
@@ -101,7 +101,7 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
     im = pyfits.open(out_path+os.path.basename(flt).replace('.gz',''), mode='update')
 
     #### Subtract the residual difference between the observed and master sky
-    resid = np.dot(np.ones((1014,1)), sign.medfilt(yin, 41).reshape(1,1014))
+    resid = np.dot(np.ones((1014,1)), threedhst.utils.medfilt(yin, 41).reshape(1,1014))
     im[1].data -= resid
     
     #### Subtract the overall biweight mean

@@ -665,6 +665,21 @@ def runmed(xi, yi, NBIN=10):
     
     return xm, ym, ys, N
 
+def medfilt(xarr, N=3):
+    """
+    Median filter
+    """
+    out = xarr*0.
+    half = int(N/2)
+    for i in range(0,half):
+        out[i] = np.median(xarr[i:i+half+1])
+        
+    for i in range(half, len(xarr)-half,1):
+        out[i] = np.median(xarr[i-half:i+half+1])
+    
+    for i in range(len(xarr)-half,len(xarr)):
+        out[i] = np.median(xarr[i-half:i])
+     
 def xyrot(xin, yin, theta, x0=0., y0=0., radians=False, ccw=False):
     """
     Rotate (xin, yin) coordinates by an angle `theta`
