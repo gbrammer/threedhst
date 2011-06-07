@@ -679,7 +679,9 @@ def medfilt(xarr, N=3):
     
     for i in range(len(xarr)-half,len(xarr)):
         out[i] = np.median(xarr[i-half:i])
-     
+    
+    return out
+    
 def xyrot(xin, yin, theta, x0=0., y0=0., radians=False, ccw=False):
     """
     Rotate (xin, yin) coordinates by an angle `theta`
