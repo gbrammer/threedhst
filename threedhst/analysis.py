@@ -466,16 +466,16 @@ specphot(id)
     ax.errorbar(lci, fobs, yerr=efobs, color='orange', marker='o', markersize=10, linestyle='None', alpha=0.4)
     ax.plot(lambdaz, temp_sed_sm, color='red', alpha=0.4)
 
-    ax.ylabel(r'$f_{\lambda}$')
+    ax.set_ylabel(r'$f_{\lambda}$')
     
     if plt.rcParams['text.usetex']:
-        ax.xlabel(r'$\lambda$ [\AA]')
-        ax.title('%s: \#%d, z=%4.1f' 
+        ax.set_xlabel(r'$\lambda$ [\AA]')
+        ax.set_title('%s: \#%d, z=%4.1f' 
             %(SPC.filename.split('_2_opt')[0].replace('_','\_'),id,
               zout.z_peak[photom_idx]))
     else:
-        ax.xlabel(r'$\lambda$ [$\AA$]')
-        ax.title('%s: #%d, z=%4.1f' 
+        ax.set_xlabel(r'$\lambda$ [$\AA$]')
+        ax.set_title('%s: #%d, z=%4.1f' 
             %(SPC.filename.split('_2_opt')[0].replace('_','\_'),id,
               zout.z_peak[photom_idx]))
         
@@ -498,8 +498,8 @@ specphot(id)
     ax.text(2.2e4,1.08*ymax, label, horizontalalignment='right',
       color=label_color, verticalalignment='bottom')
     
-    ax.xlim(xmin,xmax)
-    ax.ylim(-0.1*ymax,1.2*ymax)
+    ax.set_xlim(xmin,xmax)
+    ax.set_ylim(-0.1*ymax,1.2*ymax)
     
     if Verbose:
         print 'Save the plot'
@@ -1371,7 +1371,7 @@ def LAE_morphologies():
             ax.set_xticklabels([])
             ytick = ax.set_yticks(np.arange(-1*nasec,nasec+1,1)*asec_pix+size)
             
-            plt.title('F125W')
+            ax.set_title('F125W')
             
             ax = fig.add_subplot(122)
             ax.imshow(sub160, vmin=-0.05,vmax=0.1, interpolation='nearest')
@@ -1381,9 +1381,9 @@ def LAE_morphologies():
             ax.set_xticklabels([])
             ytick = ax.set_yticks(np.arange(-1*nasec,nasec+1,1)*asec_pix+size)
             
-            plt.title('F160W')
+            ax.set_title('F160W')
             
-            plt.text(-0.01, 1.12,'LAE N20-%d' %lae.n20[i],
+            ax.set_text(-0.01, 1.12,'LAE N20-%d' %lae.n20[i],
                  horizontalalignment='center',
                  verticalalignment='center',
                  transform = ax.transAxes, fontsize=16)

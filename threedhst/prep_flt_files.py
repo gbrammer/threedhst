@@ -376,9 +376,9 @@ def oned_grism_background_subtract(flt_root, nbin=8, path='./', savefig=True, fo
     #### Output figure
     if savefig:
         ax.plot(xi, yi*0, linestyle='--', alpha=0.6, color='black')
-        ax.xlabel('x pixel')
-        ax.ylabel('e-/s')
-        ax.xlim(-1,1015)
+        ax.set_xlabel('x pixel')
+        ax.set_ylabel('e-/s')
+        ax.set_xlim(-1,1015)
         if USE_PLOT_GUI:
             plt.savefig(flt_root+'_flt.residual.png')
             plt.close()

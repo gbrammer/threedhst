@@ -610,7 +610,7 @@ plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
        np.ceil(lmax/1000.)*1000,1000)-head['CRVAL1'])/head['CDELT1']
        +head['CRPIX1'])
     ax.set_xticklabels([])
-    ax.ylabel(threedhst.options['GRISM_NAME'])
+    ax.set_ylabel(threedhst.options['GRISM_NAME'])
     
     ax = fig.add_subplot(312)
     ax.imshow(0-mef['MOD'].data, interpolation=interp, aspect=asp,
@@ -621,7 +621,7 @@ plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
         np.ceil(lmax/1000.)*1000,1000)-head['CRVAL1'])/head['CDELT1']
         +head['CRPIX1'])
     ax.set_xticklabels([])
-    ax.ylabel('Model')
+    ax.set_ylabel('Model')
 
     ax = fig.add_subplot(313)
     if clean:
@@ -640,11 +640,11 @@ plot2Dspec(SPCFile, object_number, outfile='/tmp/spec2D.png',
         np.ceil(lmax/1000.)*1000,1000)/1.e4)
     
     if clean:
-        ax.ylabel('Cleaned')
+        ax.set_ylabel('Cleaned')
     else:
-        ax.ylabel('Contam.')
+        ax.set_ylabel('Contam.')
     
-    ax.xlabel(r'$\lambda$ [$\mu$m]')
+    ax.set_xlabel(r'$\lambda$ [$\mu$m]')
     
     #ax.set_xticklabels([])
     #plt.show()
@@ -892,13 +892,13 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
     ### Labels
     root = os.path.basename(SPCFile.filename).split('_2')[0]
     if plt.rcParams['text.usetex']:
-        ax.title(r'%s: \#%d' %(root.replace('_','\_'),object_number))
-        ax.xlabel(r'$\lambda~\left[$\AA$\right]')
-        ax.ylabel(r'$\mathit{f}_{\lambda}$')
+        ax.set_title(r'%s: \#%d' %(root.replace('_','\_'),object_number))
+        ax.set_xlabel(r'$\lambda~\left[$\AA$\right]')
+        ax.set_ylabel(r'$\mathit{f}_{\lambda}$')
     else:
-        ax.title(r'%s: #%d' %(root.replace('_','\_'),object_number))
-        ax.xlabel(r'$\lambda$ [$\AA$]')
-        ax.ylabel(r'$f_{\lambda}$')
+        ax.set_title(r'%s: #%d' %(root.replace('_','\_'),object_number))
+        ax.set_xlabel(r'$\lambda$ [$\AA$]')
+        ax.set_ylabel(r'$f_{\lambda}$')
         
     ### Save to PNG
     if outfile:
