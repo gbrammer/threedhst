@@ -790,7 +790,7 @@ def parseImageString(IMAGE_STRING="test.fits[1]*1.", default_extension=1):
     return image, extension, scale
     
 def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
-                 path='/Users/gbrammer/Sites/FITS/', tileroot='tile', aper_list=[15]):
+                 path='/Users/gbrammer/Sites/FITS/', tileroot='tile', aper_list=[15], polyregions=None):
     """
     Make a google map viewer for a FITS image.
     """
@@ -872,9 +872,10 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
     
     mapParams['ZOOM_RANGE'] = [np.min(aper_list), np.max(aper_list)]
     
-    threedhst.gmap.makeMapHTML(FITS_IMAGES, mapParams, output=path+'map.html')
+    threedhst.gmap.makeMapHTML(FITS_IMAGES, mapParams, output=path+'map.html', polyregions=polyregions)
     threedhst.plotting.makeCSS(path=path+'scripts/', title_size=9)
     threedhst.gmap.makeJavascript(path=path+'scripts/', tileroot=tileroot, mapParams=mapParams)
+    threedhst.gmap.makePolygons(mapParams, polyregions=polyregions, path=path+'scripts/')
     
     try:
         os.remove('scale.fits')
@@ -884,7 +885,106 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
         pass
     
 #
-def makeMapHTML(FITS_IMAGES, mapParams, output='./HTML/index.html', title=None):
+def makePolygons(mapParams=None, polyregions=None, path='./', color='#00aa00', alpha=0.5, linewidth=2):
+    """
+    Translate ds9 polygons to Javascript for the map.
+    """
+    if polyregions is None:
+        return False
+    
+    center = np.cast[float](mapParams['LLCENTER'])
+    
+    label = """
+<?php
+        $string = $_GET['text'];
+    	$font_size = 5;
+        // Create a blank image.
+        $image = imagecreatetruecolor(ImageFontWidth($font_size) * strlen($string), 16);
+    	//$string = ImageFontHeight($font_size);
+        // Make the background transparent
+        $black = imagecolorallocate($im, 0, 0, 0);
+        imagecolortransparent($image, $black);
+        // Choose a color for the ellipse.
+        $green = imagecolorallocate($image, 0, 255, 0);
+        // Add the text
+        $px     = (imagesx($image) - ImageFontWidth($font_size) * strlen($string)) / 2;
+        imagestring($image, $font_size, $px, 1.5, $string, $green);
+        // Output the image.
+        header("Content-type: image/png");
+        imagepng($image);
+?>
+    """
+    
+    js_fp = open(path+'/threedhst.js')
+    js_lines = js_fp.readlines()
+    js_lines.append("\nfunction addPolylines() {\n")
+    
+    #files=polyregions.split(',')
+    files = polyregions
+    
+    N = len(files)
+    counter=1
+    for i in range(N):
+        reg_lines = open(files[i]).readlines()
+        for line in reg_lines:
+            if line.startswith('polygon'):
+                poly = np.cast[float](line.split('(')[1].split(')')[0].split(','))
+                NP = len(poly)/2
+                polystr = "\nvar polyL%d = new GPolyline([\n" %(counter)
+                list = range(NP)
+                list.append(0)
+                for j in list:
+                    lat = poly[j*2+1]-center[0]
+                    lng = ((360-poly[j*2])-center[1])*np.cos(lat/360.*2*np.pi)
+                    polystr += "  new GLatLng(%f, %f),\n" %(lat, lng)
+                
+                polystr = polystr[:-2]+"\n], \"%s\", %d, %f);\n" %(color, linewidth, alpha)
+                polystr += "map.addOverlay(polyL%d);" %(counter)
+                js_lines.append(polystr)
+                counter+=1
+                example = """
+                var polyline = new GPolyline([
+                  new GLatLng(37.4419, -122.1419),
+                  new GLatLng(37.4519, -122.1519)
+                ], "#ff0000", 10);
+                map.addOverlay(polyline);
+                """
+            if line.strip('#').strip().startswith('text'):
+                poly = np.cast[float](line.split('(')[1].split(')')[0].split(','))
+                label = line.split('text={')[1].split('}')[0]
+                
+                j=0
+                lat = poly[j*2+1]-center[0]
+                lng = ((360-poly[j*2])-center[1])*np.cos(lat/360.*2*np.pi)
+                
+                marker="""
+
+var label_text = "%s";
+var labelIcon = new GIcon();
+labelIcon.iconSize = new GSize(9*label_text.length, 15);
+labelIcon.iconAnchor = new GPoint(9*label_text.length/2, 7.5);
+
+labelIcon.image = "scripts/label_marker.php?text="+label_text;
+markerOptions = { icon:labelIcon};
+var point = new GLatLng(%f,%f);
+var marker = new GMarker(point, markerOptions);
+
+map.addOverlay(marker);            
+
+                """ %(label, lat, lng)
+                
+                js_lines.append(marker)
+                
+                counter+=1
+                
+                
+    js_lines.append("\n}\n");
+    
+    js_fp = open(path+'/threedhst.js','w')
+    js_fp.writelines(js_lines)
+    js_fp.close()
+    
+def makeMapHTML(FITS_IMAGES, mapParams, output='./HTML/index.html', title=None, polyregions=None):
     """
 
     """
@@ -917,7 +1017,7 @@ def makeMapHTML(FITS_IMAGES, mapParams, output='./HTML/index.html', title=None):
     --> 
     
     <!-- localhost -->
-    <script src="http://maps.google.com/maps?file=api&amp;v=3&amp;key=%s" type="text/javascript"></script> 
+    <script src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=%s" type="text/javascript"></script> 
     """ %(GMAPS_KEY)]
         
     #### Script for the Google map
@@ -925,7 +1025,12 @@ def makeMapHTML(FITS_IMAGES, mapParams, output='./HTML/index.html', title=None):
     llNE = mapParams['LLNE']
     center = mapParams['LLCENTER']
     lng_offset = mapParams['LNG_OFFSET']
-            
+    
+    if polyregions is not None:
+        addpolylines="addPolylines()"
+    else:
+        addpolylines=""
+        
     lines.append("""
     <script type="text/javascript"> 
     
@@ -960,6 +1065,8 @@ def makeMapHTML(FITS_IMAGES, mapParams, output='./HTML/index.html', title=None):
                 show_centerbox();
             });
             
+            %s
+            
             ///// Add the green circles around the catalog objects
             //plotXmlObjects();
         }
@@ -967,7 +1074,7 @@ def makeMapHTML(FITS_IMAGES, mapParams, output='./HTML/index.html', title=None):
     }
     
     </script>
-    """ %(center[0],center[1],lng_offset,mapParams['ZOOMLEVEL']))
+    """ %(center[0],center[1],lng_offset,mapParams['ZOOMLEVEL'], addpolylines))
     
     FITS_LIST = []
     for im in FITS_IMAGES:
