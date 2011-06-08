@@ -935,7 +935,7 @@ def makePolygons(mapParams=None, polyregions=None, path='./', color='#00aa00', a
                 list.append(0)
                 for j in list:
                     lat = poly[j*2+1]-center[0]
-                    lng = ((360-poly[j*2])-center[1])*np.cos(lat/360.*2*np.pi)
+                    lng = ((360-poly[j*2])-center[1])*np.cos(poly[j*2+1]/360.*2*np.pi)
                     polystr += "  new GLatLng(%f, %f),\n" %(lat, lng)
                 
                 polystr = polystr[:-2]+"\n], \"%s\", %d, %f);\n" %(color, linewidth, alpha)
@@ -955,7 +955,7 @@ def makePolygons(mapParams=None, polyregions=None, path='./', color='#00aa00', a
                 
                 j=0
                 lat = poly[j*2+1]-center[0]
-                lng = ((360-poly[j*2])-center[1])*np.cos(lat/360.*2*np.pi)
+                lng = ((360-poly[j*2])-center[1])*np.cos(poly[j*2+1]/360.*2*np.pi)
                 
                 marker="""
 
