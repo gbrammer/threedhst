@@ -973,6 +973,11 @@ map.addOverlay(marker);
 
                 """ %(label, lat, lng)
                 
+                add_link = """
+                GEvent.addListener(marker, "click", function() {
+                    window.open("http://www.google.com","mywindow", "");
+                });
+                """
                 js_lines.append(marker)
                 
                 counter+=1

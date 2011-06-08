@@ -1323,7 +1323,30 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
         if asn_direct_file:
             threedhst.shifts.make_grism_shiftfile(asn_direct_file,
                                                   asn_grism_file)
-
+        
+        #### Have to account for the second epoch GOODS-N images 
+        #### taken to fix the high background
+        if asn_direct_file.startswith('GOODS-N'):
+            sfd = threedhst.shifts.ShiftFile(asn_direct_file.replace('asn.fits','shifts.txt'))
+            sfg = threedhst.shifts.ShiftFile(asn_grism_file.replace('asn.fits','shifts.txt'))
+            x0, y0 = sfd.xshift[0], sfd.yshift[0]
+            x1, y1 = x0, y0
+            for j in range(len(sfd.images)):
+                if sfd.images[j].startswith('ib374'):
+                    x1 = sf.xshift[j]
+                    y1 = sf.yshift[j]
+                    #
+                    for k in range(len(sfg.images)):
+                        if sfg.images[k].startswith('ib374'):
+                            sfg.xshift[k], sfg.yshift[k] = x1, y1
+                        else:
+                            sfg.xshift[k], sfg.yshift[k] = x0, y0
+                    #
+                    sfg.write(sfg.filename)
+                    #    
+                    break
+                    
+        
         threedhst.process_grism.fresh_flt_files(asn_grism_file,
                       from_path=PATH_TO_RAW)
         
@@ -1348,7 +1371,7 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
         ## Run the sky background division             
         asn_grism = threedhst.utils.ASNFile(asn_grism_file)
         for exp in asn_grism.exposures:
-            threedhst.grism_sky.remove_grism_sky(flt=exp+'_flt.fits', path_to_sky='../CONF/')
+            threedhst.grism_sky.remove_grism_sky(flt=exp+'_flt.fits', path_to_sky='../CONF/', verbose=True)
         
         ## Run Multidrizzle twice, the first time to flag CRs + hot pixels
         startMultidrizzle(asn_grism_file, use_shiftfile=True, skysub=False,

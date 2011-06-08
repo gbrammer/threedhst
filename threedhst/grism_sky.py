@@ -13,6 +13,8 @@ __version__ = "$Rev: 199 $"
 # $Author: gbrammer $
 # $Date: 2011-05-22 01:59:38 -0400 (Sun, 22 May 2011) $
 
+import matplotlib.pyplot as plt
+
 import numpy as np
 import threedhst
 import threedhst.prep_flt_files
@@ -27,7 +29,7 @@ flat = flat_g141[1].data[5:1019,5:1019] / flat_f140[1].data[5:1019, 5:1019]
 flat[flat <= 0] = 5
 flat[flat > 5] = 5
 
-def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits'],  path_to_sky = '../CONF/', out_path='./', verbose=False):
+def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits'],  path_to_sky = '../CONF/', out_path='./', verbose=False, plot=False):
     """ 
     Process a (G141) grism exposure by dividing by the F140W imaging flat-field
     and then dividing by a master sky image.  
@@ -46,50 +48,55 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
         use_biweight=True
     
     xin, yin = bg.profile(flt, extension=1, flatcorr=True, biweight=use_biweight)
-    yin /= np.mean(yin[np.abs(xin-507) < 50])
+    #yin /= threedhst.utils.biweight(yin[(np.abs(xin-507) < 50) & np.isfinite(yin)])
     
-    if verbose:
+    if plot:
         plt.plot(xin, yin, color='black', linewidth=2)
     
     #### Loop through sky images and find the one whose column profile most
     #### closely matches the input image
     chi2 = 1.e10
+    keep = None
     for sky in list:
         xsky, ysky = bg.profile(flt=path_to_sky+sky, extension=0, flatcorr=False, biweight=True)
         ysky /= np.mean(ysky[np.abs(xsky-507) < 50])
-        
-        a = np.sum(ysky*yin)/np.sum(ysky*ysky)
-        if verbose:
-            plt.plot(xsky, ysky*a)
-        
+        #
         ok = np.isfinite(ysky) & np.isfinite(yin) & (yin*ysky != 0)
+        a = np.sum((ysky*yin)[ok])/np.sum((ysky*ysky)[ok])
+        if plot:
+            plt.plot(xsky, ysky*a)
+        #
         chi2_i = np.sum((ysky[ok]*a-yin[ok])**2)
         if verbose:
             print sky, chi2_i
-        
+        #
         if chi2_i < chi2:
             chi2 = chi2_i*1
             keep = sky
-        
+     
+    if keep is None:
+        keep = 'sky_goodsn_vhi.fits'
+            
     #### The best sky image
     sk = pyfits.open(path_to_sky+keep)
     sk[0].data[sk[0].data == 0] = 1.
     sk[0].data[~np.isfinite(sk[0].data)] = 1.
     
     #### Only flat correction
-    if verbose:
+    dq_ok = (im[3].data & (4+32+16+512+2048+4096)) == 0
+    mask = (seg == 0) & dq_ok
+    if plot:
         corr = im[1].data*flat#/sk[0].data
         corr -= threedhst.utils.biweight(corr[mask], mean=True)
         ds9.frame(1)
         ds9.v(corr, vmin=-0.5,vmax=0.5)
     
     #### Divide by the sky flat
-    mask = seg == 0
     corr = im[1].data*flat/sk[0].data
     im[1].data = corr*1.
     
     #### Show the result
-    if verbose:
+    if plot:
         corr -= threedhst.utils.biweight(corr[mask], mean=True)
         ds9.frame(2)
         ds9.v(corr, vmin=-0.5,vmax=0.5)
@@ -115,7 +122,7 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
     im.flush()
     
     #### Show the final result, compare to the earlier version in PREP_FLT
-    if verbose:
+    if plot:
         ds9.frame(3)
         ds9.v(im[1].data, vmin=-0.5,vmax=0.5)
     
@@ -148,7 +155,7 @@ def profile(flt='ibhm46ioq_flt.fits', extension=1, flatcorr=True, biweight=False
     xpix = np.arange(shp[0])
     
     if '_flt' in flt:
-        dq_ok = (im[3].data & (4+32+16+512)) == 0
+        dq_ok = (im[3].data & (4+32+16+512+2048+4096)) == 0
     else:
         dq_ok = np.isfinite(im[extension].data)
         

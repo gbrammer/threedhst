@@ -345,7 +345,7 @@ write(self,out_file=None, clobber=True)
             #### Primary HDU
             hdu = self.in_fits[0].copy()
             #### BinTable HDU
-            tbhdu = pyfits.new_table(self.in_fits[1].columns, nrows=nrows)
+            tbhdu = pyfits.new_table(self.in_fits[1].columns, nrows=nrows, fill=True)
             for i in range(nexp):
                 tbhdu.data[i] = (self.exposures[i].upper(), 'EXP-DTH', True)
             if nprod > 0:

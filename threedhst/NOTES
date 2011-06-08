@@ -5,6 +5,11 @@ Miscellaneous notes
 
 ---------
 
+Idea: stack grism spectra of bright stars to make a contamination model that 
+accounts for the changing PSF size and the flux in the wings.
+
+---------
+
 **** Done! *** 4/25/11 - analysis.make_fluximage()
 
 Idea for adding color information to the 3D-HST fluxcubes:

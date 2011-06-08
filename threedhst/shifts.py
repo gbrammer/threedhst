@@ -533,7 +533,8 @@ ShiftFile(infile)
         rowlines    = self.extractrows(linelist)
         self.processrows(rowlines)
         self.nrows = len(rowlines)
-    
+        self.filename = filename
+        
     def opencat(self, filename):
         """
         Input:
