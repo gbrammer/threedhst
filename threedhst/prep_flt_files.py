@@ -1249,12 +1249,12 @@ def make_targname_asn(asn_file, newfile=True, use_filtname=True, path_to_flt='..
             target='GEORGE-2'
         else:
             target='GEORGE-1'
-    
-    if target.startswith('GOODS-N'):
-        #### Some Visits were classi
-        date = im[0].header['DATE-OBS']
-        if date > '2011-04-01':
-            target = target.replace('GOODS-N','GOODS-N2')
+    # 
+    # if target.startswith('GOODS-N'):
+    #     #### Some Visits were redone
+    #     date = im[0].header['DATE-OBS']
+    #     if date > '2011-04-01':
+    #         target = target.replace('GOODS-N','GOODS-N2')
     
     product = target+'-'+type
     asn.product = product
