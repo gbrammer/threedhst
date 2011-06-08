@@ -1333,8 +1333,8 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
             x1, y1 = x0, y0
             for j in range(len(sfd.images)):
                 if sfd.images[j].startswith('ib374'):
-                    x1 = sf.xshift[j]
-                    y1 = sf.yshift[j]
+                    x1 = sfd.xshift[j]
+                    y1 = sfd.yshift[j]
                     #
                     for k in range(len(sfg.images)):
                         if sfg.images[k].startswith('ib374'):
