@@ -661,6 +661,8 @@ def flag_data_quality():
     threedhst.dq.checkDQ('ib3749050_asn.fits','ib3749050_asn.fits',                                               path_to_flt='./')
     threedhst.dq.checkDQ('ib3703050_asn.fits','ib3703060_asn.fits',                                               path_to_flt='./')
     
+    threedhst.dq.checkDQ('GOODS-N-23-G141_asn.fits','GOODS-N-23-G141_asn.fits',                                               path_to_flt='./')
+    
 def process_all():
     """
     Initial processing of all 3D-HST frames

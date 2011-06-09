@@ -103,7 +103,7 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
     
     #### Need to write an output file to use `profile`
     im.writeto(out_path+os.path.basename(flt).replace('.gz',''), clobber=True)
-    xin, yin = bg.profile(out_path+os.path.basename(flt).replace('.gz',''), extension=1, flatcorr=False)
+    xin, yin = bg.profile(out_path+os.path.basename(flt).replace('.gz',''), extension=1, flatcorr=False, biweight=True)
     
     im = pyfits.open(out_path+os.path.basename(flt).replace('.gz',''), mode='update')
 
