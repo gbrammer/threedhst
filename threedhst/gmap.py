@@ -939,7 +939,7 @@ def makePolygons(mapParams=None, polyregions=None, path='./', color='#00aa00', a
                     polystr += "  new GLatLng(%f, %f),\n" %(lat, lng)
                 
                 polystr = polystr[:-2]+"\n], \"%s\", %d, %f);\n" %(color, linewidth, alpha)
-                polystr += "map.addOverlay(polyL%d);" %(counter)
+                polystr += "map.addOverlay(polyL%d);\nmarker_list.push(polyL%d);" %(counter, counter)
                 js_lines.append(polystr)
                 counter+=1
                 example = """
@@ -948,6 +948,7 @@ def makePolygons(mapParams=None, polyregions=None, path='./', color='#00aa00', a
                   new GLatLng(37.4519, -122.1519)
                 ], "#ff0000", 10);
                 map.addOverlay(polyline);
+                marker_list.push(polyline);
                 """
             if line.strip('#').strip().startswith('text'):
                 poly = np.cast[float](line.split('(')[1].split(')')[0].split(','))
@@ -965,12 +966,12 @@ labelIcon.iconSize = new GSize(9*label_text.length, 15);
 labelIcon.iconAnchor = new GPoint(9*label_text.length/2, 7.5);
 
 labelIcon.image = "scripts/label_marker.php?text="+label_text;
-markerOptions = { icon:labelIcon};
+markerOptions = { icon:labelIcon };
 var point = new GLatLng(%f,%f);
 var marker = new GMarker(point, markerOptions);
 
+marker_list.push(marker);
 map.addOverlay(marker);            
-
                 """ %(label, lat, lng)
                 
                 add_link = """
