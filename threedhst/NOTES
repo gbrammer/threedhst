@@ -3,6 +3,19 @@ Test
 Miscellaneous notes
 ===================
 
+--------- 
+
+Own *DIRECT* flat fields - 
+
+You see residual features in the COSMOS F140W images that suggest that the pipeline flat field files are inadequate.  When I try to apply my own flat field, for some reason the exposure-weighted input images in Multidrizzle always had a few "nan" pixels
+that killed its ImageStats function.  I added the following lines to mate /usr/stsci/pyssg/2.5.4/multidrizzle/wfc3_input.py.
+
+bad = ~np.isfinite(_sciext.data)
+if len(_sciext.data[bad] > 0):
+    print '[GBB] replace nan pixels with 0...'
+    _sciext.data[bad] = 0.
+
+
 ---------
 
 Idea: stack grism spectra of bright stars to make a contamination model that 
