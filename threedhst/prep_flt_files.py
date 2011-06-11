@@ -780,6 +780,11 @@ def process_all():
     pair('ibhm30030_asn.fits','ibhm30040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
     pair('ibhm32030_asn.fits','ibhm32040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
     pair('ibhm33030_asn.fits','ibhm33040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
+
+    pair('ibhm34030_asn.fits','ibhm34040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
+    pair('ibhm35030_asn.fits','ibhm35040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
+    pair('ibhm36030_asn.fits','ibhm36040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
+    pair('ibhm37030_asn.fits','ibhm37040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=False, SKIP_GRISM=True, GET_SHIFT=True)
     
     pair('ibhm43030_asn.fits','ibhm43040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
     pair('ibhm44030_asn.fits','ibhm44040_asn.fits', ALIGN_IMAGE = ALIGN, IMAGES=['G141_fixed_sky.fits'], SKIP_DIRECT=SKIP)
@@ -1826,7 +1831,7 @@ make_segmap(root='ib3701ryq_flt', sigma=1)
         threedhst.regions.apply_dq_mask(root+'.seg.fits', extension=0,
            addval=100)
            
-def apply_best_flat(fits_file, verbose=False):
+def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True):
     """
     Check that the flat used in the pipeline calibration is the 
     best available.  If not, multiply by the flat used and divide
@@ -1847,13 +1852,18 @@ def apply_best_flat(fits_file, verbose=False):
         USED_PFL = im[0].header['PFLTFILE'].split('$')[1]
         BEST_PFL = find_best_flat(file, verbose=False)
         
+        if (use_cosmos_flat) & (im[0].header['DATE'] > '2010-11-01') & (im[0].header['FILTER'] == 'F140W'):
+            #### Updated F140W flat from COSMOS
+            BEST_PFL = 'cosmos_f140w_flat.fits'
+
+        IREF = os.environ["iref"]+"/"
+            
         MSG = 'PFLAT, %s: Used= %s, Best= %s' %(file, USED_PFL, BEST_PFL)
         
         if BEST_PFL is None:
             threedhst.showMessage("No PFL file found! (NEED %s)" %(USED_PFL), warn=True)
             exit
-            
-        IREF = os.path.dirname(BEST_PFL)+'/'
+                    
         BEST_PFL = os.path.basename(BEST_PFL)
                 
         if USED_PFL != BEST_PFL:

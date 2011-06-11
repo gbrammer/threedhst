@@ -313,6 +313,11 @@ def make_bg():
     files = glob.glob('ib37*flt.seg.fits')
     PATH = '/research/HST/GRISM/3DHST/GOODS-N/RAW/'
     
+    #### Direct flat-field
+    flat = pyfits.open(IREF+'/uc721143i_pfl.fits')[1].data[5:-5,5:-5]
+    flat[flat <= 0] = 5
+    flat[flat > 5] = 5
+    
     NF = len(files)
     idx = np.arange(NF)
     X = np.zeros((NF,1014.**2))
@@ -325,6 +330,9 @@ def make_bg():
             continue
         #
         fi = files[i].replace('.seg','')
+        if not os.path.exists(fi.replace('flt','flt.seg')):
+            continue
+        #    
         if os.path.exists(fi+'.mask.reg'):
             continue
         #
@@ -347,36 +355,54 @@ def make_bg():
      
     ### Fill empty pixels with no input images
     sky = avg
-    x,y = np.where(np.isfinite(sky) == False)
+    x,y = np.where((np.isfinite(sky) == False) | (sky/flat > 1.15))
     NX = len(x)
     pad = 1
     for i in range(NX):
         xi = x[i]
         yi = y[i]
-        sub = sky[xi-pad:xi+pad+1,yi-pad:yi+pad+1]
+        sub = sky[xi-pad:xi+pad+2,yi-pad:yi+pad+2]
         if (np.sum(sub) != 0.0):
             sky[xi,yi] = np.median(sub[np.isfinite(sub)])
     
+    still_bad = (np.isfinite(sky) == False) | (sky <= 0.01)
+    sky[still_bad] = flat[still_bad]
+    
+    # bad_flat = (flat < 0.5)
+    # sky[bad_flat] = flat[bad_flat]
+        
     im_sky = pyfits.PrimaryHDU(data=sky)
     im_n = pyfits.ImageHDU(data=nsum)
     im = pyfits.HDUList([im_sky, im_n])
     im.writeto('sky.fits', clobber=True)
+    
+    #### for DIRECT flat
+    flatim = pyfits.open('/research/HST/GRISM/IREF/uc721143i_pfl.fits')
+    flatim[1].data[5:-5,5:-5] = sky
+    flatim[3].data[5:-5,5:-5] = nsum
+    flatim.writeto('/research/HST/GRISM/IREF/cosmos_f140w_flat.fits', clobber=True)
     
 def regenerate_segmaps():
     import os
     import glob
     import threedhst
     
-    os.chdir('/research/HST/GRISM/3DHST/COSMOS/DATA')
+    os.chdir('/research/HST/GRISM/3DHST/COSMOS/PREP_FLT')
     os.chdir('/research/HST/GRISM/3DHST/GOODS-N/DATA')
     os.chdir('/research/HST/GRISM/3DHST/AEGIS/DATA')
     os.chdir('/research/HST/GRISM/3DHST/GOODS-S/DATA')
+    
+    IS_GRISM=True
+    
+    #### New F140W flat
+    IS_GRISM=False
+    
     drz = glob.glob('*G141.run')
     for d in drz:
         run = threedhst.prep_flt_files.MultidrizzleRun(d.replace('.run',''))
         for i in range(4):
             run.blot_back(ii=i, copy_new=(i is 0), WHT=False)
-            threedhst.prep_flt_files.make_segmap(run.flt[i], IS_GRISM=True)
+            threedhst.prep_flt_files.make_segmap(run.flt[i], IS_GRISM=IS_GRISM)
         files=glob.glob('*BLOT*')
         for file in files:
             os.remove(file)
