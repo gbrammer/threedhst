@@ -135,13 +135,12 @@ def cosmos():
     grism_asn = grism_asn
     
     #### Main loop for reduction
-    for i, asn in enumerate(grism_asn):
+    for i in range(len(grism_asn)):
+        asn = grism_asn[i]
         threedhst.options['PREFAB_DIRECT_IMAGE'] = '../PREP_FLT/' +  asn.replace('G141_asn','F140W_drz')
-        
         # threedhst.options['PIXFRAC'] = 0.8
         # threedhst.options['DRZRESOLA'] = '35'
         # threedhst.options['DRZSCALE'] = '0.10'
-        
         #### Images for a better fluxcube
         root=asn.replace('_asn.fits','')
         threedhst.options['OTHER_BANDS'] = []
@@ -149,7 +148,6 @@ def cosmos():
         #     out = threedhst.analysis.make_fluximage(grism_root=root,
         #                wavelength=wave)
         #     threedhst.options['OTHER_BANDS'].append([os.path.basename(out), 'F%03dW' %(wave/100), wave/10., 26.46])
-                    
         proc.reduction_script(asn_grism_file=asn)
         threedhst.analysis.make_SED_plots(grism_root=asn.split('_asn.fits')[0])
         go.clean_up()
