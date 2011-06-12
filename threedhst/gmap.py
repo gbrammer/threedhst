@@ -152,7 +152,15 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1,
     fullx = padL+padR+dx
     fully = padT+padB+dy
     full_image = np.zeros((fully,fullx))    
-    full_image[padB:-padT, padL:-padR] = data_copy
+    if (np.int(padT) == 0) | (np.int(padR) == 0):
+        if np.int(padT)+np.int(padR) == 0:
+            full_image[padB:, padR:] = data_copy
+        if (np.int(padT) == 0) & (np.int(padR) != 0):
+            full_image[padB:, padL:-padR] = data_copy
+        if (np.int(padT) != 0) & (np.int(padR) == 0):
+            full_image[padB:-padT, padL:] = data_copy
+    else:
+        full_image[padB:-padT, padL:-padR] = data_copy
     
     # print pixRatio, dx/xsize, fullx/256., fully/256.
     
