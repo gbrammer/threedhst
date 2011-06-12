@@ -311,14 +311,17 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     mask_img = drz_image+'[2]'
     
     #### Imcopy a subimage, necessary for very large input DRZ files
-    data_img = '/tmp/subSCI.fits'
-    mask_img = '/tmp/subWHT.fits'
+    data_img = 'subSCI.fits'
+    mask_img = 'subWHT.fits'
     
-    old_files = glob.glob('/tmp/sub[SW]*.fits')
+    old_files = glob.glob('sub[SW]*.fits')
     for old_file in old_files:
         #print old_file
-        os.remove(old_file)
-    
+        try:
+            os.remove(old_file)
+        except:
+            pass
+            
     # print xpix, ypix, 3*size, '\n\n'
     
     #return
@@ -335,30 +338,30 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     iraf.imcopy(drz_image+'[SCI][%d:%d,%d:%d]' %(np.max([xpix-3*size,1]),
                   np.min([xpix+3*size, drz_x-5]),
                   np.max([ypix-3*size,1]),
-                  np.min([ypix+3*size, drz_y-5])), '/tmp/subSCIa.fits',
+                  np.min([ypix+3*size, drz_y-5])), 'subSCIa.fits',
                   verbose=iraf.no)
     # iraf.imcopy(drz_image+'[WHT][%d:%d,%d:%d]' %(xpix-3*size, xpix+3*size, 
-    #               ypix-3*size, ypix+3*size), '/tmp/subWHT.fits',
+    #               ypix-3*size, ypix+3*size), 'subWHT.fits',
     #               verbose=iraf.no)
     
     #### Imcopy misses a few WCS keywords (that are zero)
-    iraf.hedit('/tmp/subSCIa.fits','CD1_2',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
-    iraf.hedit('/tmp/subSCIa.fits','CD2_1',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
-    # iraf.hedit('/tmp/subWHT.fits','CD1_2',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
-    # iraf.hedit('/tmp/subWHT.fits','CD2_1',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
+    iraf.hedit('subSCIa.fits','CD1_2',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
+    iraf.hedit('subSCIa.fits','CD2_1',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
+    # iraf.hedit('subWHT.fits','CD1_2',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
+    # iraf.hedit('subWHT.fits','CD2_1',0, add=iraf.yes, update=iraf.yes, verify=iraf.no, show=iraf.no)
     # 
-    # iraf.wcscopy(images='/tmp/tmpWHT.fits',refimages='/tmp/subSCI.fits',
+    # iraf.wcscopy(images='tmpWHT.fits',refimages='subSCI.fits',
     #      verbose=iraf.no)
     
-    sci = pyfits.open('/tmp/subSCIa.fits')
+    sci = pyfits.open('subSCIa.fits')
     sci[0].data = sci[0].data*0+1
-    sci.writeto('/tmp/subWHTa.fits', clobber=True)
+    sci.writeto('subWHTa.fits', clobber=True)
 
     fitsfile = (os.path.dirname(outfile)+'/'+
                 os.path.basename(outfile).split('.png')[0]+'.fits')
     
     ### NEED TO STRIP FITS HEADER
-    im = pyfits.open('/tmp/subSCIa.fits')
+    im = pyfits.open('subSCIa.fits')
     sci = im[0].data
                 
     s_hdu = pyfits.PrimaryHDU(sci)
@@ -373,9 +376,9 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
         except:
             s_list[0].header.update(key, 0)
             
-    s_list.writeto('/tmp/subSCI.fits', clobber=True)
+    s_list.writeto('subSCI.fits', clobber=True)
     
-    im = pyfits.open('/tmp/subWHTa.fits')
+    im = pyfits.open('subWHTa.fits')
     sci = im[0].data
     w_hdu = pyfits.PrimaryHDU(sci)
     w_list = pyfits.HDUList([w_hdu])
@@ -389,7 +392,7 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
         except:
             s_list[0].header.update(key, 0)
     
-    w_list.writeto('/tmp/subWHT.fits', clobber=True)
+    w_list.writeto('subWHT.fits', clobber=True)
     
     old_files = glob.glob(fitsfile+'*')
     for old_file in old_files:

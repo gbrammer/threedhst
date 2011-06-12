@@ -1636,7 +1636,7 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
                     ### Default to center pixel
                     coeffs_lines[i] = 'refpix %9.3f %9.3f\n' %(inNX*1./2, inNY*1./2)
         
-        fp = open('/tmp/coeffs1.dat','w')
+        fp = open('tmp_coeffs1.dat','w')
         fp.writelines(coeffs_lines)
         fp.close()
         
@@ -1674,7 +1674,7 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
         if SCI:
             iraf.blot(data='drz_sci.fits',
                 outdata=self.flt[ii]+'.BLOT.SCI.fits', scale=self.scl,
-                coeffs='/tmp/coeffs1.dat', xsh=self.xsh[ii], 
+                coeffs='tmp_coeffs1.dat', xsh=self.xsh[ii], 
                 ysh=self.ysh[ii], 
                 rot=self.rot[ii], outnx=inNX, outny=inNY, align='center', 
                 shft_un='input', shft_fr='input', in_un='cps', out_un='cps', 
@@ -1684,7 +1684,7 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
         if WHT:
             iraf.blot(data='drz_wht.fits',
                 outdata=self.flt[ii]+'.BLOT.WHT.fits', scale=self.scl,
-                coeffs='/tmp/coeffs1.dat', xsh=self.xsh[ii], 
+                coeffs='tmp_coeffs1.dat', xsh=self.xsh[ii], 
                 ysh=self.ysh[ii], 
                 rot=self.rot[ii], outnx=inNX, outny=inNY, align='center', 
                 shft_un='input', shft_fr='input', in_un='cps', out_un='cps', 

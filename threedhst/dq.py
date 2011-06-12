@@ -76,6 +76,15 @@ checkDQ(asn_direct_file='ib3704050_asn.fits',
     `master` is an instance of Tkinter.tk()
     
     Widget application.
+    
+    Just display all images in ds9 and mask files if they exist:
+    
+    ds9 & 
+    files=`grep flt files.info |awk '{print $1}'`
+    for f in $files; do  newframe ../RAW/${f}; reg=`echo $f |sed "s/gz/mask.reg/"`; ds9_reg $reg; done
+    # make polygon region
+    xpaset -p ds9 regions save xxx_flt.fits.mask.reg
+    
     """
     
     def __init__(self, asn_direct_file='ib3704050_asn.fits',

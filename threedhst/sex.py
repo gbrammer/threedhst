@@ -347,7 +347,7 @@ SExtractor()
         
         if mode == 'waiterror' or mode =='wait':
             
-            fp = open('/tmp/stderr','w')
+            fp = open('sex_stderr','w')
             proc = Popen(clstr.split(),executable='sex', stdout=PIPE,stderr=fp)
             res = proc.wait()
             fp.close()
@@ -355,7 +355,7 @@ SExtractor()
             sout, serr = proc.communicate()
             
             ## Read stderr output
-            fp = open('/tmp/stderr','r')
+            fp = open('sex_stderr','r')
             serr = ' '.join(fp.readlines())
             fp.close()
                         
@@ -956,7 +956,7 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
             #### Send STDERR output to temporary file because 
             #### swarp seems to spawn additional processed for large files
             #### and proc.wait() never finishes
-            fp = open('/tmp/stderr','w')
+            fp = open('sex_stderr','w')
             proc = Popen(clstr.split(),executable='swarp', stdout=PIPE,
                          stderr=fp)
             res = proc.wait()
@@ -968,7 +968,7 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
             sout, serr = proc.communicate()
             
             ## Read stderr output
-            fp = open('/tmp/stderr','r')
+            fp = open('sex_stderr','r')
             serr = ' '.join(fp.readlines())
             fp.close()
             
