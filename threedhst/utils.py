@@ -478,12 +478,11 @@ combine_asn_shifts(asn_list, out_root='combined', path_to_FLT='./',
     #### Run Multidrizzle with combined ASN and shifts
     if run_multidrizzle:
         run_asn = out_root+'_asn.fits'
-        threedhst.process_grism.fresh_flt_files(run_asn,
-            from_path='../../RAW')
-        
+        #threedhst.process_grism.fresh_flt_files(run_asn,
+        #    from_path='../../RAW')s
         threedhst.prep_flt_files.startMultidrizzle(root=run_asn, 
-            use_shiftfile=True, skysub=True, final_scale=0.06, updatewcs=True, 
-            pixfrac=0.8)
+            use_shiftfile=True, skysub=False, final_scale=0.06, updatewcs=False, 
+            pixfrac=0.8, driz_cr=False, median=False)
 
 def asn_file_info(asn_file, verbose=1, path_to_FLT = './'):
     """

@@ -682,31 +682,7 @@ def process_all():
     for i  in range(28):
         pair(direct[i], grism[i], ALIGN_IMAGE = ALIGN, SKIP_GRISM=False,
              GET_SHIFT=True, DIRECT_HIGHER_ORDER=2)
-    
-    #### Shifts for 26, 27 need to be fixed!
-    
-    #### New visits for earlier failed ones
-    direct = glob.glob('ib374*060_asn.fits')
-    grism = glob.glob('ib374*050_asn.fits')
-    for i  in range(len(direct)):
-        old = threedhst.prep_flt_files.make_targname_asn(direct[i], newfile=False, use_filtname=False).replace('N2','N').replace('asn','drz')+'[1]'
-        try:
-            os.remove('/tmp/align.fits')
-        except:
-            pass
-        #
-        iraf.imcopy(old,'/tmp/align.fits')
-        pair(direct[i], grism[i], ALIGN_IMAGE = '/tmp/align.fits',
-             SKIP_GRISM=False,
-             SKIP_DIRECT=False,
-             GET_SHIFT=True, DIRECT_HIGHER_ORDER=2)
-    # Compare
-    threedhst.prep_flt_files.startMultidrizzle('GOODS-N-31-G141_asn.fits',
-            use_shiftfile=True, skysub=False,
-            final_scale=0.06, pixfrac=0.8, driz_cr=False,
-            updatewcs=False, clean=True, median=False,
-            refimage='GOODS-N2-31-G_drz.fits[1]')
-    
+        
     # Make mosaic
     direct_files = glob.glob('GOODS-N*[0-9]*-F140W_asn.fits')
     threedhst.utils.combine_asn_shifts(direct_files, out_root='GOODS-N-F140W',
