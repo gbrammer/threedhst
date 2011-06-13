@@ -435,6 +435,10 @@ polygons_intersect(px, py, qx, qy)
     if point_in_polygon(qx[0],qy[0],px,py):
         return True
     
+    ### Regions are identical
+    if np.sum(px-qx+py-qy) == 0:
+        return True
+        
     ### All tests failed, so polygons don't intersect
     return False
 
