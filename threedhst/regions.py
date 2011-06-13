@@ -190,7 +190,7 @@ def trim_edge_objects(sexCat):
         if kill[i] == 1:
             sexCat.popItem(id[i])
     
-def wcs_polygon(fits_file, extension=1):
+def wcs_polygon(fits_file, extension=1, use_pywcs=False):
     """    
 X, Y = wcs_polygon(fits_file, extension=1)
     
@@ -217,7 +217,7 @@ will compute from header directly.
     except:
         pywcs_exists = False   
     
-    if pywcs_exists:
+    if pywcs_exists & use_pywcs:
         wcs = pywcs.WCS(sci)
         footprint = wcs.calcFootprint()
         regX = footprint[:,0]    
