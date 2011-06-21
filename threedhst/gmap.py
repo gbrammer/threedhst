@@ -798,13 +798,14 @@ def parseImageString(IMAGE_STRING="test.fits[1]*1.", default_extension=1):
     return image, extension, scale
     
 def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
-                 path='/Users/gbrammer/Sites/FITS/', tileroot='tile', aper_list=[15], polyregions=None):
+                 path=os.getenv('HOME')+'/Sites/FITS/', tileroot='tile', aper_list=[15], polyregions=None):
     """
     Make a google map viewer for a FITS image.
     """
     import threedhst
     import pyfits
     import numpy as np
+    
     
     #### Make into lists if not already
     if FITS_IMAGES.__class__ == ''.__class__:
