@@ -459,7 +459,11 @@ Pipeline to process a set of grism/direct exposures.
         #### Workaround to get 0th order contam. in the right place for the fluxcube
         if threedhst.options['CONFIG_FILE'] == 'WFC3.IR.G141.V1.0.conf':
             conf.params['BEAMB'] = '-220 220'    
-
+        
+        #
+        if threedhst.options['CONFIG_FILE'].startswith('WFC3.IR.G141'):
+            conf.params['YOFF_A'] = '2.0'
+            
         conf.writeto(ROOT_GRISM+'_%0d_full.conf' %chip)
         
         chip+=1
