@@ -661,11 +661,6 @@ Pipeline to process a set of grism/direct exposures.
     swarpOtherBands()
     mag_zeropoint='%5.2f' %(np.cast[float](threedhst.options['MAG_ZEROPOINT']))
     
-    try:
-        sys_result = os.system('rm /tmp/coeffs1.dat')
-    except:
-        pass
-        
     if threedhst.options['OTHER_BANDS']:
         #### If OTHER_BANDS are available, use them for the fluxcube, start
         #### with the F140W image.
@@ -718,6 +713,12 @@ Pipeline to process a set of grism/direct exposures.
     
     #### Try matching the FLX WCS to the grism images, could need to add shifts
     #threedhst.process_grism.update_FLX_WCS(path_to_FLT='./')
+    
+    #### Need to get this file out to avoid permissions conflicts
+    try:
+        sys_result = os.system('rm /tmp/coeffs1.dat')
+    except:
+        pass
         
     threedhst.currentRun['step'] = 'FCUBEPREP'
     
