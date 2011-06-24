@@ -1695,34 +1695,25 @@ def update_FLX_WCS(path_to_FLT='../RAW/'):
         #
         print 'Updating WCS header keywords: %s\n' %(flx_file)
         flx.flush()
-#
-def go_update_all_catalogs():
-    import glob
-    import threedhst
-    
-    for dir in ['COSMOS','GOODS-N','AEGIS','SN-PRIMO','SN-GEORGE']:
-        os.chdir('/research/HST/GRISM/3DHST/'+dir+'/DATA/')
-        files=glob.glob('*G141_asn.fits')
-        os.chdir('../')
-        for file in files:
-            print file.split('_asn')[0]
-            threedhst.process_grism.update_catalogs(root=file.split('_asn')[0], 
-                  CONT_LAM=1.4e4)
             
-def update_catalogs(root='COSMOS-3-G141', HTML_DIR='./HTML/', DATA_DIR='./DATA/', CONT_LAM = 1.4e4):
+def update_catalogs(root='COSMOS-3-G141', HTML_DIR='./HTML/', DATA_DIR='./DATA/', CONT_LAM = 1.4e4, GRISM = 'G141'):
     """
     Add columns to the SExtractor catalogs:
         
         HAS_SPEC = 1/0 if a given object actually has a grism spectrum.
         FCONTAM = fractional contamination at lambda = CONT_LAM 
-        
+        FCOVER = fraction of pixels between 1.15 and 1.6 microns that have grism coverage
     (Run in root directory of a given field)
-    
+        ACONTAM = average contamination within coverage region
+        MCONTAM = maximum contamination within coverage region
     """  
     import os
     import numpy as np
     import threedhst.catIO as catIO
-          
+    
+    if GRISM == 'G141':
+        COVER = [1.15e4, 1.6e4]
+              
     PWD = os.getcwd()
     if not os.path.exists('./DATA/'):
         os.chdir('../')
@@ -1735,7 +1726,10 @@ def update_catalogs(root='COSMOS-3-G141', HTML_DIR='./HTML/', DATA_DIR='./DATA/'
     
     has_spec = sexCat.id*0
     fcontam = sexCat.id*0.
-        
+    acontam = fcontam*0.
+    mcontam = fcontam*0.
+    fcover = fcontam*0.
+    
     #### Loop through objects looking for spectra and contam. fraction
     for idx, id in enumerate(sexCat.id):
         ascii_spec = HTML_DIR+'/ascii/'+root+'_%05d.dat' %(id)
@@ -1749,19 +1743,39 @@ def update_catalogs(root='COSMOS-3-G141', HTML_DIR='./HTML/', DATA_DIR='./DATA/'
             
             cint = np.interp(CONT_LAM, spec.lam, spec.contam)
             fint = np.interp(CONT_LAM, spec.lam, spec.flux)
-            
+                        
             try:
                 fcontam[idx] = cint/fint
             except:
                 "Above will have error for 0/0"
                 fcontam[idx] = -1
-    
+            
+            sub = (spec.lam > COVER[0]) & (spec.lam < COVER[1])
+            sub_covered = (spec.lam > COVER[0]) & (spec.lam < COVER[1]) & (spec.flux != 0) & np.isfinite(spec.flux)
+            
+            fcover[idx] = len(spec.lam[sub_covered])*1./len(spec.lam[sub])
+            if fcover[idx] > 0:
+                acontam[idx] = np.mean((spec.contam/spec.flux)[sub_covered])
+                mcontam[idx] = np.max((spec.contam/spec.flux)[sub_covered])
+            else:
+                acontam[idx] = -1
+                mcontam[idx] = -1
+                
     #### Now add the columns to the catalogs
     if 'HAS_SPEC' not in sexCat.column_names:
         status = sexCat.addColumn(data=has_spec, name='HAS_SPEC', format='%d', comment='Equal to 1 if there is a grism spectrum for a given object')
     
     if 'FCONTAM' not in sexCat.column_names:
         status = sexCat.addColumn(data=fcontam, name='FCONTAM', format='%8.2f', comment='Contamination fraction at %.2e A.' %(CONT_LAM))
+    
+    if 'ACONTAM' not in sexCat.column_names:
+        status = sexCat.addColumn(data=acontam, name='ACONTAM', format='%8.2f', comment='Average contamination at %.2e-%.2e A.' %(COVER[0], COVER[1]))
+    
+    if 'MCONTAM' not in sexCat.column_names:
+        status = sexCat.addColumn(data=mcontam, name='MCONTAM', format='%8.2f', comment='Max contamination at %.2e-%.2e A.' %(COVER[0], COVER[1]))
+    
+    if 'FCOVER' not in sexCat.column_names:
+        status = sexCat.addColumn(data=fcover, name='FCOVER', format='%8.2f', comment='Fraction of pixels with grism coverage at %.2e-%.2e A.' %(COVER[0], COVER[1]))
                 
     #### Done
     sexCat.write()
