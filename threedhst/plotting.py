@@ -168,7 +168,7 @@ make_data_products()
     #############################################
     #### Copy catalog to HTML directory
     #############################################
-    shutil.copy(ROOT_GRISM+'_drz.cat','../HTML/')
+    status = os.system('cp '+ROOT_GRISM+'_drz.cat ../HTML/')
     
     mapParams['ZOOMLEVEL']=15
     #### Make the full HTML file
