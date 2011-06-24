@@ -331,7 +331,7 @@ multiple times for each zoom level and image combination.
             zma*=0.2
             
         #### Grism
-        sw.swarpImage(ROOT_GRISM.lower()+'_drz.fits[1]', mode='wait')
+        sw.swarpImage(ROOT_GRISM+'_drz.fits[1]', mode='wait')
         im = pyfits.open('coadd.fits')
         #im[0].data *= 4**(aper-15)
         if aper <= 14:
@@ -345,7 +345,7 @@ multiple times for each zoom level and image combination.
                                                  verbose=verbose)
         
         #### Model
-        sw.swarpImage(ROOT_GRISM.lower()+'CONT_drz.fits[1]', mode='wait')
+        sw.swarpImage(ROOT_GRISM+'CONT_drz.fits[1]', mode='wait')
         im = pyfits.open('coadd.fits')
         #im[0].data *= 4**(aper-15)
         if aper <= 14:
