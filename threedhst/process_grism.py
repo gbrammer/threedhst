@@ -431,7 +431,7 @@ Pipeline to process a set of grism/direct exposures.
 
         #### Need to scale the 0th order sensitivity curve
         # if conf.params['SENSITIVITY_B'] == 'wfc3_abscal_IRg141_0th_sens.fits':
-        zeroth_list = ['wfc3_abscal_IRg141_0th_sens.fitsX', 'WFC3.IR.G141.0th.sens.1.fitsX']
+        zeroth_list = ['wfc3_abscal_IRg141_0th_sens.fits', 'WFC3.IR.G141.0th.sens.1.fits']
         if conf.params['SENSITIVITY_B'] in zeroth_list:
             zeroth_file = pyfits.open(conf.path+'/'+conf.params['SENSITIVITY_B'])
             zeroth_data = zeroth_file[1].data
@@ -461,8 +461,9 @@ Pipeline to process a set of grism/direct exposures.
             conf.params['BEAMB'] = '-220 220'    
         
         #
-        if threedhst.options['CONFIG_FILE'].startswith('WFC3.IR.G141'):
-            conf.params['YOFF_A'] = '2.0'
+        if threedhst.options['CONFIG_FILE'].startswith('WFC3.IR'):
+            #conf.params['YOFF_A'] = '2.0'
+            pass
             
         conf.writeto(ROOT_GRISM+'_%0d_full.conf' %chip)
         
@@ -890,7 +891,7 @@ Pipeline to process a set of grism/direct exposures.
         flt = pyfits.open(expi+'_flt.fits','update')
         cont = pyfits.open('../OUTPUT_'+threedhst.options['GRISM_NAME']+
                            '/'+expi+'_flt_2.CONT.fits')
-        flt[1].data = cont[1].data
+        flt[1].data  = cont[1].data
         
         if threedhst.options['GRISM_NAME'] == 'G800L':
             cont = pyfits.open('../OUTPUT_'+threedhst.options['GRISM_NAME']+
