@@ -721,7 +721,7 @@ Pipeline to process a set of grism/direct exposures.
     
     #### Need to get this file out to avoid permissions conflicts
     try:
-        sys_result = os.system('rm /tmp/coeffs1.dat')
+        sys_result = os.system('rm tmp_coeffs1.dat')
     except:
         pass
         
