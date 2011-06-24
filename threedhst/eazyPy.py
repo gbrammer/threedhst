@@ -119,23 +119,26 @@ tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
               'templam':templam,'temp_seds':temp_seds,'da':da,'db':db}
               
     ###### .pz
-    f = open(root+'.pz','rb')
-    s = np.fromfile(file=f,dtype=np.int32, count=2)
-    NZ=s[0]
-    NOBJ=s[1]
-    chi2fit = np.fromfile(file=f,dtype=np.double,count=NZ*NOBJ).reshape((NOBJ,NZ)).transpose()
-    
-    ### This will break if APPLY_PRIOR No
-    s = np.fromfile(file=f,dtype=np.int32, count=1)
-    NK = s[0]
-    kbins = np.fromfile(file=f,dtype=np.double,count=NK)
-    priorzk = np.fromfile(file=f,dtype=np.double,count=NZ*NK).reshape((NK,NZ)).transpose()
-    kidx = np.fromfile(file=f,dtype=np.int32,count=NOBJ)
-    f.close()
-    
-    pz = {'NZ':NZ,'NOBJ':NOBJ,'NK':NK,\
-              'chi2fit':chi2fit,'kbins':kbins,'priorzk':priorzk,'kidx':kidx}
-          
+    if os.path.exists(root+'.pz'):
+        f = open(root+'.pz','rb')
+        s = np.fromfile(file=f,dtype=np.int32, count=2)
+        NZ=s[0]
+        NOBJ=s[1]
+        chi2fit = np.fromfile(file=f,dtype=np.double,count=NZ*NOBJ).reshape((NOBJ,NZ)).transpose()
+
+        ### This will break if APPLY_PRIOR No
+        s = np.fromfile(file=f,dtype=np.int32, count=1)
+        NK = s[0]
+        kbins = np.fromfile(file=f,dtype=np.double,count=NK)
+        priorzk = np.fromfile(file=f,dtype=np.double,count=NZ*NK).reshape((NK,NZ)).transpose()
+        kidx = np.fromfile(file=f,dtype=np.int32,count=NOBJ)
+        f.close()
+
+        pz = {'NZ':NZ,'NOBJ':NOBJ,'NK':NK,\
+                  'chi2fit':chi2fit,'kbins':kbins,'priorzk':priorzk,'kidx':kidx}
+    else:
+        pz = None
+        
     ###### Done.    
     return tempfilt, coeffs, temp_sed, pz
 
@@ -229,6 +232,9 @@ zgrid, pz = getEazyPz(idx, \
                                                     OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, \
                                                     CACHE_FILE = CACHE_FILE)
     
+    if pz is None:
+        return None, None
+    
     ###### Get p(z|m) from prior grid
     kidx = pz['kidx'][idx]
     #print kidx, pz['priorzk'].shape
@@ -305,18 +311,19 @@ PlotSEDExample(idx=20)
     plt.ylabel(r'$f_\lambda$')
     
     ##### P(z)
-    ax = fig.add_subplot(122)
-    ax.plot(zgrid, pz, linewidth=1.0, color='orange',alpha=alph)
-    ax.fill_between(zgrid,pz,np.zeros(zgrid.size),color='yellow')
-    
-    if zout.z_spec[qz[idx]] > 0:
-        ax.plot(zout.z_spec[qz[idx]]*np.ones(2),np.array([0,1e6]),color='red',alpha=0.4)
-        
-    #### Set axis range and titles
-    ax.set_xlim(0,np.ceil(np.max(zgrid)))
-    ax.set_ylim(0,1.1*max(pz))
-    plt.xlabel(r'$z$')
-    plt.ylabel(r'$p(z)$')
+    if pz is not None:
+        ax = fig.add_subplot(122)
+        ax.plot(zgrid, pz, linewidth=1.0, color='orange',alpha=alph)
+        ax.fill_between(zgrid,pz,np.zeros(zgrid.size),color='yellow')
+
+        if zout.z_spec[qz[idx]] > 0:
+            ax.plot(zout.z_spec[qz[idx]]*np.ones(2),np.array([0,1e6]),color='red',alpha=0.4)
+
+        #### Set axis range and titles
+        ax.set_xlim(0,np.ceil(np.max(zgrid)))
+        ax.set_ylim(0,1.1*max(pz))
+        plt.xlabel(r'$z$')
+        plt.ylabel(r'$p(z)$')
         
     if writePNG:
         fig.savefig('/tmp/test.pdf',dpi=100)
