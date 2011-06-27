@@ -128,14 +128,18 @@ tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
 
         ### This will break if APPLY_PRIOR No
         s = np.fromfile(file=f,dtype=np.int32, count=1)
-        NK = s[0]
-        kbins = np.fromfile(file=f,dtype=np.double,count=NK)
-        priorzk = np.fromfile(file=f,dtype=np.double,count=NZ*NK).reshape((NK,NZ)).transpose()
-        kidx = np.fromfile(file=f,dtype=np.int32,count=NOBJ)
+        
+        if len(s) > 0:
+            NK = s[0]
+            kbins = np.fromfile(file=f,dtype=np.double,count=NK)
+            priorzk = np.fromfile(file=f, dtype=np.double, count=NZ*NK).reshape((NK,NZ)).transpose()
+            kidx = np.fromfile(file=f,dtype=np.int32,count=NOBJ)
+            pz = {'NZ':NZ,'NOBJ':NOBJ,'NK':NK, 'chi2fit':chi2fit, 'kbins':kbins, 'priorzk':priorzk,' kidx':kidx}
+        else:
+            pz = None
+        
         f.close()
-
-        pz = {'NZ':NZ,'NOBJ':NOBJ,'NK':NK,\
-                  'chi2fit':chi2fit,'kbins':kbins,'priorzk':priorzk,'kidx':kidx}
+        
     else:
         pz = None
         
