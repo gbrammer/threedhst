@@ -78,7 +78,21 @@ class EazyParam():
         self.params = params
         self.param_names = params.keys()
         self.formats = formats
-                
+    
+    def show_filters(self):
+        for filter in self.filters:
+            print ' F%d, %s, lc=%f' %(filter.fnumber, filter.name, filter.lambda_c)
+    
+    def write(self, file=None):
+        if file == None:
+            print 'No output file specified...'
+        else:
+            fp = open(file,'w')
+            for param in self.param_names:
+                str = '%-25s %'+self.formats[param]+'\n'
+                fp.write(str %(param, self.params[param]))
+            fp.close()
+            
     #
     def __getitem__(self, param_name):
         """
@@ -188,7 +202,7 @@ tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
             kbins = np.fromfile(file=f,dtype=np.double,count=NK)
             priorzk = np.fromfile(file=f, dtype=np.double, count=NZ*NK).reshape((NK,NZ)).transpose()
             kidx = np.fromfile(file=f,dtype=np.int32,count=NOBJ)
-            pz = {'NZ':NZ,'NOBJ':NOBJ,'NK':NK, 'chi2fit':chi2fit, 'kbins':kbins, 'priorzk':priorzk,' kidx':kidx}
+            pz = {'NZ':NZ,'NOBJ':NOBJ,'NK':NK, 'chi2fit':chi2fit, 'kbins':kbins, 'priorzk':priorzk,'kidx':kidx}
         else:
             pz = None
         
