@@ -1,7 +1,7 @@
 """
 eazyPy: routines for reading and plotting Eazy output
 
-    readEazyParam
+    EazyParam
     readEazyBinary
     getEazySED
     trapz
@@ -24,25 +24,79 @@ import pylab
 
 import threedhst.catIO as catIO
 
-def readEazyParam(PARAM_FILE='zphot.param'):
+class ParamFilter:
+    def __init__(self, line='#  Filter #20, RES#78: COSMOS/SUBARU_filter_B.txt - lambda_c=4458.276253'):
+        
+        self.lambda_c = float(line.split('lambda_c=')[1])
+        self.name = line.split()[4]
+        self.fnumber = int(line.split('RES#')[1].split(':')[0])
+        self.cnumber = int(line.split('Filter #')[1].split(',')[0])
+        
+class EazyParam():
     """
-params = readEazyParam(PARAM_FILE='zphot.param')
-params['Z_STEP']
->>> '0.010'
-    
     Read an Eazy zphot.param file.
-    """
-    f = open(PARAM_FILE,'r')
-    lines = f.readlines()
-    params = {'PARAM_FILE':PARAM_FILE}
-    for line in lines:
-        if line.startswith('#') is False:
-            lsplit = line.split()
-            if lsplit.__len__() >= 2:
-                params[lsplit[0]] = lsplit[1]
-    f.close()
-    return params
+    
+    Example: 
+    
+    >>> params = EazyParam(PARAM_FILE='zphot.param')
+    >>> params['Z_STEP']
+    '0.010'
 
+    """    
+    def __init__(self, PARAM_FILE='zphot.param'):
+        self.filename = PARAM_FILE
+        
+        f = open(PARAM_FILE,'r')
+        self.lines = f.readlines()
+        f.close()
+        
+        self._process_params()
+        
+        filters = []
+        for line in self.lines:
+            if line.startswith('#  Filter'):
+                filters.append(ParamFilter(line))
+        
+        self.NFILT = len(filters)
+        self.filters = filters
+        
+    def _process_params(self):
+        params = {}
+        formats = {}
+        for line in self.lines:
+            if line.startswith('#') is False:
+                lsplit = line.split()
+                if lsplit.__len__() >= 2:
+                    params[lsplit[0]] = lsplit[1]
+                    try:
+                        flt = float(lsplit[1])
+                        formats[lsplit[0]] = 'f'
+                        params[lsplit[0]] = flt
+                    except:
+                        formats[lsplit[0]] = 's'
+                    
+        self.params = params
+        self.param_names = params.keys()
+        self.formats = formats
+                
+    #
+    def __getitem__(self, param_name):
+        """
+    __getitem__(param_name)
+
+        >>> cat = mySexCat('drz.cat')
+        >>> print cat['NUMBER']
+
+        """
+        if param_name not in self.param_names:
+            print ('Column %s not found.  Check `column_names` attribute.'
+                    %column_name)
+            return None
+        else:
+            #str = 'out = self.%s*1' %column_name
+            #exec(str)
+            return self.params[param_name]
+    
 def readEazyBinary(MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same'):
     """
 tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
@@ -181,7 +235,7 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
     
     lci = tempfilt['lc'].copy()
     
-    params = readEazyParam(PARAM_FILE=OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.param')
+    params = EazyParam(PARAM_FILE=OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.param')
     abzp = np.float(params['PRIOR_ABZP'])
     
     ##### Broad-band SED
