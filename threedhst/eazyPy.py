@@ -24,6 +24,52 @@ import pylab
 
 import threedhst.catIO as catIO
 
+class FilterDefinition:
+    def __init__(self):
+        self.name = None
+        self.wavelength = None
+        self.transmision = None
+        
+class FilterFile:
+    def __init__(self, file='FILTER.RES.v8.R300'):
+        lines = open(file).readlines()
+        filters = []
+        wave = []
+        for line in lines:
+            if 'lambda_c' in line:
+                if len(wave) > 0:
+                    new_filter = FilterDefinition()
+                    new_filter.name = header
+                    new_filter.wavelength = np.cast[float](wave)
+                    new_filter.transmission = np.cast[float](trans)
+                    filters.append(new_filter)
+                    
+                header = ' '.join(line.split()[1:])
+                wave = []
+                trans = []
+            else:
+                lspl = np.cast[float](line.split())
+                wave.append(lspl[1])
+                trans.append(lspl[2])
+            
+        self.filters = filters
+        self.NFILT = len(filters)
+    
+    def names(self):
+        for i in range(len(self.filters)):
+            print '%5d %s' %(i+1, self.filters[i].name)
+    
+    def write(self, file='xxx.res', verbose=True):
+        fp = open(file,'w')
+        for filter in self.filters:
+            fp.write('%6d %s\n' %(len(filter.wavelength), filter.name))
+            for i in range(len(filter.wavelength)):
+                fp.write('%-6d %.5e %.5e\n' %(i+1, filter.wavelength[i], filter.transmission[i]))
+        
+        fp.close()
+        if verbose:
+            print 'Wrote <%s>.' %(file)
+            
 class ParamFilter:
     def __init__(self, line='#  Filter #20, RES#78: COSMOS/SUBARU_filter_B.txt - lambda_c=4458.276253'):
         
