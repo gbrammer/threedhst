@@ -26,12 +26,18 @@ import threedhst.catIO as catIO
 
 class FilterDefinition:
     def __init__(self):
+        """
+        Placeholder for the filter definition information.
+        """
         self.name = None
         self.wavelength = None
         self.transmision = None
         
 class FilterFile:
     def __init__(self, file='FILTER.RES.v8.R300'):
+        """
+        Read a filter file.
+        """
         lines = open(file).readlines()
         filters = []
         wave = []
@@ -56,10 +62,16 @@ class FilterFile:
         self.NFILT = len(filters)
     
     def names(self):
+        """
+        Print the filter names.
+        """
         for i in range(len(self.filters)):
             print '%5d %s' %(i+1, self.filters[i].name)
     
     def write(self, file='xxx.res', verbose=True):
+        """
+        Dump the filter information to a filter file.
+        """
         fp = open(file,'w')
         for filter in self.filters:
             fp.write('%6d %s\n' %(len(filter.wavelength), filter.name))
