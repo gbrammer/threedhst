@@ -38,7 +38,10 @@ class FilterFile:
         """
         Read a filter file.
         """
-        lines = open(file).readlines()
+        fp = open(file)
+        lines = fp.readlines()
+        fp.close()
+        
         filters = []
         wave = []
         for line in lines:
