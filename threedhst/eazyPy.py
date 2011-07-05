@@ -57,7 +57,13 @@ class FilterFile:
                 lspl = np.cast[float](line.split())
                 wave.append(lspl[1])
                 trans.append(lspl[2])
-            
+        # last one
+        new_filter = FilterDefinition()
+        new_filter.name = header
+        new_filter.wavelength = np.cast[float](wave)
+        new_filter.transmission = np.cast[float](trans)
+        filters.append(new_filter)
+           
         self.filters = filters
         self.NFILT = len(filters)
     
