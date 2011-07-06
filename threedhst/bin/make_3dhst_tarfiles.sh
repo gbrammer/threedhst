@@ -1,0 +1,44 @@
+#!/bin/sh
+##### In a directory like ${THREEDHST}/COSMOS, go to "HTML" and make
+##### tarfiles of the thumbnails, 2D spec FITS and PNG images.
+
+if [ -e "HTML" ]; then 
+    echo "True"
+else
+    echo "Need to be in a ${THREEDHST} field directory"
+    exit
+fi
+
+cd HTML
+
+roots=`ls *threedhst.param |sed "s/.threedhst.param//"`
+for root in $roots; do
+    
+    if [ -e "images/${root}_2D.tar.gz"]; then
+        echo "images/${root}_2D.tar.gz"
+    else
+        cd images
+        echo "${root}_2D.tar.gz"
+        tar czf ${root}_2D.tar.gz ${root}*2D.fits.gz
+        cd ..
+    #
+    if [ -e "images/${root}_thumbs.tar.gz"]; then
+        echo "images/${root}_thumbs.tar.gz"
+    else
+        cd images
+        echo "${root}_thumbs.tar.gz"
+        tar czf ${root}_thumbs.tar.gz ${root}*thumb.fits.gz
+        cd ..
+    #
+    if [ -e "images/${root}_png.tar.gz"]; then
+        echo "images/${root}_png.tar.gz"
+    else
+        cd images
+        echo "${root}_png.tar.gz"
+        tar czf ${root}_png.tar.gz ${root}*.png
+        cd ..
+    
+    
+    
+    
+
