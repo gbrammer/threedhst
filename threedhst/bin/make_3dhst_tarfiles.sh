@@ -5,7 +5,7 @@
 if [ -e "HTML" ]; then 
     echo "True"
 else
-    echo "Need to be in a ${THREEDHST} field directory"
+    echo "Need to be in a \${THREEDHST} field directory"
     exit
 fi
 
