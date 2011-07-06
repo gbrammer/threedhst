@@ -21,6 +21,7 @@ for root in $roots; do
         echo "${root}_2D.tar.gz"
         tar czf ${root}_2D.tar.gz ${root}*2D.fits.gz
         cd ..
+    fi
     #
     if [ -e "images/${root}_thumbs.tar.gz"]; then
         echo "images/${root}_thumbs.tar.gz"
@@ -29,6 +30,7 @@ for root in $roots; do
         echo "${root}_thumbs.tar.gz"
         tar czf ${root}_thumbs.tar.gz ${root}*thumb.fits.gz
         cd ..
+    fi
     #
     if [ -e "images/${root}_png.tar.gz"]; then
         echo "images/${root}_png.tar.gz"
@@ -37,7 +39,9 @@ for root in $roots; do
         echo "${root}_png.tar.gz"
         tar czf ${root}_png.tar.gz ${root}*.png
         cd ..
-    
+    fi
+done
+
     
     
     
