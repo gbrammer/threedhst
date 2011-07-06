@@ -52,6 +52,9 @@ for root in $roots; do
     fi
 done
 
+cd ../
+
+
     
     
     
