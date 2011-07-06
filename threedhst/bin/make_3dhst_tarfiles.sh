@@ -2,16 +2,6 @@
 ##### In a directory like ${THREEDHST}/COSMOS, go to "HTML" and make
 ##### tarfiles of the thumbnails, 2D spec FITS and PNG images.
 
-# cd ${THREEDHST}
-# dirs="SN-MARSHALL SN-GEORGE GOODS-S AEGIS COSMOS GOODS-N" 
-# for dir in ${dirs}; do 
-#     cd ${dir}
-#     echo ${PWD}
-#     make_3dhst_tarfiles.sh
-#     cd ..
-# done
-# 
-
 if [ -e "HTML" ]; then 
     echo "${PWD}"
 else
