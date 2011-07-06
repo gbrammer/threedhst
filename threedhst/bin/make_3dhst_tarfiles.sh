@@ -3,7 +3,7 @@
 ##### tarfiles of the thumbnails, 2D spec FITS and PNG images.
 
 if [ -e "HTML" ]; then 
-    echo "True"
+    echo "${PWD}"
 else
     echo "Need to be in a \${THREEDHST} field directory"
     exit
