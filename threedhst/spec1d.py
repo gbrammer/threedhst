@@ -485,7 +485,7 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
 
     import threedhst
     import threedhst.catIO as catIO
-    from threedhst.dq import myDS9
+    #from threedhst.dq import myDS9
     
     from scipy import polyfit, polyval
     
