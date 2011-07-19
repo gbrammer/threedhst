@@ -1753,13 +1753,14 @@ def update_catalogs(root='COSMOS-3-G141', HTML_DIR='./HTML/', DATA_DIR='./DATA/'
             sub = (spec.lam > COVER[0]) & (spec.lam < COVER[1])
             sub_covered = (spec.lam > COVER[0]) & (spec.lam < COVER[1]) & (spec.flux != 0) & np.isfinite(spec.flux)
             
-            fcover[idx] = len(spec.lam[sub_covered])*1./len(spec.lam[sub])
-            if fcover[idx] > 0:
-                acontam[idx] = np.mean((spec.contam/spec.flux)[sub_covered])
-                mcontam[idx] = np.max((spec.contam/spec.flux)[sub_covered])
-            else:
-                acontam[idx] = -1
-                mcontam[idx] = -1
+            if len(spec.lam[sub]) > 0:
+                fcover[idx] = len(spec.lam[sub_covered])*1./len(spec.lam[sub])
+                if fcover[idx] > 0:
+                    acontam[idx] = np.mean((spec.contam/spec.flux)[sub_covered])
+                    mcontam[idx] = np.max((spec.contam/spec.flux)[sub_covered])
+                else:
+                    acontam[idx] = -1
+                    mcontam[idx] = -1
                 
     #### Now add the columns to the catalogs
     if 'HAS_SPEC' not in sexCat.column_names:
