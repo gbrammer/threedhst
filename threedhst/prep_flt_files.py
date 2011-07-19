@@ -1444,13 +1444,16 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
     if use_mdz_defaults:
         #### Read the first FLT image and read its MDRIZTAB file
         flt = pyfits.open(asn_direct.exposures[0]+'_flt.fits')
-        mdz = pyfits.open(flt[0].header['MDRIZTAB'].replace('iref$',os.getenv('iref')+'/'))[1].data
         
         #### Get the filter string, WFC3 or ACS
         if flt[0].header['INSTRUME'] == 'WFC3':
             filter=flt[0].header['FILTER']
+            REF = 'iref'
         else:
             filter=(flt[0].header['FILTER1']+','+flt[0].header['FILTER2']).strip()
+            REF = 'jref'
+        
+        mdz = pyfits.open(flt[0].header['MDRIZTAB'].replace(REF+'$',os.getenv('iref')+'/'))[1].data
         
         #### Force direct filter because parameters are a bit strange for grisms
         if filter.startswith('G1'):
@@ -1911,7 +1914,8 @@ def prep_acs(force=False):
     files = glob.glob('*flt.fits')
     for file in files:
         #epar acs_destripe # *flt.fits dstrp clobber+
-        acs_destripe.clean(file,'dstrp',clobber=True)
+        if not os.path.exists(file.replace('flt','flt_dstrp')):
+            acs_destripe.clean(file,'dstrp',clobber=True)
         
     files=glob.glob('*dstrp*')
     for file in files:
