@@ -612,7 +612,12 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
     #print 'Fit ORDER: %d' %(ORDER)
     
     ### sensitivity
-    sens = pyfits.open('../CONF/WFC3.IR.G141.1st.sens.2.fits')[1].data
+    if threedhst.options['GRISM_NAME'] == 'G800L':
+        sens = pyfits.open('../CONF/ACS.WFC.1st.sens.7.fits')[1].data
+
+    if threedhst.options['GRISM_NAME'] == 'G141':
+        sens = pyfits.open('../CONF/WFC3.IR.G141.1st.sens.2.fits')[1].data
+    
     yint = np.interp(lam, sens.WAVELENGTH, sens.SENSITIVITY)
     yint_err = np.interp(lam, sens.WAVELENGTH, sens.ERROR)
     
