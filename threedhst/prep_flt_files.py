@@ -541,7 +541,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
         
         ### Need fresh FLT files now
         threedhst.process_grism.fresh_flt_files(asn_file)
-              
+             
     #### First pass background subtraction
     if not bg_skip:
         #### Set up matrix for fitting
@@ -1828,6 +1828,8 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True):
     
     for file in fits_list:
         im = pyfits.open(file, 'update')
+        if im[0].header['INSTRUME'] == 'ACS':
+            return 'ACS'
         USED_PFL = im[0].header['PFLTFILE'].split('$')[1]
         BEST_PFL = find_best_flat(file, verbose=False)
         
