@@ -1453,7 +1453,7 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
             filter=(flt[0].header['FILTER1']+','+flt[0].header['FILTER2']).strip()
             REF = 'jref'
         
-        mdz = pyfits.open(flt[0].header['MDRIZTAB'].replace(REF+'$',os.getenv('iref')+'/'))[1].data
+        mdz = pyfits.open(flt[0].header['MDRIZTAB'].replace(REF+'$',os.getenv(REF)+'/'))[1].data
         
         #### Force direct filter because parameters are a bit strange for grisms
         if filter.startswith('G1'):
