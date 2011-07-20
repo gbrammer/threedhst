@@ -1879,7 +1879,7 @@ make_Javascript(path="../HTML/scripts")
     	document.getElementById("a_thumb").href = 'images/'+root+'_' + matchID + '_thumb.fits.gz';
 
     	document.getElementById("img_1D").src = 'images/'+root+'_' + matchID + '_1D.png';
-    	document.getElementById("a_1D").href = 'images/'+root+'_' + matchID + '.dat';
+    	document.getElementById("a_1D").href = 'ascii/'+root+'_' + matchID + '.dat';
 
     	document.getElementById("img_2D").src = 'images/'+root+'_' + matchID + '_2D.png';
     	document.getElementById("a_2D").href = 'images/'+root+'_' + matchID + '_2D.fits.gz';
