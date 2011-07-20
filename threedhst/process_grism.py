@@ -896,9 +896,10 @@ Pipeline to process a set of grism/direct exposures.
         if threedhst.options['GRISM_NAME'] == 'G800L':
             cont = pyfits.open('../OUTPUT_'+threedhst.options['GRISM_NAME']+
                                '/'+expi+'_flt_5.CONT.fits')
-            flt[4].data = cont[1].data*flt[0].header['EXPTIME']
-            
             ##### Contamination is in cts/s, normal ACS FLT is just cts
+            flt[1].data *= flt[0].header['EXPTIME']
+            flt[4].data = cont[1].data*flt[0].header['EXPTIME']
+            # flt[4].data = cont[1].data*flt[0].header['EXPTIME']
             # flt[1].header.update('BUNIT','ELECTRONS/S')
             # flt[4].header.update('BUNIT','ELECTRONS/S')
 
