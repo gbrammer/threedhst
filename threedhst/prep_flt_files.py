@@ -1916,7 +1916,8 @@ def prep_acs(force=False):
     files = glob.glob('*flt.fits')
     for file in files:
         #epar acs_destripe # *flt.fits dstrp clobber+
-        if not os.path.exists(file.replace('flt','flt_dstrp')):
+        flt = pyfits.open(file)
+        if (not os.path.exists(file.replace('flt','flt_dstrp'))) & ('PCTEFILE' not in flt[0].header.keys()):
             acs_destripe.clean(file,'dstrp',clobber=True)
         
     files=glob.glob('*dstrp*')
