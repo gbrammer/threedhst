@@ -449,7 +449,12 @@ Pipeline to process a set of grism/direct exposures.
         conf.params['DRZRESOLA'] = threedhst.options['DRZRESOLA']
         conf.params['DRZSCALE'] = threedhst.options['DRZSCALE']
         conf.params['DRZPFRAC'] = threedhst.options['PIXFRAC']
-
+        
+        ## Try expanding the SMFACTOR to account for different pixel scales
+        ## in the sensitivity smoothing.  Bug in aXe???
+        if threedhst.options['GRISM_NAME'] == 'G141':
+            conf.params['SMFACTOR'] = '%.3f' %(0.128254/np.float(threedhst.options['DRZSCALE']))
+        
         #### Make sure 4096 is set in CONF.DQMASK, which is the value 
         #### DQ uses for flagging problem regions
         #print conf.params['DQMASK']
