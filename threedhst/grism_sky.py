@@ -29,7 +29,10 @@ flat = flat_g141[1].data[5:1019,5:1019] / flat_f140[1].data[5:1019, 5:1019]
 flat[flat <= 0] = 5
 flat[flat > 5] = 5
 
-def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits'],  path_to_sky = '../CONF/', out_path='./', verbose=False, plot=False):
+xprofile = None
+yprofile = None
+
+def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits'],  path_to_sky = '../CONF/', out_path='./', verbose=False, plot=False, flat_correct=True, sky_subtract=True, second_pass=True, overall=True):
     """ 
     Process a (G141) grism exposure by dividing by the F140W imaging flat-field
     and then dividing by a master sky image.  
@@ -82,6 +85,8 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
     sk[0].data[sk[0].data == 0] = 1.
     sk[0].data[~np.isfinite(sk[0].data)] = 1.
     
+    flat = bg.flat*1.
+    
     #### Only flat correction
     dq_ok = (im[3].data & (4+32+16+512+2048+4096)) == 0
     mask = (seg == 0) & dq_ok
@@ -91,6 +96,12 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
         ds9.frame(1)
         ds9.v(corr, vmin=-0.5,vmax=0.5)
     
+    if flat_correct is False:
+        flat = flat*0+1
+    
+    if sky_subtract is False:
+        sk[0].data = sk[0].data*0+1
+        
     #### Divide by the sky flat
     corr = im[1].data*flat/sk[0].data
     im[1].data = corr*1.
@@ -104,15 +115,17 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
     #### Need to write an output file to use `profile`
     im.writeto(out_path+os.path.basename(flt).replace('.gz',''), clobber=True)
     xin, yin = bg.profile(out_path+os.path.basename(flt).replace('.gz',''), extension=1, flatcorr=False, biweight=True)
-    
+        
     im = pyfits.open(out_path+os.path.basename(flt).replace('.gz',''), mode='update')
 
     #### Subtract the residual difference between the observed and master sky
     resid = np.dot(np.ones((1014,1)), threedhst.utils.medfilt(yin, 41).reshape(1,1014))
-    im[1].data -= resid
+    if second_pass:
+        im[1].data -= resid
     
     #### Subtract the overall biweight mean
-    im[1].data -= threedhst.utils.biweight(im[1].data[mask], mean=True)
+    if overall:
+        im[1].data -= threedhst.utils.biweight(im[1].data[mask], mean=True)
     
     #### Add a header keyword and write to the output image
     im[0].header.update('GRISMSKY',keep)
@@ -140,6 +153,8 @@ def profile(flt='ibhm46ioq_flt.fits', extension=1, flatcorr=True, biweight=False
     If `biweight`, then the output is the biweight mean of each column.  
     Otherwise, it's just the mean.
     """
+    import threedhst.grism_sky as bg
+    
     im = pyfits.open(flt)
     
     if flatcorr:
@@ -170,6 +185,9 @@ def profile(flt='ibhm46ioq_flt.fits', extension=1, flatcorr=True, biweight=False
         for i in range(shp[0]):
             column = im[extension].data[:,i]
             ypix[i] = threedhst.utils.biweight(column[column != 0], mean=True)
+    #
+    bg.xprofile, bg.yprofile = xpix, ypix
+    
     return xpix, ypix #, ylo, yhi
 
 def show_profile():
