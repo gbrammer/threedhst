@@ -32,6 +32,28 @@ flat[flat > 5] = 5
 xprofile = None
 yprofile = None
 
+def set_G141():
+    import threedhst.grism_sky as bg
+
+    IREF = os.getenv('iref')
+    flat_f140 = pyfits.open(IREF+'/uc721143i_pfl.fits')
+    flat_g141 = pyfits.open(IREF+'/u4m1335mi_pfl.fits')
+    flat = flat_g141[1].data[5:1019,5:1019] / flat_f140[1].data[5:1019, 5:1019]
+    flat[flat <= 0] = 5
+    flat[flat > 5] = 5
+    bg.flat = flat
+    
+def set_G102():
+    import threedhst.grism_sky as bg
+    
+    IREF = os.getenv('iref')
+    flat_f098 = pyfits.open(IREF+'/uc72113ni_pfl.fits')
+    flat_g102 = pyfits.open(IREF+'/u4m1335li_pfl.fits')
+    flat = flat_g102[1].data[5:1019,5:1019] / flat_f098[1].data[5:1019, 5:1019]
+    flat[flat <= 0] = 5
+    flat[flat > 5] = 5
+    bg.flat = flat
+    
 def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits'],  path_to_sky = '../CONF/', out_path='./', verbose=False, plot=False, flat_correct=True, sky_subtract=True, second_pass=True, overall=True):
     """ 
     Process a (G141) grism exposure by dividing by the F140W imaging flat-field

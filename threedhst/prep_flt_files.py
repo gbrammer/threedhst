@@ -1259,7 +1259,8 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                        TWEAKSHIFTS_ONLY=False,
                        DIRECT_HIGHER_ORDER=2,
                        GRISM_HIGHER_ORDER=1,
-                       save_fit=False):
+                       save_fit=False,
+                       second_pass=True, overall=True):
     
     import threedhst
     import threedhst.prep_flt_files
@@ -1354,7 +1355,7 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
         ## Run the sky background division             
         asn_grism = threedhst.utils.ASNFile(asn_grism_file)
         for exp in asn_grism.exposures:
-            threedhst.grism_sky.remove_grism_sky(flt=exp+'_flt.fits', path_to_sky='../CONF/', verbose=True)
+            threedhst.grism_sky.remove_grism_sky(flt=exp+'_flt.fits', path_to_sky='../CONF/', verbose=True, second_pass=second_pass, overall=overall)
         
         ## Run Multidrizzle twice, the first time to flag CRs + hot pixels
         startMultidrizzle(asn_grism_file, use_shiftfile=True, skysub=False,
