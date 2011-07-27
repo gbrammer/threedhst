@@ -451,7 +451,9 @@ def regenerate_segmaps():
                      
 def get_segmap():
     
-    exp_list = open('cosmos_g141.list').readlines()
+    fp = open('cosmos_g141.list')
+    exp_list = fp.readlines()
+    fp.close()
     
     asn = threedhst.utils.ASNFile('/research/HST/GRISM/3DHST/COSMOS/RAW/ibhm31040_asn.fits')
     

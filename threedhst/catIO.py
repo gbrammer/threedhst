@@ -153,7 +153,9 @@ class Readfile():
                  verbose=False):
         
         #### read the lines of the file
-        lines = open(infile,'r').readlines()
+        fp = open(infile,'r')
+        lines = fp.readlines()
+        fp.close()
         
         #### get the column names from the first line
         header = lines[0]
@@ -280,7 +282,10 @@ def readMarkerXML(xml_file):
     for each object in a catalog.  Output is a dictionary
     where the tags are the float ID numbers.
     """
-    lines = open(xml_file).readlines()[0].split('<marker id')
+    fp = open(xml_file)
+    lines = fp.readlines()[0].split('<marker id')
+    fp.close()
+    
     dict = {}
     for line in lines:
         sp = line.split('"')

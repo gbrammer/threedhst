@@ -295,6 +295,7 @@ apply_dq_mask(flt_file, addval=2048)
     #
     print 'Applying mask from %s.mask_reg' %(flt_file.split('.gz')[0])
     regions = ''.join(fp.readlines())
+    fp.close()
     
     if not flt_file.endswith('.gz'):
         mode = 'update'

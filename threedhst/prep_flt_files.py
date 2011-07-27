@@ -1610,7 +1610,10 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
         #### Need to update reference position of coeffs file
         #### for an output shape different than 1014, 1014
         coeffs = self.flt[ii]+'_coeffs1.dat'
-        coeffs_lines = open(coeffs).readlines()
+        fp = open(coeffs)
+        coeffs_lines = fp.readlines()
+        fp.close()
+        
         if shape != (1014, 1014):
             for i, line in enumerate(coeffs_lines):
                 if line.strip().startswith('refpix'):

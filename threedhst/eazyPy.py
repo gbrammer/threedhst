@@ -217,6 +217,7 @@ tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
     zgrid = np.fromfile(file=f,dtype=np.double,count=NZ)
     fnu = np.fromfile(file=f,dtype=np.double,count=NFILT*NOBJ).reshape((NOBJ,NFILT)).transpose()
     efnu = np.fromfile(file=f,dtype=np.double,count=NFILT*NOBJ).reshape((NOBJ,NFILT)).transpose()
+    
     f.close()
     
     tempfilt  = {'NFILT':NFILT,'NTEMP':NTEMP,'NZ':NZ,'NOBJ':NOBJ,\
@@ -233,6 +234,7 @@ tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
     coeffs = np.fromfile(file=f,dtype=np.double,count=NTEMP*NOBJ).reshape((NOBJ,NTEMP)).transpose()
     izbest = np.fromfile(file=f,dtype=np.int32,count=NOBJ)
     tnorm = np.fromfile(file=f,dtype=np.double,count=NTEMP)
+    
     f.close()
     
     coeffs = {'NFILT':NFILT,'NTEMP':NTEMP,'NZ':NZ,'NOBJ':NOBJ,\
@@ -248,6 +250,7 @@ tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
     temp_seds = np.fromfile(file=f,dtype=np.double,count=NTEMPL*NTEMP).reshape((NTEMP,NTEMPL)).transpose()
     da = np.fromfile(file=f,dtype=np.double,count=NZ)
     db = np.fromfile(file=f,dtype=np.double,count=NZ)
+    
     f.close()
     
     temp_sed = {'NTEMP':NTEMP,'NTEMPL':NTEMPL,'NZ':NZ,\

@@ -99,7 +99,9 @@ align_img_list = find_align_images_that_overlap()
     for align_image in align_images:
         if is_region:
             #### Read a polygon defined in a region file
-            lines = open(align_image).readlines()
+            fp = open(align_image)
+            lines = fp.readlines()
+            fp.close()
             for line in lines:
                 if line.startswith('polygon'):
                     spl = line.split('(')[1].split(')')[0].split(',')
@@ -550,6 +552,8 @@ ShiftFile(infile)
         """
         listfile = open(filename,'r')
         linelist = listfile.readlines()
+        listfile.close()
+        
         return linelist
     
     

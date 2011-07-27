@@ -777,7 +777,8 @@ class SWarp(object):
         self.options = opts
         
         self.overwrite = False
-    
+        f.close()
+        
     def _saveFiles(self,fnbase):
         import os
         
@@ -789,7 +790,8 @@ class SWarp(object):
         ostr = self._makeOptionStr()
         f = open(fnbase+'.swarp','w') #gbb
         f.write(ostr)                
-    
+        f.close()
+        
     def _makeOptionStr(self, maxlen=14):
         #### get longest number of characters of parameter names
         parlen = 0

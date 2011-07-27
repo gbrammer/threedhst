@@ -221,7 +221,9 @@ def get_package_data(dataname):
     except:
         ### Hardwired  in case relative import doesn't work
         fp = open('/research/HST/GRISM/3DHST/progs/threedhst/data/'+dataname)
-        return fp.read()
+        output = fp.read()
+        fp.close()
+        return output
 
 def find_fits_gz(fits_file, hard_break = True):
     """

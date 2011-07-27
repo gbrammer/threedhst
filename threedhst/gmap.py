@@ -924,9 +924,10 @@ def makePolygons(mapParams=None, polyregions=None, path='./', color='#00aa00', a
 ?>
     """
     
-    js_fp = open(path+'/threedhst.js')
-    js_lines = js_fp.readlines()
+    fp = open(path+'/threedhst.js')
+    js_lines = fp.readlines()
     js_lines.append("\nfunction addPolylines() {\n")
+    fp.close()
     
     #files=polyregions.split(',')
     files = polyregions
@@ -934,7 +935,10 @@ def makePolygons(mapParams=None, polyregions=None, path='./', color='#00aa00', a
     N = len(files)
     counter=1
     for i in range(N):
-        reg_lines = open(files[i]).readlines()
+        fp = open(files[i])
+        reg_lines = fp.readlines()
+        fp.close()
+        
         for line in reg_lines:
             if line.startswith('polygon'):
                 poly = np.cast[float](line.split('(')[1].split(')')[0].split(','))

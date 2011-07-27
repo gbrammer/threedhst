@@ -440,7 +440,10 @@ class readLinesDat():
         id = []
         ndet = []
         
-        lines = open(infile,'r').readlines()
+        fp = open(infile,'r')
+        lines = fp.readlines()
+        fp.close()
+        
         for line in lines:
             if not line.startswith('#'):
                 spl = line.split()
