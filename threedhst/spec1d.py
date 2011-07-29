@@ -105,12 +105,14 @@ lineSpecies(wave=0., gal_weight=0, qso_weight=0, species="")
         print '%7.1f %d %d %s' %(self.wave, self.gal_weight, self.qso_weight, 
                                 self.species)
                                 
-def findLines(SPCFile, idx=195, show=False, verbose=False):
+def findLines(SPCFile, idx=195, show=False, verbose=False, trim_abs=False):
     """
-lines = findLines(SPCFile, idx=195, show=False, verbose=False)
+lines = findLines(SPCFile, idx=195, show=False, verbose=False, trim_abs=False)
     
     Find emission lines and filter 0th order contamination that looks like
     emission lines.
+    
+    If `trim_abs` is set, only return emission lines.
     """
     
     lines  = spWFindLines(SPCFile, idx=idx, show=show, check_contam=False)
@@ -165,6 +167,13 @@ lines = findLines(SPCFile, idx=195, show=False, verbose=False)
                      (np.abs(contam[j].wave-lines[i].wave) < contam_toler) ):
                      lines[i].flag = 'contam'
     
+    if trim_abs:
+        lsave = []
+        for line in lines:
+            if line.type == 'em':
+                lsave.append(line)
+        lines = lsave
+        
     if verbose:
         print '\nAfter: \n'
         for line in lines:
