@@ -183,6 +183,7 @@ lines = spWFindLines(SPCFile, idx=195, show=True, check_contam=False)
     algorithm.
     
     """
+    import threedhst.plotting
     
     debug = 0
     iplot = 0
@@ -199,13 +200,24 @@ lines = spWFindLines(SPCFile, idx=195, show=True, check_contam=False)
     gthresh = 1.5
     wthresh = 1.5
     
-    spec = SPCFile.getSpec(idx)
-    lam  = spec.field('LAMBDA')*1.
+    if SPCFile.__class__ is threedhst.plotting.SPCFile:
+        spec = SPCFile.getSpec(idx)
+        lam  = spec.field('LAMBDA')*1.
+        flux = spec.field('FLUX')*1.
+        ferr = spec.field('FERROR')*1.
+        contam = spec.field('CONTAM')*1.
+    else:
+        #### Alternative is an ascii spectra file
+        lam = SPCFile.lam*1.
+        flux = SPCFile.flux*1.
+        ferr = SPCFile.error*1.
+        contam = SPCFile.contam*1.
+        
     ok = np.where( (lam > wavemin) & (lam < wavemax) )
     
-    flux = (spec.field('FLUX')*1.)[ok]
-    ferr = (spec.field('FERROR')*1.)[ok]
-    contam = (spec.field('CONTAM')*1.)[ok]
+    flux = flux[ok]
+    ferr = ferr[ok]
+    contam = contam[ok]
     lam = (lam*1.)[ok]
     npix = len(ok)
     
