@@ -112,6 +112,7 @@ data, columns = ReadASCIICat(infile,comment='#', force=False, verbose=False)
         if verbose:
             print ('Reading : %s' %(theFITSFile))
         hdulist = pyfits.open(theFITSFile)
+        hdulist.close()
         #### Check mod time of 'infile'.  
         #### If changed, then re-read with ASCIItoFITS
         infile_mod_time = time.strftime("%m/%d/%Y %I:%M:%S %p", \
