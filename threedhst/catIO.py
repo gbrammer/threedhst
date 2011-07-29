@@ -112,16 +112,18 @@ data, columns = ReadASCIICat(infile,comment='#', force=False, verbose=False)
         if verbose:
             print ('Reading : %s' %(theFITSFile))
         hdulist = pyfits.open(theFITSFile)
+        data, header, columns = hdulist[1].data, hdulist[1].header, hdulist[1].columns
         hdulist.close()
+        
         #### Check mod time of 'infile'.  
         #### If changed, then re-read with ASCIItoFITS
         infile_mod_time = time.strftime("%m/%d/%Y %I:%M:%S %p", \
                                 time.localtime(os.path.getmtime(infile)))
-        if infile_mod_time == hdulist[1].header['MODTIME']:
+        if infile_mod_time == header['MODTIME']:
             if getColumns:
-                return hdulist[1].data, hdulist[1].columns
+                return data, columns
             else:
-                return hdulist[1].data
+                return data
         else:
             if verbose:
                 print('%s has changed.  Re-generating FITS file...' %(infile))
