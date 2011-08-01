@@ -982,10 +982,11 @@ labelIcon.image = "scripts/label_marker.php?text="+label_text;
 markerOptions = { icon:labelIcon };
 var point = new GLatLng(%f,%f);
 var marker = new GMarker(point, markerOptions);
+// GEvent.addListener(marker, "click", function() {window.open('http://xxx/%s/yyy');});
 
 marker_list.push(marker);
 map.addOverlay(marker);            
-                """ %(label, lat, lng)
+                """ %(label, lat, lng, label)
                 
                 add_link = """
                 GEvent.addListener(marker, "click", function() {
