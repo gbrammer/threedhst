@@ -771,13 +771,13 @@ class SWarp(object):
                     else:
                         opts[k] = ls[1].strip()
             self.name = swarpfile.replace('.swarp','')
+            f.close()
         else:
             self.name = 'threedhst_auto'
                                 
         self.options = opts
         
         self.overwrite = False
-        f.close()
         
     def _saveFiles(self,fnbase):
         import os
