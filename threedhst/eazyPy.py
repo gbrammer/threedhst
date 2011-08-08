@@ -120,12 +120,16 @@ class EazyParam():
         self._process_params()
         
         filters = []
+        templates = []
         for line in self.lines:
             if line.startswith('#  Filter'):
                 filters.append(ParamFilter(line))
-        
+            if line.startswith('#  Template'):
+                templates.append(line.split()[3])
+                
         self.NFILT = len(filters)
         self.filters = filters
+        self.templates = templates
         
     def _process_params(self):
         params = {}
