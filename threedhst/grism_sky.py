@@ -23,11 +23,16 @@ import glob
 import os
 
 IREF = os.getenv('iref')
-flat_f140 = pyfits.open(IREF+'/uc721143i_pfl.fits')
-flat_g141 = pyfits.open(IREF+'/u4m1335mi_pfl.fits')
-flat = flat_g141[1].data[5:1019,5:1019] / flat_f140[1].data[5:1019, 5:1019]
-flat[flat <= 0] = 5
-flat[flat > 5] = 5
+
+try:
+    flat_f140 = pyfits.open(IREF+'/uc721143i_pfl.fits')
+    flat_g141 = pyfits.open(IREF+'/u4m1335mi_pfl.fits')
+    flat = flat_g141[1].data[5:1019,5:1019] / flat_f140[1].data[5:1019, 5:1019]
+    flat[flat <= 0] = 5
+    flat[flat > 5] = 5
+except:
+    print '\nthreedhst.grism_sky: Flat-field files (uc721143i_pfl.fits) not found in IREF: %s\n' %(IREF)
+    flat = np.ones((1014,1014))
 
 xprofile = None
 yprofile = None
