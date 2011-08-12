@@ -1054,9 +1054,9 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     var root = '%s';
     
     var myIcon = new GIcon();
-	myIcon.iconSize = new GSize(30, 25);
-	myIcon.iconAnchor = new GPoint(14.5, 14.5);
-	
+   	myIcon.iconSize = new GSize(12,12);
+   	myIcon.iconAnchor = new GPoint(6,6);
+   		
     function initialize() {        
         if (GBrowserIsCompatible()) {
             map = new GMap2(document.getElementById("map"));
