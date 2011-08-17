@@ -18,6 +18,8 @@ import numpy as np
 import aXe2html.sexcat.sextractcat
 import threedhst
 
+RUN_MODE = 'waiterror'
+
 class SExtractor(object):
     """
 SExtractor()
@@ -301,7 +303,7 @@ SExtractor()
             return [k for k in self._optorder]
     
     
-    def sextractImage(self,detectionImage,analysisImage=None,mode='waiterror'):
+    def sextractImage(self,detectionImage,analysisImage=None,mode=None):
         """
         writes configuration files and runs sextractor on the input image
         
@@ -318,6 +320,9 @@ SExtractor()
         from subprocess import Popen,PIPE
         from os.path import exists
         
+        if mode is None:
+            mode = RUN_MODE
+            
         fnbase = self.name
         if not self.overwrite:
             fnbase = fnbase.replace('.sex','')

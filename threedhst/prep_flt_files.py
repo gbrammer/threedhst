@@ -1249,6 +1249,7 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                        asn_grism_file='ib3706060_asn.fits',
                        ALIGN_IMAGE='../ACS/h_nz_sect*img.fits',
                        ALIGN_EXTENSION=0,
+                       align_geometry='shift',
                        PATH_TO_RAW='../RAW',
             IMAGES = ['../CONF/G141_sky_cleaned.fits',
                       '../CONF/G141wLO_fixed_sky.fits', 
@@ -1259,7 +1260,7 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                        TWEAKSHIFTS_ONLY=False,
                        DIRECT_HIGHER_ORDER=2,
                        GRISM_HIGHER_ORDER=1,
-                       save_fit=False,
+                       save_fit=False, 
                        second_pass=True, overall=True,
                        sky_images=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits']):
     
@@ -1291,7 +1292,7 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                         ALIGN_EXT=ALIGN_EXTENSION,
                         skip_drz=False, final_scale=0.06, pixfrac=0.8,
                         IMAGES=[],
-                        align_geometry='shift', clean=True,
+                        align_geometry=align_geometry, clean=True,
                         initial_order=0, save_fit=save_fit,
                         TWEAKSHIFTS_ONLY=TWEAKSHIFTS_ONLY)
         
@@ -1499,6 +1500,11 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
         iraf.dither.multidrizzle.setParam('dec','')
         iraf.dither.multidrizzle.setParam('runfile','')
         # iraf.dither.multidrizzle.setParam('driz_cr_snr','3.5 3.0')
+        
+    ### Set CR SNR parameter following candels
+    if flt[0].header['INSTRUME'] == 'WFC3':
+        iraf.dither.multidrizzle.driz_cr_snr = '8 3.0'
+        iraf.dither.multidrizzle.driz_cr_scale = '2 0.7'
         
     if ivar_weights:
         #### Generate inverse variance weight map, will need flat + dark images
