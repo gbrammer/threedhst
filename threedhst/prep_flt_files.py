@@ -450,6 +450,140 @@ prep_all(asn_files='ib*050_asn.fits', get_shift=True,
                     align_geometry=align_geometry, clean=clean,
                     save_fit=save_fit)
 
+def make_3dhst_persistence_mask(asn_direct_file='GOODS-N-45-F140W_asn.fits'):
+    """
+    The 3D-HST visit sequence is D-G / D-G / D-G / D-G
+    """
+    from threedhst.prep_flt_files import MultidrizzleRun
+    
+    STARS_FLAGGED = False
+        
+    asn = threedhst.utils.ASNFile(asn_direct_file)
+    
+    flt = pyfits.open(asn.exposures[0]+'_flt.fits')
+    instrume = flt[0].header.get('INSTRUME').strip()
+    if instrume is 'ACS':
+        skip=2
+    else:
+        skip=1
+    
+    #### Blot the mosaic back to the FLT frame
+    run = MultidrizzleRun((asn_direct_file.split('_asn.fits')[0]).upper())
+    
+    for i,exp in enumerate(asn.exposures):
+        run.blot_back(ii=i*skip, copy_new=(i is 0))
+    
+    ### Run SExtractor on a direct image, which tells where the persistence will be
+    ### in the *next* direct image
+    
+    ### only very bright stars in the 2nd exposure will persist on the 3rd 
+    maglim = [18,18,15,18] 
+    
+    for iflt in range(1,4):
+        root = asn.exposures[iflt]+'_flt'
+    
+        se = threedhst.sex.SExtractor()
+        se.aXeParams()
+        ## XXX add test for user-defined .conv file
+        se.copyConvFile(grism=False)
+        se.overwrite = True
+        se.options['CATALOG_NAME']    = root+'.BLOT.SCI.cat'
+        se.options['CHECKIMAGE_NAME'] = root+'.seg.fits, bg.fits'
+        se.options['CHECKIMAGE_TYPE'] = 'SEGMENTATION, BACKGROUND'
+        se.options['WEIGHT_TYPE']     = 'MAP_WEIGHT'        
+        se.options['WEIGHT_IMAGE']    = root+'.BLOT.WHT.fits'
+        se.options['FILTER']    = 'Y'
+        se.options['BACK_TYPE']     = 'AUTO'
+        se.options['BACK_FILTERSIZE']     = '2'
+        se.options['FILTER_NAME'] = 'default.conv'
+        sigma=10
+        se.options['DETECT_THRESH']    = '%f' %sigma
+        se.options['ANALYSIS_THRESH']  = '%f' %sigma
+        se.options['MAG_ZEROPOINT'] = '26.46'
+        status = se.sextractImage(root+'.BLOT.SCI.fits')
+        
+        cat = threedhst.sex.mySexCat(root+'.BLOT.SCI.cat')
+        xpix, ypix, mag, radius = np.cast[float](cat.X_IMAGE), np.cast[float](cat.Y_IMAGE), np.cast[float](cat.MAG_AUTO), np.cast[float](cat.FLUX_RADIUS)
+        
+        try:
+            os.remove(root+'.BLOT.SCI.fits')
+            os.remove(root+'.BLOT.WHT.fits')
+        except:
+            pass
+            
+        stars = (mag < maglim[iflt]) & (radius < 2)
+        idx = np.arange(len(stars))[stars]
+
+        ### first-order polygon obtained from a reference image
+        xmask = np.array([1,0,1,0,1,0,1,0])
+        ymask = np.array([0,1,0,1,0,1,0,1])
+
+        first_mask = np.cast[float]('583.52156,585.79943,722.12037,585.60725,721.63812,580.78472,585.16049,580.30247'.split(','))
+        first_mask -= 542.81*xmask + 579.843*ymask + 1*ymask
+                
+        zeroth_mask = np.array([-1,-1,1,-1,1,1,-1,1])*3
+        
+        if len(idx) > 0:
+            STARS_FLAGGED = True
+            
+            regfile = asn.exposures[iflt]+'_flt.fits.mask.reg'
+            if os.path.exists(regfile):
+                fp = open(regfile,'a')
+            else:
+                fp = open(regfile,'w')
+                fp.write('image\n')
+            
+            for i in idx:
+                #fp.write('circle(%f,%f,5)\n' %(xpix[i], ypix[i]))
+                
+                #### Get parameters from aXe calibration of G141
+                dldp_0 = field_dependent(xpix[i], ypix[i],'8.95431E+03   9.35925E-02   0.0')
+                dldp_1 = field_dependent(xpix[i], ypix[i], '4.51423E+01   3.17239E-04   2.17055E-03  -7.42504E-07   3.48639E-07   3.09213E-07')
+                
+                dydx_0 = field_dependent(xpix[i], ypix[i],'1.96882E+00  9.09159E-05 -1.93260E-03')
+                dydx_1 = field_dependent(xpix[i], ypix[i],'1.04275E-02 -7.96978E-06 -2.49607E-06  1.45963E-09  1.39757E-08  4.84940E-10')
+                
+                y0 = dydx_0 + dydx_1*(xpix[i])-5
+                dy = 3
+                xleft = (1.05e4 - dldp_0)/dldp_1
+                xright = (1.75e4 - dldp_0)/dldp_1
+                first_mask = np.array([xleft,y0-dy,xright,y0-dy,xright,y0+dy,xleft,y0+dy])
+                
+                pstr = 'polygon(%f' %(first_mask[0]+xmask[0]*xpix[i]+ymask[0]*ypix[i])
+                for j in range(1,8):
+                    pstr += ',%f' %(first_mask[j]+xmask[j]*xpix[i]+ymask[j]*ypix[i])
+                
+                fp.write(pstr+')\n')
+                
+                #### zeroth order position is field dependent, parameters from
+                #### the aXe calibration for G141
+                dldp_0 = 459047.749023
+                dldp_1 = 2324.048828
+                xoff_0 = field_dependent(xpix[i], ypix[i],'-0.2400520   -0.0023144    0.0111089')-1
+                x0th = (1.4e4 - (dldp_0-dldp_1*xoff_0))/dldp_1
+                
+                pstr = 'polygon(%f' %(zeroth_mask[0]+xmask[0]*x0th+xmask[0]*xpix[i]+ymask[0]*ypix[i])
+                for j in range(1,8):
+                    pstr += ',%f' %(zeroth_mask[j]+xmask[j]*x0th+xmask[j]*xpix[i]+ymask[j]*ypix[i])
+                
+                fp.write(pstr+')\n')
+                
+            fp.close()
+        
+    return STARS_FLAGGED
+
+def field_dependent(xi, yi, str_coeffs):
+    """ 
+    Calculate field-dependent parameter for aXe conventions.
+    
+    a = a_0 + a_1 * xi + a_2 * yi + a_3 * xi**2 + a_4 * xi * yi + a_5 * yi**2
+    
+    """
+    coeffs = np.cast[float](str_coeffs.split())
+    xy = np.array([1,xi,yi,xi**2,xi*yi,yi**2, xi**3, xi**2*yi, xi*yi**2, yi**3])
+    a = np.sum(coeffs*xy[0:len(coeffs)])
+    return a
+
 def prep_flt(asn_file=None, get_shift=True, bg_only=False, bg_skip=False,
                 first_run=True, redo_background=True,
                 ALIGN_IMAGE='../ACS/h_nz_sect*img.fits', ALIGN_EXT = 0, 
@@ -458,7 +592,7 @@ def prep_flt(asn_file=None, get_shift=True, bg_only=False, bg_skip=False,
                 align_geometry='shift', clean=True,
                 initial_order=-1, save_fit=False,
                 TWEAKSHIFTS_ONLY=False,
-                oned_background=True):
+                oned_background=True, make_persistence_mask=False):
     """
 prep_flt(asn_file=None, get_shift=True, bg_only=False,
             redo_background=True)
@@ -532,13 +666,16 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
                 startMultidrizzle(asn_file, use_shiftfile=True, skysub=True,
                     final_scale=final_scale, pixfrac=pixfrac, driz_cr=first,
                     updatewcs=first, clean=True, median=first)
-
+                
                 threedhst.shifts.refine_shifts(ROOT_DIRECT=ROOT_DIRECT,
                           ALIGN_IMAGE=ALIGN_IMAGE, 
                           ALIGN_EXTENSION = ALIGN_EXT,
                           fitgeometry=geom.strip(), clean=clean)
-            
-        
+                #
+                #### Put persistence mask here, still not quite working
+                #if make_persistence_mask:
+                #    make_3dhst_persistence_mask(asn_file)
+                
         ### Need fresh FLT files now
         threedhst.process_grism.fresh_flt_files(asn_file)
              
@@ -1294,7 +1431,7 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                         IMAGES=[],
                         align_geometry=align_geometry, clean=True,
                         initial_order=0, save_fit=save_fit,
-                        TWEAKSHIFTS_ONLY=TWEAKSHIFTS_ONLY)
+                        TWEAKSHIFTS_ONLY=TWEAKSHIFTS_ONLY, make_persistence_mask=True)
         
         if DIRECT_HIGHER_ORDER > 0:
             threedhst.prep_flt_files.prep_flt(asn_file=asn_direct_file,
@@ -1378,6 +1515,7 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
     
     threedhst.showMessage("""FLT prep done.  Run gzip *flt.fits to save disk space.""")
     
+
 def startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
     skysub=True, updatewcs=True, driz_cr=True, median=True,
     final_scale=0.06, pixfrac=0.8, clean=True,
