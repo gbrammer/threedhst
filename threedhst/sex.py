@@ -19,6 +19,7 @@ import aXe2html.sexcat.sextractcat
 import threedhst
 
 RUN_MODE = 'waiterror'
+USE_CONVFILE = 'default.conv'
 
 class SExtractor(object):
     """
@@ -114,7 +115,14 @@ SExtractor()
         """
         copyConvFile()
         
-        Copy default.conv from threedhst/data to ./
+        Copy a convolution kernel from threedhst/data to ./.
+        
+        if `grism` is False:
+            the kernel is specified by threedhst.sex.USE_CONVFILE ['default.conv']
+        
+        if `grism` is True:
+            Use a special kernel elongated along the spectral axis,
+            "threedhst/data/grism.conv".
         """
         if grism:
             self.conv = threedhst.utils.get_package_data('grism.conv')
@@ -124,7 +132,7 @@ SExtractor()
             self.conv = self.conv.split('\n')
         else:
             self.conv = threedhst.utils.get_package_data('default.conv')
-            fp = open('default.conv','w')
+            fp = open(USE_CONVFILE,'w')
             fp.write(self.conv)
             fp.close()
             self.conv = self.conv.split('\n')
