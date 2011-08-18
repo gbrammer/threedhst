@@ -130,13 +130,15 @@ SExtractor()
             fp.write(self.conv)
             fp.close()
             self.conv = self.conv.split('\n')
+            self.options['FILTER_NAME'] = 'grism.conv'
         else:
-            self.conv = threedhst.utils.get_package_data('default.conv')
+            self.conv = threedhst.utils.get_package_data(USE_CONVFILE)
             fp = open(USE_CONVFILE,'w')
             fp.write(self.conv)
             fp.close()
             self.conv = self.conv.split('\n')
-        #
+            self.options['FILTER_NAME'] = USE_CONVFILE
+        
         #### NNW file for CLASS_STAR
         nnw = threedhst.utils.get_package_data('default.nnw')
         fp = open('default.nnw','w')
@@ -221,7 +223,8 @@ SExtractor()
         self.params = pars
         
         self.overwrite = False
-    
+        
+        self.MULTIOPT=False
             
     def getParamList(self):
         """
@@ -240,7 +243,18 @@ SExtractor()
         useParams = threedhst.utils.get_package_data('aXe.param').split('\n')[:-1]
         for par in useParams:
             self.params[par] = True
-    
+        
+        useInputParams = threedhst.utils.get_package_data('sexdd').split('\n')[:-1]
+        for line in useInputParams:
+            spl = line.strip().split('#')
+            if spl[0] is not '':
+                spl2 = spl[0].split()
+                if len(spl2) >= 2:
+                    par = spl2[0]
+                    value = ''.join(spl2[1:])
+                    #print '%s %s' %(par, value)
+                    self.options[par] = value
+                    
     def _saveFiles(self,fnbase):
         """
         
@@ -292,10 +306,28 @@ SExtractor()
                 parlen = np.max([parlen,p.__len__()])
         fmt = '%-'+str(parlen)+'s   #  %s'
         
+        multi_dict = {'FLUX_RADIUS':'PHOT_FLUXFRAC', 'FLUX_APER':'PHOT_APERTURES', 'FLUXERR_APER':'PHOT_APERTURES', 'MAG_APER':'PHOT_APERTURES', 'MAGERR_APER':'PHOT_APERTURES'}
+        self.MULTIOPT = False
+        
         pstr = []
         for p in self._parorder:
             if self.params[p]:
-                pstr.append(fmt %(p,self._parinfo[p]))        
+                ### Test if one of the parameters with optionally multiple inputs, 
+                ### like PHOT_FLUXFRAC or PHOT_APERTURES, has multiple values.  If so,
+                ### append the necessary (N) to the parameter, like FLUX_RADIUS
+                if p in multi_dict.keys():
+                    optvalue = self.options[multi_dict[p]]
+                    NOPT = len(optvalue.split(','))
+                    if NOPT > 1:
+                        self.MULTIOPT=True
+                        for i in range(1,NOPT+1):
+                            pp = '%s(%0d)' %(p, i)
+                            pstr.append(fmt %(pp,self._parinfo[p]))        
+                    else:
+                        pstr.append(fmt %(p,self._parinfo[p]))        
+                else:
+                    pstr.append(fmt %(p,self._parinfo[p]))
+                            
         pstr = '\n'.join(pstr)
         return pstr
     
@@ -347,8 +379,10 @@ SExtractor()
                     fns[-1] = str(i)
                 fnbase = '-'.join(fns)
             self.name = fnbase
-                
+        
+        ### write .param and .sex file
         self._saveFiles(fnbase)
+        
         if analysisImage:
             clstr = 'sex %s %s -c %s' %(detectionImage,
                      analysisImage,self.name+'.sex')
@@ -378,16 +412,83 @@ SExtractor()
             if res!=0 and mode == 'waiterror' :
                 print serr, sout
                 raise SError(serr,sout)
+            
+            self._fix_ascii_head()
             return res
         elif mode == 'proc':
             proc = Popen(clstr.split(),executable='sex',stdout=PIPE,stderr=PIPE)
+
+            self._fix_ascii_head()
             return proc
         elif mode == 'direct':
             proc = Popen(clstr.split())
             res = proc.wait()
+            self._fix_ascii_head()
         else:
             raise ValueError('unrecognized mode argument '+str(mode))
-
+        
+    def _fix_ascii_head(self):
+        """
+    Fix header for multiple columns like FLUX_APER(2).  The default SExtractor 
+    output skips putting these columns in the header, which makes it awkward for 
+    reading the catalog later.  
+    
+    This function is run automatically at the end of `_sextractImage()` if CATALOG_TYPE == 'ASCII_HEAD' and inserts a header line for columns like FLUX_APER(N), calling the value FLUX_APERN for N>1.
+        """
+        
+        if (self.options['CATALOG_TYPE'] == 'ASCII_HEAD') & (self.MULTIOPT):
+            #print 'Fix catalog for multi-input parameters...'
+            fp = open(self.options['CATALOG_NAME'])
+            cat_lines = fp.readlines()
+            fp.close()
+            NHEADER=0
+            while cat_lines[NHEADER].startswith('#'):
+                NHEADER+=1
+            
+            fp = open(self.options['PARAMETERS_NAME'])
+            output_params = fp.readlines()
+            fp.close()
+            
+            multi_dict = {'FLUX_RADIUS':'PHOT_FLUXFRAC', 'FLUX_APER':'PHOT_APERTURES', 'FLUXERR_APER':'PHOT_APERTURES', 'MAG_APER':'PHOT_APERTURES', 'MAGERR_APER':'PHOT_APERTURES'}
+            
+            #### Loop through parameters.  Look for multiple output columns, like
+            #### FLUX_RADIUS(1) and also put the option values in the header line
+            for ii,output_param in enumerate(output_params):
+                par, comment = output_param.strip().split('#')
+                
+                ## First parameter (parN=1)
+                
+                if '(' in par:
+                    parN = np.int(par.split('(')[1].split(')')[0])
+                    parsp = '%s%0d' %(par.split('(')[0], parN)
+                    if parN > 1:
+                        newline = '# %3d %-22s %-58s [%s]\n' %(ii+1, parsp, comment.split('\'')[1], comment.split('\'')[3])
+                        cat_lines.insert(ii, newline)
+                
+                #### Put a bit more info in the header, like the radius for
+                #### aperture photometry
+                pari = par.split('(')[0]
+                if pari in multi_dict.keys():
+                    optval = self.options[multi_dict[pari]]
+                    line = cat_lines[ii]
+                    sp1 = line.split('[')
+                    if len(sp1) == 2:
+                        unit = '['+sp1[1]
+                    else:
+                        unit = '\n'
+                    
+                    sp2 = sp1[0].strip().split()
+                    ix = np.int(sp2[1])
+                    parsp = sp2[2]
+                    comment = ' '.join(sp2[3:])+' '+optval
+                    
+                    newline = '# %3d %-22s %-58s %s' %(ix, parsp, comment, unit)
+                    cat_lines[ii] = newline
+                    
+            fp = open(self.options['CATALOG_NAME'],'w')
+            fp.writelines(cat_lines)
+            fp.close()
+            
 class SError(Exception):
     def __init__(self,*args):
         super(SError,self).__init__(*args)
