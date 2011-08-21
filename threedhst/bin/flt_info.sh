@@ -22,5 +22,5 @@ done
 
 ### Sort by date [xxx doesn't work because unix sort can't handle 2010-01-01 format]
 # head -1 files.info > files.info.tmp
-grep -v TARGNAME files.info | sort --key=3.1,3.4 --key=3.6,3.7 -n |less #>> files.info.tmp
+# grep -v TARGNAME files.info | sort --key=3.1,3.4 --key=3.6,3.7 -n |less #>> files.info.tmp
 # mv files.info.tmp files.info
