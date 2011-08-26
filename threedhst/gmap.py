@@ -1399,7 +1399,18 @@ make_Javascript(path="../HTML/scripts")
         recenter(ra,dec);
         latLng2raDec();
     }
+    
+    function recenter(ra,dec) {
+    	if ((ra+dec) == 0) {
+    		ra = document.getElementById("tab_ra").innerText;
+    		dec = document.getElementById("tab_dec").innerText;
+    	}
 
+    	var lat = dec-centerLat;
+        var lng = ((360-ra)-centerLng+offset)*Math.cos(centerLat/360.*2*3.14159)
+        map.setCenter(new GLatLng(lat,lng)); //, zoomLevel);
+    }
+    
     //// Pan to object ID entered in the input box, show spectra + info
     function centerOnID() {
         var id = document.getElementById("idInput").value;
