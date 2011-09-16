@@ -579,5 +579,146 @@ zPhot_zSpec(zoutfile="./OUTPUT/photz.zout', zmax=4)
     
     #fig.savefig('/tmp/test.pdf',dpi=100)
     
+def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, adjust_zeropoints='zphot.zeropoint'):
+    """
+    Plot the EAZY fit residuals to evaluate zeropoint updates
+    """
+    import threedhst
+    import threedhst.eazyPy as eazy
+    
+    if not PATH.endswith('/'):
+        PATH += '/'
+    
+    ##### Read the param file
+    param = eazy.EazyParam('%s%s.param' %(PATH, root))
+    
+    ##### Read template fluxes and coefficients
+    tempfilt, coeffs, temp_seds, pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE=root, OUTPUT_DIRECTORY=PATH,CACHE_FILE = 'Same')
+    
+    zpfile = PATH+'/'+root+'.zeropoint'
+    if os.path.exists(zpfile):
+        zpfilts,zpf = np.genfromtxt(zpfile, unpack=True)                                    
+    else:
+        zpf = np.ones(tempfilt['NFILT'])
+
+    zpfactors = np.dot(zpf.reshape(tempfilt['NFILT'],1), np.ones(tempfilt['NOBJ']).reshape(1,tempfilt['NOBJ']))
+    
+    tempfilt['fnu'] *= zpfactors
+    tempfilt['efnu'] *= zpfactors
+    
+    obs_sed = np.zeros((tempfilt['NFILT'], tempfilt['NOBJ']), dtype=np.float)
+    for i in xrange(tempfilt['NOBJ']):
+        obs_sed[:,i] = np.dot(tempfilt['tempfilt'][:,:,coeffs['izbest'][i]], coeffs['coeffs'][:,i])
+    
+    zi = tempfilt['zgrid'][coeffs['izbest']]
+    lc = tempfilt['lc']
+    
+    resid = (obs_sed-tempfilt['fnu']) / obs_sed + 1
+    signoise = tempfilt['fnu']/tempfilt['efnu']
+    
+    #### Plot colors
+    colors = range(tempfilt['NFILT'])
+    for ci, i in enumerate(np.argsort(lc)):
+        colors[i] = threedhst.utils.color_table((ci+1.)/tempfilt['NFILT']*250, table='rainbow.rgb')
+    
+    fig = plt.figure(figsize=(10,4))
+    fig.subplots_adjust(wspace=0.0, hspace=0.0, left=0.09, bottom=0.10, right=0.98, top=0.98)
+    
+    ax = fig.add_axes((0.06, 0.12, 0.6, 0.86))
+    
+    #### Plot the residuals
+    xx, yy, ss = [], [], []
+    for i in np.argsort(lc):
+        keep = signoise[i,:] > 3
+        sc = ax.plot(lc[i]/(1+zi[keep]), resid[i,keep], marker='.', alpha=0.03, linestyle='None', color=colors[i])
+        xm, ym, ys, nn = threedhst.utils.runmed(lc[i]/(1+zi[keep]), resid[i,keep], NBIN=int(len(keep)/1000.))
+        xx.append(xm)
+        yy.append(ym)
+        ss.append(ys)
+    
+    for ci, i in enumerate(np.argsort(lc)):
+        ax.plot(xx[ci], yy[ci], alpha=0.2, color='black', linewidth=4)
+        ax.plot(xx[ci], yy[ci], alpha=0.8, color=colors[i], linewidth=2)
+    
+    #### Adjustments to zeropoints
+    lcfull = []
+    residfull = []
+    for i in np.argsort(lc):
+        keep = signoise[i,:] > 3
+        lcfull.extend(lc[i]/(1+zi[keep]))
+        residfull.extend(resid[i,keep])
+        
+    xmfull, ymfull, ysfull, nnfull = threedhst.utils.runmed(np.array(lcfull), np.array(residfull), NBIN=int(len(residfull)/5000.))
+    plt.plot(xmfull, ymfull, color='black', alpha=0.3, linewidth=2)
+    
+    if not os.path.exists(adjust_zeropoints):
+        fp = open(adjust_zeropoints,'w')
+        for filt in param.filters:
+            fp.write('F%0d  1.0\n' %(filt.fnumber))
+        
+        fp.close()
+    
+    zpfilt, zpval = np.loadtxt(adjust_zeropoints, dtype=np.str, unpack=True)
+    zpval = np.cast[float](zpval)
+    
+    offsets = lc*0.
+    for ci, i in enumerate(np.argsort(lc)):
+        yint = np.interp(xx[ci], xmfull, ymfull)
+        offsets[i] = 1./(np.sum(yy[ci]*yint/ss[ci]**2)/np.sum(yy[ci]**2/ss[ci]**2))
+        
+    ## Normalize to F140W
+    offsets /= offsets[0]
+    
+    ## Write a new zphot.translate file
+    for ci, i in enumerate(np.argsort(lc)):
+        mat = zpfilt == 'F%0d' %(param.filters[i].fnumber)
+        if (len(mat[mat]) > 0): # & (param.filters[i].lambda_c < 3.e4):
+            zpval[mat] *= offsets[i]
+    
+    fp = open(adjust_zeropoints,'w')
+    for i in range(len(zpval)):
+        fp.write('%s  %.4f\n' %(zpfilt[i], zpval[i]))
+    
+    fp.close()
+            
+    #### Plot things
+    ax.semilogx()
+    ax.set_ylim(0.5,1.5)
+    ax.set_xlim(800,1.e5)
+    ax.set_xlabel(r'$\lambda_\mathrm{rest}\ [\mu\mathrm{m}]$')
+    ax.set_ylabel(r'(temp - phot) / temp')
+    ax.set_xticklabels([0.1,0.5,1,5])
+    ytick = ax.set_xticks([1000,5000,1.e4,5e4])
+    
+    #### Add labels for filters
+    for ci, i in enumerate(np.argsort(lc)):
+        ax.text(0.98, 0.92-0.05*ci, '%s %.2f' %(os.path.basename(param.filters[i].name).replace('_','\_'), offsets[i]), transform = ax.transAxes, color=colors[i], horizontalalignment='right', fontsize=9)
+
+    #### Add zphot zspec plot
+    ax = fig.add_axes((0.67, 0.12, 0.32, 0.86))
+    zout = catIO.Readfile('%s/%s.zout' %(PATH, root))
+    dz = (zout.z_peak-zout.z_spec)/(1+zout.z_spec)
+    keep = (zout.z_spec > 0)
+    sigma = threedhst.utils.nmad(dz[keep])
+    
+    ax.plot(np.log10(1+zout.z_spec), np.log10(1+zout.z_peak), marker='.', alpha=0.1, linestyle='None')
+    ax.plot([0,10],[0,10], color='white', alpha=0.4, linewidth=3)
+    ax.plot([0,10],[0,10], color='black', alpha=0.4, linewidth=1)
+    ax.set_xticklabels([0,1,2,3,4])
+    xtick = ax.set_xticks(np.log10(1+np.array([0,1,2,3,4])))
+    ax.set_yticklabels([])
+    ytick = ax.set_yticks(np.log10(1+np.array([0,1,2,3,4])))
+    
+    ax.text(0.5, 0.9, r'$\sigma_\mathrm{nmad}=%.3f$' %(sigma), transform = ax.transAxes, color='black', horizontalalignment='center', fontsize=10)
+    
+    ax.set_xlim(0,np.log10(1+4))
+    ax.set_ylim(0,np.log10(1+4))
+    
+    #### Save an output image
+    if savefig is not None:
+        fig.savefig(savefig)
+        plt.close()
+        
+    
     
     
