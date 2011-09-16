@@ -649,6 +649,12 @@ def biweight2(xarr, both=False, mean=False):
         return sbi
 
 def nmad(xarr):
+    """
+    result = nmad(arr)
+
+    Get the NMAD statistic of the input array, where
+    NMAD = 1.48 * median(ABS(arr) - median(arr)).
+    """
     return 1.48*np.median(np.abs(xarr-np.median(xarr)))
 
 def runmed(xi, yi, NBIN=10):
@@ -711,3 +717,35 @@ def xyrot(xin, yin, theta, x0=0., y0=0., radians=False, ccw=False):
     xout = out[0,:]
     yout = out[1,:]
     return xout, yout
+
+def color_table(value, table='hsv.rgb', normalized=False, show=False):
+    """
+    Return (r,g,b) values extracted from a color table.
+    """
+    import threedhst
+    import glob
+    
+    if show:
+        files = glob.glob(os.path.dirname(threedhst.__file__)+'/data/*rgb')
+        for file in files:
+            print os.path.basename(file)
+            
+        return (0,0,0)
+        
+    try:
+        data = np.loadtxt(os.path.dirname(threedhst.__file__)+'/data/'+table)
+    except:
+        'Color table [%s] not found in `threedhst/data`' %(table)
+        return (0,0,0)
+        
+    idx = np.arange(256)
+    if normalized:
+        idx /= 256.
+        
+    ri = np.interp(value, idx, data[:,0])/255.
+    gi = np.interp(value, idx, data[:,1])/255.
+    bi = np.interp(value, idx, data[:,2])/255.
+    
+    return (ri, gi, bi)
+    
+    
