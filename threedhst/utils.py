@@ -648,6 +648,9 @@ def biweight2(xarr, both=False, mean=False):
     else:
         return sbi
 
+def nmad(xarr):
+    return 1.48*np.median(np.abs(xarr-np.median(xarr)))
+
 def runmed(xi, yi, NBIN=10):
         
     NPER = xi.size/NBIN
