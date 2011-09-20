@@ -1555,8 +1555,8 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
     
     #### If fewer than 4 exposures in the asn list, use
     #### a larger `pixfrac`.
-    if len(asn_direct.exposures) < 4:
-        pixfrac = 1.0
+    # if len(asn_direct.exposures) < 4:
+    #     pixfrac = 1.0
     
     if skysub:
         skysub=yes
