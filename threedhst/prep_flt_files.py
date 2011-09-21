@@ -1641,8 +1641,8 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
         
     ### Set CR SNR parameter following candels
     if flt[0].header['INSTRUME'] == 'WFC3':
-        iraf.dither.multidrizzle.driz_cr_snr = '8 3.0'
-        iraf.dither.multidrizzle.driz_cr_scale = '2 0.7'
+        iraf.dither.multidrizzle.driz_cr_snr = '6 3.0'
+        iraf.dither.multidrizzle.driz_cr_scale = '1.6 0.7'
         
     if ivar_weights:
         #### Generate inverse variance weight map, will need flat + dark images
