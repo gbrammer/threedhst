@@ -705,13 +705,27 @@ __getitem__(column_name)
     >>> print cat['NUMBER']
     
         """
-        if column_name not in self.column_names:
+        
+        if column_name.upper() not in self.column_names:
             print ('Column %s not found.  Check `column_names` attribute.'
                     %column_name)
             return None
         else:
-            str = 'out = self.%s*1' %column_name
-            exec(str)
+            str_exec = 'first_item = self.%s[0]' %(column_name.upper())
+            exec(str_exec)
+            
+            if first_item.isdigit():
+                type='int'
+            else:
+                type='float'
+            
+            try:
+                str = 'out = np.cast[%s](self.%s)' %(type, column_name.upper())
+                exec(str)
+            except:
+                str = 'out = self.%s*1' %column_name.upper()
+                exec(str)
+            
             return out
     
     def makeRaDec(self):
