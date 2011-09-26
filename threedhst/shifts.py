@@ -15,6 +15,8 @@ import pyraf
 from pyraf import iraf
 from iraf import stsdas,dither
 
+import matplotlib.pyplot as plt
+
 import threedhst
 import threedhst.prep_flt_files
 
@@ -72,7 +74,7 @@ run_tweakshifts(asn_direct)
     
     return status
     
-def find_align_images_that_overlap(DIRECT_MOSAIC, ALIGN_IMAGE, ALIGN_EXTENSION=0, is_region=False):
+def find_align_images_that_overlap(DIRECT_MOSAIC, ALIGN_IMAGE, ALIGN_EXTENSION=0, is_region=False, show=False):
     """
 align_img_list = find_align_images_that_overlap()
     
@@ -92,7 +94,9 @@ align_img_list = find_align_images_that_overlap()
     
     #### Get polygon of the direct mosaic edges
     px, py = threedhst.regions.wcs_polygon(DIRECT_MOSAIC, extension=1)
-    
+    if show:
+        plt.plot(px, py, color='blue', alpha=0.8, linewidth=3)
+        
     #### Loop through align_images and check if they overlap with the 
     #### direct mosaic
     align_img_list = []
@@ -112,10 +116,15 @@ align_img_list = find_align_images_that_overlap()
         else:
             qx, qy = threedhst.regions.wcs_polygon(align_image,
                 extension=ALIGN_EXTENSION)
-                
+        #    
         if threedhst.regions.polygons_intersect(px, py, qx, qy):
+            if show:
+                plt.plot(qx, qy, color='green', alpha=0.8, linewidth=3)
             align_img_list.append(align_image)
-    
+        else:
+            if show:
+                plt.plot(qx, qy, color='red', alpha=0.8, linewidth=3)
+            
     return align_img_list
 
 def refine_shifts(ROOT_DIRECT='f160w',
@@ -132,8 +141,7 @@ refine_shifts(ROOT_DIRECT='f160w',
     """
     import numpy as np
     
-    threedhst.showMessage('Aligning WCS to %s (%s)'
-              %(threedhst.options['ALIGN_IMAGE'], fitgeometry))
+    threedhst.showMessage('Aligning WCS to %s (%s)' %(threedhst.options['ALIGN_IMAGE'], fitgeometry))
     
     run = threedhst.prep_flt_files.MultidrizzleRun(ROOT_DIRECT.upper())
     
@@ -482,7 +490,7 @@ def checkShiftfile(asn_direct):
 checkShiftfile(asn_direct)
     
     Make sure that there is a line in the shiftfile for each exposure 
-    in the ASN table.
+    in the ASN table.  Also check that no scales are zero.
     """
     from threedhst.utils import ASNFile
     asn = ASNFile(asn_direct)
@@ -497,7 +505,14 @@ checkShiftfile(asn_direct)
             #print sf.nrows
             sf.append(exp+'_flt.fits')
             #print sf.nrows
-            
+    
+    #### Check if scales are zero in the shiftfile
+    if 0.0 in sf.scale:
+        flag = True
+        print 'Found scale=0 in the shiftfile, setting to default no shift/rotation\n'
+        for i in range(len(sf.scale)):
+            sf.xshift[i], sf.yshift[i], sf.rotate[i], sf.scale[i] = 0.0, 0.0, 0.0, 1.0
+        
     if flag:
         sf.write(sf_file)
     else:       

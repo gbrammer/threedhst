@@ -411,10 +411,10 @@ polygons_intersect(px, py, qx, qy)
     not, check if all points of one polygon are within another.
     """
     ### check if polygons are closed
-    if px[-1] != px[0]:
+    if (px[-1] != px[0]) | (py[-1] != py[0]):
         px = np.append(px,px[0])
         py = np.append(py,py[0])
-    if qx[-1] != qx[0]:
+    if (qx[-1] != qx[0]) | (qy[-1] != qy[0]):
         qx = np.append(qx,qx[0])
         qy = np.append(qy,qy[0])
     
