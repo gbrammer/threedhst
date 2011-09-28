@@ -748,4 +748,33 @@ def color_table(value, table='hsv.rgb', normalized=False, show=False):
     
     return (ri, gi, bi)
     
+def decimal2HMS(input, hours=False):
+    """
+    Convert decimal degrees to DD:MM:SS or HH:MM:SS.
+    
+    >>> ra = 150.06852667
+    >>> print threedhst.utils.decimal2HMS(ra, hours=True)
+    10:00:16.45
+    
+    """
+    if hours:
+        value = input*24/360.
+    else:
+        value = input
+        
+    sign = value < 0
+    if (hours):
+        pm = ''
+    else:
+        if sign:
+            pm = '-'
+        else:
+            pm = '+'
+        
+    deg = np.abs(int(value))
+    rem = np.abs(value)-deg
+    min = int(rem*60)
+    sec = (rem-min/60.)*3600
+    
+    return '%s%02d:%02d:%05.2f' %(pm, deg, min, sec)
     
