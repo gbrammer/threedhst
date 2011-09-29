@@ -66,7 +66,22 @@ delete_all_frames(self)
         for frame in frames:
             self.set('frame %s' %frame)
             self.set('frame delete')
-
+    
+    def cds_query(self, radius=1):
+        """
+        Search the CDS database around the center position of the DS9 window
+        """
+        import os
+        coords = self.get('pan fk5 sexagesimal')
+        if coords == ' 0 0 \n':
+            print 'No WCS information.  Load the image with a header.'
+            return False
+            
+        format='+'.join(coords.replace('+','%2B').replace('-','%2D').split())
+        link="http://vizier.u-strasbg.fr/viz-bin/VizieR?-c=%s&-c.rs=%.1f" %(format, radius)
+        print coords
+        os.system('open \"%s\"' %(link))
+        
 class checkDQ:
     """
 checkDQ(asn_direct_file='ib3704050_asn.fits',
