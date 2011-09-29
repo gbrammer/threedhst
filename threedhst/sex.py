@@ -583,6 +583,7 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         """
         self.filename = filename
         self.linelist    = self.opencat(filename)
+        self.add_missing_header_lines()
         self.headerlines = self.extractheader(self.linelist)
         self.rowlines    = self.extractrows(self.linelist)
         allheads    = self.makeheads(self.headerlines)
@@ -592,7 +593,42 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         
         #### populate columns
         self._easy_columns()
+    
+    def add_missing_header_lines(self, verbose=False):
+        """
+        There is only one line in the SExtractor catalog header for some cases where there 
+        may be multiple columns, like if multiple apertures are specified for FLUX_APER. 
         
+        Find these lines and add them as needed to the header of the SExtractor catalog.
+        """
+        indexes = []
+        names = []
+        comments = []
+        for line in self.linelist:
+            if not line.startswith('#'):
+                break
+            else:
+                sp = line[:-1].split()
+                indexes.append(sp[1])
+                names.append(sp[2])
+                comments.append(' '.join(sp[3:]))
+        
+        names = np.array(names)
+        comments = np.array(comments)
+        indexes = np.cast[int](indexes)
+        delta = indexes[1:]-indexes[:-1]
+        
+        skip = delta > 1
+        count = 0
+        for nskip, idx, name, comment in zip(delta[skip], indexes[skip], names[skip], comments[skip]):
+            if verbose:
+                print '# %d %s %s' %(idx, name, comment)
+            for j in range(1,nskip):
+                if verbose:
+                    print '# %d %s%d  %s' %(idx+j, name, j+1, comment)
+                newname = '%s%d' %(name, j+1)
+                self.linelist.insert(idx+j-1, '#  %d %-21s  %s \n' %(idx+j, newname, comment) )
+            
     def popItem(self, number_out, verbose=False):
         """
         popItem(self, NUMBER[s], verbose=False)
