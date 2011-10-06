@@ -675,7 +675,10 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
                 #### Put persistence mask here, still not quite working
                 #if make_persistence_mask:
                 #    make_3dhst_persistence_mask(asn_file)
-                
+            #
+            threedhst.shifts.USE_PLOT_GUI = False
+            threedhst.shifts.plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, skip_swarp=True)
+            
         ### Need fresh FLT files now
         threedhst.process_grism.fresh_flt_files(asn_file)
              
