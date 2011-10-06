@@ -190,7 +190,7 @@ refine_shifts(ROOT_DIRECT='f160w',
     
     shiftF.write(ROOT_DIRECT+'_shifts.txt')
     
-def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=False, ALIGN_EXTENSION=0, toler=3, skip_swarp=False, threshold=7, force=False):
+def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=True, ALIGN_EXTENSION=0, toler=3, skip_swarp=False, threshold=7, force=False):
     """
     Run SExtractor on two images and match the objects to plot the shifts between them.
     
@@ -198,7 +198,9 @@ def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=False, ALIGN_EXTEN
     `align_img_list` to find ALIGN_IMAGEs
     """
     
-    if os.path.exists(ROOT_DIRECT+'_align.fits') & not Force:
+    if os.path.exists(ROOT_DIRECT+'_align.fits') & (not force):
+        if verbose:
+            print 'Image %s_align.fits exists.  Skipping SWarp.' %(ROOT_DIRECT)
         skip_swarp = True
         
     if not skip_swarp:
