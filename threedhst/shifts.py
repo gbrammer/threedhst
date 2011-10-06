@@ -15,7 +15,14 @@ import pyraf
 from pyraf import iraf
 from iraf import stsdas,dither
 
+import numpy as np
+
 import matplotlib.pyplot as plt
+
+#### Set to False if you don't have GUI access (Mac) on the machine, i.e. running over SSH.
+USE_PLOT_GUI=True
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 import threedhst
 import threedhst.prep_flt_files
@@ -183,6 +190,151 @@ refine_shifts(ROOT_DIRECT='f160w',
     
     shiftF.write(ROOT_DIRECT+'_shifts.txt')
     
+def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=False, ALIGN_EXTENSION=0, toler=3, skip_swarp=False, threshold=7):
+    """
+    Run SExtractor on two images and match the objects to plot the shifts between them.
+    """
+    
+    if not skip_swarp:
+        align_img_list = find_align_images_that_overlap(ROOT_DIRECT+'_drz.fits', ALIGN_IMAGE, ALIGN_EXTENSION=ALIGN_EXTENSION)
+        if not align_img_list:
+            print 'threedhst.shifts.align_to_reference: no alignment images overlap.'
+            return 0,0
+        #
+        try:
+            os.remove(ROOT_DIRECT+'_align.fits')
+        except:
+            pass
+        
+        matchImagePixels(input=align_img_list, matchImage=ROOT_DIRECT+'_drz.fits', output=ROOT_DIRECT+'_align.fits', match_extension = 1, input_extension=ALIGN_EXTENSION)
+    
+    se = threedhst.sex.SExtractor()
+    se.aXeParams()
+    se.copyConvFile()
+    se.overwrite = True
+    se.options['CHECKIMAGE_TYPE'] = 'NONE'
+    se.options['WEIGHT_TYPE']     = 'MAP_WEIGHT'
+    se.options['WEIGHT_IMAGE']    = ROOT_DIRECT+'_drz.fits[1]'
+    se.options['FILTER']    = 'Y'
+    ## Detect thresholds (default = 1.5)
+    se.options['DETECT_THRESH']    = '%f' %(threshold) 
+    se.options['ANALYSIS_THRESH']  = '%f' %(threshold)
+    se.options['MAG_ZEROPOINT'] = str(threedhst.options['MAG_ZEROPOINT'])
+
+    #### Run SExtractor on direct and alignment images
+    ## direct image
+    se.options['CATALOG_NAME']    = 'direct.cat'
+    status = se.sextractImage(ROOT_DIRECT+'_drz.fits[0]')
+
+    ## alignment image
+    se.options['CATALOG_NAME']    = 'align.cat'
+    se.options['WEIGHT_TYPE']     = 'NONE'
+    status = se.sextractImage(ROOT_DIRECT+'_align.fits')
+
+    ## Read the catalogs
+    directCat = threedhst.sex.mySexCat('direct.cat')
+    alignCat = threedhst.sex.mySexCat('align.cat')
+    
+    xshift = 0
+    yshift = 0
+    rot = 0
+    scale = 1.
+    
+    xrms = 2
+    yrms = 2
+    
+    NITER = 5
+    IT = 0
+    while (IT < NITER):
+        IT = IT+1
+        
+        #### Get x,y coordinates of detected objects
+        ## direct image
+        fp = open('direct.xy','w')
+        for i in range(len(directCat.X_IMAGE)):
+            fp.write('%s  %s\n' %(directCat.X_IMAGE[i],directCat.Y_IMAGE[i]))
+        fp.close()
+
+        ## alignment image
+        fp = open('align.xy','w')
+        for i in range(len(alignCat.X_IMAGE)):
+            fp.write('%s  %s\n' %(np.float(alignCat.X_IMAGE[i])+xshift,
+                       np.float(alignCat.Y_IMAGE[i])+yshift))
+        fp.close()
+
+        iraf.flpr(); iraf.flpr(); iraf.flpr()
+        
+        #### iraf.xyxymatch to find matches between the two catalogs
+        pow = toler*1.
+        try:
+            os.remove('align.match')
+        except:
+            pass
+            
+        status1 = iraf.xyxymatch(input="direct.xy", reference="align.xy", output="align.match", tolerance=2**pow, separation=0, verbose=yes, Stdout=1)
+        
+        while status1[-1].startswith('0'):
+            pow+=1
+            os.remove('align.match')
+            status1 = iraf.xyxymatch(input="direct.xy", reference="align.xy", output="align.match", tolerance=2**pow, separation=0, verbose=yes, Stdout=1)
+    
+    #### Images are aligned, plot the offsets
+    
+    dx, dy, ax, ay, di, ai = np.loadtxt('align.match', unpack=True)
+    
+    ddx,ddy = dx-ax, dy-ay
+    keep = (ddx < 10) & (ddy < 10)
+    sx, sy = threedhst.utils.biweight(ddx[keep], both=True), threedhst.utils.biweight(ddy[keep], both=True)
+    
+    if USE_PLOT_GUI:
+        fig = plt.figure(figsize=[8,4],dpi=100)
+    else:
+        fig = Figure(figsize=[8,4], dpi=100)
+    
+    fig.subplots_adjust(wspace=0.28, hspace=0.0, left=0.08, bottom=0.14, right=0.98, top=0.98)
+    
+    ax = fig.add_subplot(121)
+    
+    ax.plot(ddx, ddy, marker='o', linestyle='None', color='black', alpha=0.4, ms=2, zorder=-1)
+    ax.errorbar(sx[0],sy[0],sx[1],sy[1], marker='o', ms=0.1, color='white', linewidth=3, zorder=100)
+    ax.errorbar(sx[0],sy[0],sx[1],sy[1], marker='o', ms=0.1, color='red', linewidth=2, zorder=500)
+    
+    ax.grid(alpha=0.5)
+    dwin = 5*np.max([sx[1],sy[1]])
+    ax.set_xlim(sx[0]-dwin,sx[0]+dwin)
+    ax.set_ylim(sy[0]-dwin,sy[0]+dwin)
+    ax.set_xlabel(r'$\Delta x$ [pix]')
+    ax.set_ylabel(r'$\Delta y$ [pix]')
+    ax.text(0.5,0.95,ROOT_DIRECT+'_drz.fits', fontsize=9, horizontalalignment='center', transform=ax.transAxes)
+    ax.text(0.5,0.9,os.path.basename(ALIGN_IMAGE), fontsize=9, horizontalalignment='center', transform=ax.transAxes)
+    
+    ax.text(0.5,0.1,r'$\Delta x, \Delta y = %.2f \pm %.2f, %.2f \pm %.2f)$' %(sx[0],sx[1],sy[0],sy[1]), fontsize=11, horizontalalignment='center', transform=ax.transAxes)
+    
+    ax = fig.add_subplot(122)
+    
+    ax.plot(dx[keep], dy[keep], marker='o', ms=1, linestyle='None', color='black', alpha=0.1)
+    ax.quiver(dx[keep], dy[keep], ddx[keep], ddy[keep], alpha=0.5, angles='xy', headlength=0, headwidth=1, scale=100./(dx.max()-dx.min()), units='x')
+    ax.set_xlabel(r'$x$ [pix]')
+    ax.set_ylabel(r'$y$ [pix]')
+    
+    if USE_PLOT_GUI:
+        fig.savefig(ROOT_DIRECT+'_align.pdf',dpi=100,transparent=False)
+    else:
+        canvas = FigureCanvasAgg(fig)
+        canvas.print_figure(ROOT_DIRECT+'_align.pdf', dpi=100, transparent=False)
+    
+    if clean:
+        rmfiles = ['SCI.fits','WHT.fits','align.cat',
+               'align.map','align.match','align.reg','align.xy',
+               'direct.cat','direct.reg','direct.xy',
+               'drz_sci.fits','drz_wht.fits','bg.fits']
+        
+        for file in rmfiles:
+            try:
+                os.remove(file)
+            except:
+                pass
+       
 def align_to_reference(ROOT_DIRECT, ALIGN_IMAGE, fitgeometry="shift",
     clean=True, verbose=False, ALIGN_EXTENSION=0, toler=3, skip_swarp=False):
     """
@@ -205,9 +357,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
             pass
                 
     #### Get only images that overlap from the ALIGN_IMAGE list    
-    align_img_list = find_align_images_that_overlap(ROOT_DIRECT+'_drz.fits',
-                                                    ALIGN_IMAGE,
-                                     ALIGN_EXTENSION=ALIGN_EXTENSION)
+    align_img_list = find_align_images_that_overlap(ROOT_DIRECT+'_drz.fits', ALIGN_IMAGE, ALIGN_EXTENSION=ALIGN_EXTENSION)
     if not align_img_list:
         print 'threedhst.shifts.align_to_reference: no alignment images overlap.'
         return 0,0
