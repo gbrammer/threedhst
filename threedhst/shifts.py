@@ -190,11 +190,17 @@ refine_shifts(ROOT_DIRECT='f160w',
     
     shiftF.write(ROOT_DIRECT+'_shifts.txt')
     
-def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=False, ALIGN_EXTENSION=0, toler=3, skip_swarp=False, threshold=7):
+def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=False, ALIGN_EXTENSION=0, toler=3, skip_swarp=False, threshold=7, force=False):
     """
     Run SExtractor on two images and match the objects to plot the shifts between them.
+    
+    ALIGN_IMAGE is a string that may contain wildcards, and the function will use 
+    `align_img_list` to find ALIGN_IMAGEs
     """
     
+    if os.path.exists(ROOT_DIRECT+'_align.fits') & not Force:
+        skip_swarp = True
+        
     if not skip_swarp:
         align_img_list = find_align_images_that_overlap(ROOT_DIRECT+'_drz.fits', ALIGN_IMAGE, ALIGN_EXTENSION=ALIGN_EXTENSION)
         if not align_img_list:
