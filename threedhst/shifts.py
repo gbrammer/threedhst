@@ -321,7 +321,7 @@ def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=True, ALIGN_EXTENS
     ax = fig.add_subplot(122)
     
     ax.plot(dx[keep], dy[keep], marker='o', ms=1, linestyle='None', color='black', alpha=0.1)
-    ax.quiver(dx[keep], dy[keep], ddx[keep], ddy[keep], alpha=0.5, angles='xy', headlength=0, headwidth=1, scale=50./(dx.max()-dx.min()), units='x')
+    ax.quiver(dx[keep], dy[keep], ddx[keep], ddy[keep], alpha=0.5, angles='xy', headlength=0, headwidth=1, scale=100./(dx.max()-dx.min()), units='x')
     ax.set_xlabel(r'$x$ [pix]')
     ax.set_ylabel(r'$y$ [pix]')
     
