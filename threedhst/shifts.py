@@ -190,13 +190,14 @@ refine_shifts(ROOT_DIRECT='f160w',
     
     shiftF.write(ROOT_DIRECT+'_shifts.txt')
     
-def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=True, ALIGN_EXTENSION=0, toler=3, skip_swarp=False, threshold=7, force=False):
+def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=True, ALIGN_EXTENSION=0, toler=3, skip_swarp=False, threshold=7, force=False, drz=True, WEIGHT_IMAGE = None):
     """
     Run SExtractor on two images and match the objects to plot the shifts between them.
     
     ALIGN_IMAGE is a string that may contain wildcards, and the function will use 
     `align_img_list` to find ALIGN_IMAGEs
     """
+    import glob
     
     if os.path.exists(ROOT_DIRECT+'_align.fits') & (not force):
         if verbose:
@@ -204,7 +205,11 @@ def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=True, ALIGN_EXTENS
         skip_swarp = True
         
     if not skip_swarp:
-        align_img_list = find_align_images_that_overlap(ROOT_DIRECT+'_drz.fits', ALIGN_IMAGE, ALIGN_EXTENSION=ALIGN_EXTENSION)
+        if drz:
+            align_img_list = find_align_images_that_overlap(ROOT_DIRECT+'_drz.fits', ALIGN_IMAGE, ALIGN_EXTENSION=ALIGN_EXTENSION)
+        else:
+            align_img_list = glob.glob(ALIGN_IMAGE)
+            
         if not align_img_list:
             print 'threedhst.shifts.align_to_reference: no alignment images overlap.'
             return 0,0
@@ -214,15 +219,29 @@ def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=True, ALIGN_EXTENS
         except:
             pass
         
-        matchImagePixels(input=align_img_list, matchImage=ROOT_DIRECT+'_drz.fits', output=ROOT_DIRECT+'_align.fits', match_extension = 1, input_extension=ALIGN_EXTENSION)
-    
+        if drz:
+            matchImagePixels(input=align_img_list, matchImage=ROOT_DIRECT+'_drz.fits', output=ROOT_DIRECT+'_align.fits', match_extension = 1, input_extension=ALIGN_EXTENSION)
+            ALIGN_FITS = ROOT_DIRECT+'_align.fits'
+        else:
+            ALIGN_FITS = os.path.basename(ROOT_DIRECT.split('.fits')[0])+'_align.fits'
+            matchImagePixels(input=align_img_list, matchImage=ROOT_DIRECT, output=ALIGN_FITS, match_extension = 0, input_extension=ALIGN_EXTENSION)
+            
     se = threedhst.sex.SExtractor()
     se.aXeParams()
     se.copyConvFile()
     se.overwrite = True
     se.options['CHECKIMAGE_TYPE'] = 'NONE'
     se.options['WEIGHT_TYPE']     = 'MAP_WEIGHT'
-    se.options['WEIGHT_IMAGE']    = ROOT_DIRECT+'_drz.fits[1]'
+    
+    if drz:
+        se.options['WEIGHT_IMAGE']    = ROOT_DIRECT+'_drz.fits[1]'
+    else:
+        if WEIGHT_IMAGE:
+            se.options['WEIGHT_IMAGE']    = WEIGHT_IMAGE
+        else:
+            se.options['WEIGHT_TYPE']    = 'NONE'
+            se.options['WEIGHT_IMAGE']    = 'NONE'
+            
     se.options['FILTER']    = 'Y'
     ## Detect thresholds (default = 1.5)
     se.options['DETECT_THRESH']    = '%f' %(threshold) 
@@ -232,12 +251,17 @@ def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=True, ALIGN_EXTENS
     #### Run SExtractor on direct and alignment images
     ## direct image
     se.options['CATALOG_NAME']    = 'direct.cat'
-    status = se.sextractImage(ROOT_DIRECT+'_drz.fits[0]')
-
+    if drz:
+        status = se.sextractImage(ROOT_DIRECT+'_drz.fits[0]')
+        INPUT_IMAGE = ROOT_DIRECT+'_drz.fits'
+    else:
+        status = se.sextractImage(ROOT_DIRECT)
+        INPUT_IMAGE = ROOT_DIRECT
+        
     ## alignment image
     se.options['CATALOG_NAME']    = 'align.cat'
     se.options['WEIGHT_TYPE']     = 'NONE'
-    status = se.sextractImage(ROOT_DIRECT+'_align.fits')
+    status = se.sextractImage(ALIGN_FITS)
 
     ## Read the catalogs
     directCat = threedhst.sex.mySexCat('direct.cat')
@@ -291,9 +315,11 @@ def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=True, ALIGN_EXTENS
     dx, dy, ax, ay, di, ai = np.loadtxt('align.match', unpack=True)
     
     ddx,ddy = dx-ax, dy-ay
-    keep = (ddx < 10) & (ddy < 10)
-    sx, sy = threedhst.utils.biweight(ddx[keep], both=True), threedhst.utils.biweight(ddy[keep], both=True)
-    
+    keep = (np.abs(ddx) < 15) & (np.abs(ddy) < 15)
+    for i in range(5):
+        sx, sy = threedhst.utils.biweight(ddx[keep], both=True), threedhst.utils.biweight(ddy[keep], both=True)
+        keep = keep & (np.abs(ddx-sx[0]) < 5*sx[1]) & (np.abs(ddy-sy[0]) < 5*sy[1])
+        
     if USE_PLOT_GUI:
         fig = plt.figure(figsize=[8,4],dpi=100)
     else:
@@ -313,7 +339,7 @@ def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=True, ALIGN_EXTENS
     ax.set_ylim(sy[0]-dwin,sy[0]+dwin)
     ax.set_xlabel(r'$\Delta x$ [pix]')
     ax.set_ylabel(r'$\Delta y$ [pix]')
-    ax.text(0.5,0.95,ROOT_DIRECT+'_drz.fits', fontsize=9, horizontalalignment='center', transform=ax.transAxes)
+    ax.text(0.5,0.95,os.path.basename(INPUT_IMAGE), fontsize=9, horizontalalignment='center', transform=ax.transAxes)
     ax.text(0.5,0.9,os.path.basename(ALIGN_IMAGE), fontsize=9, horizontalalignment='center', transform=ax.transAxes)
     
     ax.text(0.5,0.1,r'$\Delta x, \Delta y = %.2f \pm %.2f, %.2f \pm %.2f)$' %(sx[0],sx[1],sy[0],sy[1]), fontsize=11, horizontalalignment='center', transform=ax.transAxes)
@@ -321,15 +347,18 @@ def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=True, ALIGN_EXTENS
     ax = fig.add_subplot(122)
     
     ax.plot(dx[keep], dy[keep], marker='o', ms=1, linestyle='None', color='black', alpha=0.1)
-    ax.quiver(dx[keep], dy[keep], ddx[keep], ddy[keep], alpha=0.5, angles='xy', headlength=0, headwidth=1, scale=100./(dx.max()-dx.min()), units='x')
+    ax.quiver(dx[keep], dy[keep], ddx[keep], ddy[keep], alpha=0.5, angles='xy', units='xy', headlength=1, headwidth=1, scale=30./(dx.max()-dx.min()), units='x', minlength=1)
+    aa = np.array([1,1])
+    ax.quiver(dx[keep].mean()*aa, dy[keep].max()*0.95*aa, 1*aa, 0*aa, alpha=0.9, angles='xy', headlength=0, headwidth=1, scale=30./(dx.max()-dx.min()), units='x', color='red')
+    
     ax.set_xlabel(r'$x$ [pix]')
     ax.set_ylabel(r'$y$ [pix]')
     
     if USE_PLOT_GUI:
-        fig.savefig(ROOT_DIRECT+'_align.pdf',dpi=100,transparent=False)
+        fig.savefig(os.path.basename(ROOT_DIRECT.split('.fits')[0])+'_align.pdf',dpi=100,transparent=False)
     else:
         canvas = FigureCanvasAgg(fig)
-        canvas.print_figure(ROOT_DIRECT+'_align.pdf', dpi=100, transparent=False)
+        canvas.print_figure(os.path.basename(ROOT_DIRECT.split('.fits')[0])+'_align.pdf', dpi=100, transparent=False)
     
     if clean:
         rmfiles = ['SCI.fits','WHT.fits','align.cat',
