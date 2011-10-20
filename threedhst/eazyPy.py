@@ -397,6 +397,31 @@ zgrid, pz = getEazyPz(idx, \
     ###### Done
     return tempfilt['zgrid'],pzi
     
+def convert_chi_to_pdf(tempfilt, pz):
+    """
+    Convert the `chi2fit` array in the `pz` structure to probability densities.
+    
+    The `tempfilt` structure is needed to get the redshift grid.
+    """
+    pdf = pz['chi2fit']*0.
+
+    for idx in range(pz['NOBJ']):
+        ###### Get p(z|m) from prior grid
+        kidx = pz['kidx'][idx]
+        #print kidx, pz['priorzk'].shape
+        if (kidx > 0) & (kidx < pz['priorzk'].shape[1]):
+            prior = pz['priorzk'][:,kidx]
+        else:
+            prior = np.ones(pz['NZ'])
+
+        ###### Convert Chi2 to p(z)
+        pzi = np.exp(-0.5*(pz['chi2fit'][:,idx]-min(pz['chi2fit'][:,idx])))*prior
+        if np.sum(pzi) > 0:
+            pzi/=trapz(tempfilt['zgrid'],pzi)
+            pdf[:,idx] = pzi
+            
+    return tempfilt['zgrid']*1., pdf
+    
 def plotExampleSED(idx=20, writePNG=True,
     MAIN_OUTPUT_FILE = 'photz',
     OUTPUT_DIRECTORY = 'OUTPUT',
