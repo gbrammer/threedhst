@@ -1702,7 +1702,7 @@ MultidrizzleRun(root='IB3728050')
         
         self.count = len(self.flt)
         
-    def blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True, shape = None):
+    def blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True, shape = None, ACS_CHIP=None):
         """
 blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
     
@@ -1721,8 +1721,20 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
         #flt_orig = pyfits.open('../RAW/'+self.flt[ii]+'.fits.gz')
         threedhst.process_grism.flprMulti()
         
+        if ACS_CHIP is None:
+            ACS = False
+            coeffs_ext = '_coeffs1.dat'
+            EXT = 1
+        else:
+            ACS = True
+            coeffs_ext = '_coeffs%0d.dat' %(3-ACS_CHIP)
+            if ACS_CHIP == 1:
+                EXT = 1
+            else:
+                EXT = 4
+                
         ## Copy the coeffs1.dat file if necessary
-        if not os.path.exists(self.flt[ii]+'_coeffs1.dat'):
+        if not os.path.exists(self.flt[ii]+coeffs_ext):
             coeffs = threedhst.utils.get_package_data('wfc3_coeffs1.dat')
             fp = open(self.flt[ii]+'_coeffs1.dat','w')
             fp.writelines(coeffs)
@@ -1732,7 +1744,11 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
             try:
                 flt_orig = pyfits.open(self.flt[ii]+'.fits')
                 exptime = flt_orig[0].header.get('EXPTIME')
-                filter = flt_orig[0].header.get('FILTER').strip()
+                if not ACS:
+                    filter = flt_orig[0].header.get('FILTER').strip()
+                else:
+                    filter = (flt_orig[0].header.get('FILTER1').strip(),flt_orig[0].header.get('FILTER2').strip())
+                
                 flt_orig.close()
             except:
                 exptime = 1.
@@ -1742,8 +1758,8 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
         
         if shape is None:  
             try:
-                inNX = flt_orig[1].header.get('NAXIS1')
-                inNY = flt_orig[1].header.get('NAXIS2')
+                inNX = flt_orig[EXT].header.get('NAXIS1')
+                inNY = flt_orig[EXT].header.get('NAXIS2')
             except:
                 inNX = 1014
                 inNY = 1014
@@ -1754,7 +1770,7 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
         
         #### Need to update reference position of coeffs file
         #### for an output shape different than 1014, 1014
-        coeffs = self.flt[ii]+'_coeffs1.dat'
+        coeffs = self.flt[ii]+coeffs_ext #'_coeffs1.dat'
         fp = open(coeffs)
         coeffs_lines = fp.readlines()
         fp.close()
@@ -1765,12 +1781,16 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
                     ### Default to center pixel
                     coeffs_lines[i] = 'refpix %9.3f %9.3f\n' %(inNX*1./2, inNY*1./2)
         
-        fp = open('tmp_coeffs1.dat','w')
+        fp = open('tmp'+coeffs_ext,'w')
         fp.writelines(coeffs_lines)
         fp.close()
         
                 
-        iraf.delete(self.flt[ii]+'.BLOT.*.fits')
+        #iraf.delete(self.flt[ii]+'.BLOT.*.fits')
+        files = glob.glob(self.flt[ii]+'.BLOT.*.fits')
+        for file in files:
+            os.remove(file)
+            
         if copy_new:
             iraf.delete('drz_*.fits')
             # iraf.imcopy(self.root+'_drz.fits[1]','drz_sci.fits')
@@ -1803,7 +1823,7 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
         if SCI:
             iraf.blot(data='drz_sci.fits',
                 outdata=self.flt[ii]+'.BLOT.SCI.fits', scale=self.scl,
-                coeffs='tmp_coeffs1.dat', xsh=self.xsh[ii], 
+                coeffs='tmp'+coeffs_ext, xsh=self.xsh[ii], 
                 ysh=self.ysh[ii], 
                 rot=self.rot[ii], outnx=inNX, outny=inNY, align='center', 
                 shft_un='input', shft_fr='input', in_un='cps', out_un='cps', 
@@ -1813,7 +1833,7 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
         if WHT:
             iraf.blot(data='drz_wht.fits',
                 outdata=self.flt[ii]+'.BLOT.WHT.fits', scale=self.scl,
-                coeffs='tmp_coeffs1.dat', xsh=self.xsh[ii], 
+                coeffs='tmp'+coeffs_ext, xsh=self.xsh[ii], 
                 ysh=self.ysh[ii], 
                 rot=self.rot[ii], outnx=inNX, outny=inNY, align='center', 
                 shft_un='input', shft_fr='input', in_un='cps', out_un='cps', 
