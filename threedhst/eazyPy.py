@@ -422,10 +422,7 @@ def convert_chi_to_pdf(tempfilt, pz):
             
     return tempfilt['zgrid']*1., pdf
     
-def plotExampleSED(idx=20, writePNG=True,
-    MAIN_OUTPUT_FILE = 'photz',
-    OUTPUT_DIRECTORY = 'OUTPUT',
-    CACHE_FILE = 'Same'):
+def plotExampleSED(idx=20, writePNG=True, MAIN_OUTPUT_FILE = 'photz', OUTPUT_DIRECTORY = 'OUTPUT', CACHE_FILE = 'Same', lrange=[3000,8.e4]):
     """
 PlotSEDExample(idx=20)
 
@@ -476,7 +473,7 @@ PlotSEDExample(idx=20)
     
     #### Set axis range and titles
     ax.semilogx()
-    ax.set_xlim(3000,9.e4)
+    ax.set_xlim(lam[0],lam[1])
     ax.set_ylim(-0.05*max(obs_sed),1.1*max(obs_sed))
     plt.xlabel(r'$\lambda$ [$\AA$]')
     plt.ylabel(r'$f_\lambda$')
