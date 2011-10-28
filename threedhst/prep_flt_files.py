@@ -1400,8 +1400,9 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                        GRISM_HIGHER_ORDER=1,
                        save_fit=False, 
                        second_pass=True, overall=True,
-                       sky_images=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits']):
+                       sky_images=['sky.G141.set001.fits', 'sky.G141.set002.fits','sky.G141.set003.fits','sky.G141.set004.fits','sky.G141.set005.fits','sky.G141.set025.fits','sky.G141.set120.fits']):
     
+    #### Old sky_images=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits']
     import threedhst
     import threedhst.prep_flt_files
     from threedhst.prep_flt_files import make_targname_asn
