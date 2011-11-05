@@ -4,7 +4,6 @@ eazyPy: routines for reading and plotting Eazy output
     EazyParam
     readEazyBinary
     getEazySED
-    trapz
     getEazyPz
     plotExampleSED
     nMAD
@@ -31,12 +30,37 @@ class FilterDefinition:
         """
         self.name = None
         self.wavelength = None
-        self.transmision = None
+        self.transmission = None
         
+    def extinction_correction(self, EBV, Rv=3.1, mag=True, source_lam=None, source_flux = None):
+        """
+        Get the MW extinction correction within the filter.  
+        
+        Optionally supply a source spectrum.
+        """
+        
+        if self.wavelength is None:
+            print 'Filter not defined.'
+            return False
+        
+        if source_flux is None:
+            source_flux = self.transmission*0.+1
+        else:
+            source_flux = np.interp(self.wavelength, source_lam, source_flux, left=0, right=0)
+            
+        Av = EBV*Rv
+        Alambda = milkyway_extinction(lamb = self.wavelength, Rv=Rv)
+        delta = np.trapz(self.transmission*source_flux*10**(-0.4*Alambda*Av), self.wavelength) / np.trapz(self.transmission*source_flux, self.wavelength)
+        
+        if mag:
+            return 2.5*np.log10(delta)
+        else:
+            return 1./delta
+            
 class FilterFile:
     def __init__(self, file='FILTER.RES.v8.R300'):
         """
-        Read a filter file.
+        Read a EAZY (HYPERZ) filter file.
         """
         fp = open(file)
         lines = fp.readlines()
@@ -91,7 +115,31 @@ class FilterFile:
         if verbose:
             print 'Wrote <%s>.' %(file)
             
-class ParamFilter:
+    def search(self, search_string, case=True, verbose=True):
+        """ 
+        Search filter names for `search_string`.  If `case` is True, then
+        match case.
+        """
+        import re
+        
+        if not case:
+            search_string = search_string.upper()
+        
+        matched = []
+        
+        for i in range(len(self.filters)):
+            filt_name = self.filters[i].name
+            if not case:
+                filt_name = filt_name.upper()
+                
+            if re.search(search_string, filt_name) is not None:
+                if verbose:
+                    print '%5d %s' %(i+1, self.filters[i].name)
+                    matched.append(i)
+        
+        return np.array(matched)
+        
+class ParamFilter(FilterDefinition):
     def __init__(self, line='#  Filter #20, RES#78: COSMOS/SUBARU_filter_B.txt - lambda_c=4458.276253'):
         
         self.lambda_c = float(line.split('lambda_c=')[1])
@@ -110,7 +158,7 @@ class EazyParam():
     '0.010'
 
     """    
-    def __init__(self, PARAM_FILE='zphot.param'):
+    def __init__(self, PARAM_FILE='zphot.param', READ_FILTERS=False):
         self.filename = PARAM_FILE
         
         f = open(PARAM_FILE,'r')
@@ -131,6 +179,12 @@ class EazyParam():
         self.filters = filters
         self.templates = templates
         
+        if READ_FILTERS:
+            RES = FilterFile(self.params['FILTERS_RES'])
+            for i in range(self.NFILT):
+                filters[i].wavelength = RES.filters[filters[i].fnumber-1].wavelength
+                filters[i].transmission = RES.filters[filters[i].fnumber-1].transmission
+                
     def _process_params(self):
         params = {}
         formats = {}
@@ -352,19 +406,6 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
     ###### Done
     return lambdaz, temp_sed, lci, obs_sed, fobs, efobs
 
-def trapz(x, y):
-    """
-result = trapz(x, y)
-
-    Integrate y(x) with the trapezoid rule.
-    """
-    if x.size != y.size:
-       print ('N(x) != N(y)')
-       return None   
-    h = x[1:]-x[:-1]
-    trap = y[1:]+y[:-1]
-    return np.sum(h*trap/2.)
-
 def getEazyPz(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same'):
     """
 zgrid, pz = getEazyPz(idx, \
@@ -392,7 +433,7 @@ zgrid, pz = getEazyPz(idx, \
     ###### Convert Chi2 to p(z)
     pzi = np.exp(-0.5*(pz['chi2fit'][:,idx]-min(pz['chi2fit'][:,idx])))*prior
     if np.sum(pzi) > 0:
-        pzi/=trapz(tempfilt['zgrid'],pzi)
+        pzi/=np.trapz(pzi, tempfilt['zgrid'])
     
     ###### Done
     return tempfilt['zgrid'],pzi
@@ -417,7 +458,7 @@ def convert_chi_to_pdf(tempfilt, pz):
         ###### Convert Chi2 to p(z)
         pzi = np.exp(-0.5*(pz['chi2fit'][:,idx]-min(pz['chi2fit'][:,idx])))*prior
         if np.sum(pzi) > 0:
-            pzi/=trapz(tempfilt['zgrid'],pzi)
+            pzi/=np.trapz(pzi, tempfilt['zgrid'])
             pdf[:,idx] = pzi
             
     return tempfilt['zgrid']*1., pdf
@@ -740,7 +781,68 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     if savefig is not None:
         fig.savefig(savefig)
         plt.close()
-        
+    
+def milkyway_extinction(lamb=None, Rv=3.1):
+    """
+    Return the average milky way extinction curve A(lambda)/A(V~5500 A) from
+    Cardelli, Clayton & Mathis (1989).  
+    
+    Functional form of the MW extinction curve taken from the `astropysics` library: 
+    http://packages.python.org/Astropysics/coremods/obstools.html
+    
+    Input `lamb` is a scalar or array of wavelength values, in Angstroms.
+    """
+    scalar=np.isscalar(lamb)
+    x=1e4/np.array(lamb,ndmin=1) #CCM x is 1/microns
+    a,b=np.ndarray(x.shape,x.dtype),np.ndarray(x.shape,x.dtype)
+
+    #### Allow extrapolation
+    #if any((x<0.3)|(10<x)):
+    #    raise ValueError('some wavelengths outside CCM 89 extinction curve range')
+    #
+    if any((10<x)):
+        print "\nWARNING: MW extinction curve extrapolated at lam < 1000 A\n"
+    
+    if any((0.3>x)):
+        print "\nWARNING: MW extinction curve extrapolated at lam > 3.3 micron\n"
     
     
+    #irs=(0.3 <= x) & (x <= 1.1)
+    irs=(x <= 1.1)
+    opts = (1.1 <= x) & (x <= 3.3)
+    nuv1s = (3.3 <= x) & (x <= 5.9)
+    nuv2s = (5.9 <= x) & (x <= 8)
+    fuvs = (8 <= x) #& (x <= 10)
+
+    #TODO:pre-compute polys
+
+    #CCM Infrared
+    a[irs]=.574*x[irs]**1.61
+    b[irs]=-0.527*x[irs]**1.61
+
+    #CCM NIR/optical
+    a[opts]=np.polyval((.32999,-.7753,.01979,.72085,-.02427,-.50447,.17699,1),x[opts]-1.82)
+    b[opts]=np.polyval((-2.09002,5.3026,-.62251,-5.38434,1.07233,2.28305,1.41338,0),x[opts]-1.82)
+
+    #CCM NUV
+    y=x[nuv1s]-5.9
+    Fa=-.04473*y**2-.009779*y**3
+    Fb=-.2130*y**2-.1207*y**3
+    a[nuv1s]=1.752-.316*x[nuv1s]-0.104/((x[nuv1s]-4.67)**2+.341)+Fa
+    b[nuv1s]=-3.09+1.825*x[nuv1s]+1.206/((x[nuv1s]-4.62)**2+.263)+Fb
+
+    a[nuv2s]=1.752-.316*x[nuv2s]-0.104/((x[nuv2s]-4.67)**2+.341)
+    b[nuv2s]=-3.09+1.825*x[nuv2s]+1.206/((x[nuv2s]-4.62)**2+.263)
+
+    #CCM FUV
+    a[fuvs]=np.polyval((-.070,.137,-.628,-1.073),x[fuvs]-8)
+    b[fuvs]=np.polyval((.374,-.42,4.257,13.67),x[fuvs]-8)
+
+    AloAv = a+b/Rv
+
+    if scalar:
+        return AloAv[0]
+    else:
+        return AloAv
+     
     
