@@ -514,7 +514,7 @@ PlotSEDExample(idx=20)
     
     #### Set axis range and titles
     ax.semilogx()
-    ax.set_xlim(lam[0],lam[1])
+    ax.set_xlim(lrange[0],lrange[1])
     ax.set_ylim(-0.05*max(obs_sed),1.1*max(obs_sed))
     plt.xlabel(r'$\lambda$ [$\AA$]')
     plt.ylabel(r'$f_\lambda$')
