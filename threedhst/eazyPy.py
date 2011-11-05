@@ -135,7 +135,7 @@ class FilterFile:
             if re.search(search_string, filt_name) is not None:
                 if verbose:
                     print '%5d %s' %(i+1, self.filters[i].name)
-                    matched.append(i)
+                matched.append(i)
         
         return np.array(matched)
         
