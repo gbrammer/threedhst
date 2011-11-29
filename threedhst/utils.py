@@ -648,6 +648,47 @@ def biweight2(xarr, both=False, mean=False):
     else:
         return sbi
 
+def gehrels(Nin,twosig=False,threesig=False):
+    """
+    Poisson-like confidence intervals for counting data from Gehrels (1986)
+    http://adsabs.harvard.edu/cgi-bin/bib_query?1986ApJ...303..336G
+    """
+    n = Nin
+    
+    S = 1.0
+    bet = 0.0
+    gam = 0.
+    fixit = 0.
+    
+    if twosig:
+        ## 0.9772
+        S = 2.0
+        bet = 0.062
+        gam = -2.07
+        fixit=1.
+    
+    if threesig:
+        ## 0.9987
+        S = 3.0
+        bet = 0.222
+        gam = -1.88
+        fixit=1.     
+    
+    upper = n+S*np.sqrt(n+3./4)+(S**2+3)/4. 
+    lower = n*(1-1./9./n-S/3/np.sqrt(n))**3    
+    lower = n*(1-1./9./n-S/3/np.sqrt(n)+bet*n**gam*fixit)**3
+
+    if np.isscalar(n):
+        if n <= 0:
+            upper=0
+            lower=0
+    else:
+        bad = n <= 0
+        upper[bad] = 0
+        lower[bad] = 0
+    
+    return (lower, upper)
+    
 def nmad(xarr):
     """
     result = nmad(arr)
@@ -657,8 +698,11 @@ def nmad(xarr):
     """
     return 1.48*np.median(np.abs(xarr-np.median(xarr)))
 
-def runmed(xi, yi, NBIN=10):
-        
+def runmed(xi, yi, NBIN=10, use_median=False, use_nmad=False):
+    """
+    Running median/biweight/nmad
+    """
+    
     NPER = xi.size/NBIN
     xm = np.arange(NBIN)*1.
     xs = xm*0
@@ -672,7 +716,11 @@ def runmed(xi, yi, NBIN=10):
         ym[i], ys[i] = biweight(yi[so][idx+NPER*i], both=True)
         xm[i], xs[i] = biweight(xi[so][idx+NPER*i], both=True)
         N[i] = xi[so][idx+NPER*i].size
-    
+        if use_median:
+            xm[i], ym[i] = np.median(xi[so][idx+NPER*i]), np.median(yi[so][idx+NPER*i])
+        if use_nmad:
+            xs[i], ys[i] = nmad(xi[so][idx+NPER*i]), nmad(yi[so][idx+NPER*i])
+            
     return xm, ym, ys, N
 
 def medfilt(xarr, N=3):

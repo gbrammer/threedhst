@@ -228,15 +228,25 @@ will compute from header directly.
     NAXIS = [sci['NAXIS1'],sci['NAXIS2']]
     CRPIX = [sci['CRPIX1'],sci['CRPIX2']]
     CRVAL = [sci['CRVAL1'],sci['CRVAL2']]
+    
+    CD1_1 = sci['CD1_1']
+    CD2_2 = sci['CD2_2']
+    try:
+        CD1_2 = sci['CD1_2']
+        CD2_1 = sci['CD2_1']
+    except:
+        CD1_2 = 0.
+        CD2_1 = 0.
+        
     cosDec = np.cos(CRVAL[1]/180*np.pi)
     ##### Make region polygon from WCS keywords
     regX = CRVAL[0] + \
-            ((np.array([0,NAXIS[0],NAXIS[0],0])-CRPIX[0])*sci['CD1_1'] +                        
-             (np.array([0,0,NAXIS[1],NAXIS[1]])-CRPIX[1])*sci['CD1_2']) / cosDec
+            ((np.array([0,NAXIS[0],NAXIS[0],0])-CRPIX[0])*CD1_1 +                        
+             (np.array([0,0,NAXIS[1],NAXIS[1]])-CRPIX[1])*CD1_2) / cosDec
     
     regY = CRVAL[1] + \
-            ((np.array([0,NAXIS[0],NAXIS[0],0])-CRPIX[0])*sci['CD2_1'] +         
-             (np.array([0,0,NAXIS[1],NAXIS[1]])-CRPIX[1])*sci['CD2_2'])
+            ((np.array([0,NAXIS[0],NAXIS[0],0])-CRPIX[0])*CD2_1 +         
+             (np.array([0,0,NAXIS[1],NAXIS[1]])-CRPIX[1])*CD2_2)
              
     return regX, regY
     

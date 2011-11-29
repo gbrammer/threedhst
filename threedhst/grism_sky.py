@@ -25,9 +25,9 @@ import os
 IREF = os.getenv('iref')
 
 try:
-    #flat_f140 = pyfits.open(IREF+'/uc721143i_pfl.fits')
+    flat_f140 = pyfits.open(IREF+'/uc721143i_pfl.fits')
     #print 'Make grism_sky_flat'
-    flat_f140 = pyfits.open(IREF+'/flat.IR_avg.fits')
+    #flat_f140 = pyfits.open(IREF+'/flat.IR_avg.fits')
     flat_g141 = pyfits.open(IREF+'/u4m1335mi_pfl.fits')
     flat = flat_g141[1].data[5:1019,5:1019] / flat_f140[1].data[5:1019, 5:1019]
     flat[flat <= 0] = 5
@@ -383,6 +383,16 @@ def make_bg(GZ='.gz'):
     flat[flat <= 0] = 5
     flat[flat > 5] = 5
     
+    #### Candels
+    os.chdir('/Users/gbrammer/CANDELS/Flats/')
+    files = np.array(glob.glob('ib*flt.seg.fits'))
+    PATH = '/Users/gbrammer/CANDELS/UDS/RAW/'
+    
+    info = catIO.Readfile(PATH+'../PREP_FLT/files.info')
+    
+    files = files[info.filter == 'F125W']
+    flat = pyfits.open(IREF+'/uc72113qi_pfl.fits')[1].data[5:-5,5:-5]
+    
     NF = len(files)
     idx = np.arange(NF)
     X = np.zeros((NF,1014.**2))
@@ -401,7 +411,7 @@ def make_bg(GZ='.gz'):
         if os.path.exists(fi+'.mask.reg'):
             continue
         #
-        print files[i]
+        print '%d %s' %(i, files[i])
         flt = pyfits.open(PATH+fi+'.gz')
         flt[1].data *= flat
         ### Segmentation mask
@@ -445,7 +455,7 @@ def make_bg(GZ='.gz'):
     flatim = pyfits.open(IREF+'/uc721143i_pfl.fits')
     flatim[1].data[5:-5,5:-5] = sky
     flatim[3].data[5:-5,5:-5] = nsum
-    flatim.writeto('/research/HST/GRISM/IREF/cosmos_f140w_flat.fits', clobber=True)
+    #flatim.writeto('/research/HST/GRISM/IREF/cosmos_f140w_flat.fits', clobber=True)
     
 def regenerate_segmaps():
     import os

@@ -489,12 +489,13 @@ PlotSEDExample(idx=20)
     #plt.rcParams['ps.useafm'] = True
     plt.rcParams['patch.linewidth'] = 0.
     plt.rcParams['patch.edgecolor'] = 'black'
-    plt.rcParams['text.usetex'] = True
+    #plt.rcParams['text.usetex'] = True
+    plt.rcParams['text.usetex'] = False
     #plt.rcParams['text.latex.preamble'] = ''
 
     ##### start plot
     fig = plt.figure(figsize=[8,4],dpi=100)
-    fig.subplots_adjust(wspace=0.15,hspace=0.0,left=0.08,bottom=0.15,right=0.98,top=0.99)
+    fig.subplots_adjust(wspace=0.15,hspace=0.0,left=0.08,bottom=0.15,right=0.98,top=0.98)
     
     #### Plot parameters
     plotsize=20
