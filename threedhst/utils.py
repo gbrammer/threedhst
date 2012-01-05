@@ -17,6 +17,32 @@ import time
 import pyfits
 import numpy as np
 
+def interp_conserve(x, xp, fp, left=0., right=0.):
+    """
+    Interpolate `xp`,`yp` array to the output x array, conserving flux.  
+    `xp` can be irregularly spaced.
+    """
+    midpoint = (x[1:]-x[:-1])/2.+x[:-1]
+    midpoint = np.append(midpoint, np.array([x[0],x[-1]]))
+    midpoint = midpoint[np.argsort(midpoint)]
+    int_midpoint = np.interp(midpoint, xp, fp, left=left, right=right)
+    int_midpoint[midpoint > xp.max()] = 0.
+    int_midpoint[midpoint < xp.min()] = 0.
+    
+    fullx = np.append(xp, midpoint)
+    fully = np.append(fp, int_midpoint)
+    
+    so = np.argsort(fullx)
+    fullx, fully = fullx[so], fully[so]
+    
+    outy = x*0.
+    dx = midpoint[1:]-midpoint[:-1]
+    for i in range(len(x)):
+        bin = (fullx >= midpoint[i]) & (fullx <= midpoint[i+1])
+        outy[i] = np.trapz(fully[bin], fullx[bin])/dx[i]
+    
+    return outy
+    
 def columnFormat(colname):
     """
 Set format for common column names.  
@@ -825,4 +851,50 @@ def decimal2HMS(input, hours=False):
     sec = (rem-min/60.)*3600
     
     return '%s%02d:%02d:%05.2f' %(pm, deg, min, sec)
+
+def image_size_and_wcs(input="test.fits", extension=1):
+    """
+    Get image size and center world cordinate for a North-up image (e.g. drz.fits)
+    """
+    header = pyfits.getheader(input,extension)
+    NX, NY = header['NAXIS1'], header['NAXIS2']
+    center_ra = header['CRVAL1']+(NX/2.-header['CRPIX1'])*header['CD1_1']
+    center_dec = header['CRVAL2']+(NY/2.-header['CRPIX2'])*header['CD2_2']
+    return (NX, NY, center_ra, center_dec, np.abs(header['CD2_2']*3600.))
+    
+def subimage(input="test.fits", output="sibimage.fits", ra=0, dec=0, size=10, ext=0, verbose=True):
+    """
+    Extract a thumbnail from a larger image, centered on physical 
+    coordinate (ra,dec) with `size` arcsec on a side
+    """    
+    # ra, dec = 34.404794, -5.2248747
+    # size=40
+    # input, ext = 'UDS-17-F140W_drz.fits', 1
+    #
+    im = pyfits.open(input)
+    wcs = im[ext].header
+    #### for now, assume aligned pixels N-up / E-left, square pixels
+    xpix = (ra-wcs['CRVAL1'])/wcs['CD1_1']+wcs['CRPIX1']
+    ypix = (dec-wcs['CRVAL2'])/wcs['CD2_2']+wcs['CRPIX2']
+    #
+    xr, yr = np.round(xpix), np.round(ypix)
+    size_pix = np.round(size / np.abs(wcs['CD1_1']) / 3600. / 2)
+    #
+    subim = im[ext].data[yr-size_pix:yr+size_pix, xr-size_pix:xr+size_pix]
+    #
+    crval1 = (xr-size_pix-wcs['CRPIX1'])*wcs['CD1_1']+wcs['CRVAL1']
+    crval2 = (yr-size_pix-wcs['CRPIX2'])*wcs['CD2_2']+wcs['CRVAL2']
+    wcs['CRVAL1'] = crval1
+    wcs['CRVAL2'] = crval2
+    wcs['CRPIX1'] = 0
+    wcs['CRPIX2'] = 0
+    wcs['NAXIS1'] = size_pix*2
+    wcs['NAXIS2'] = size_pix*2
+    #
+    out = pyfits.PrimaryHDU(data=subim, header=wcs)
+    out.writeto(output, clobber=True)
+    #
+    if verbose:
+        print 'Wrote: %s' %(output)
+        
     
