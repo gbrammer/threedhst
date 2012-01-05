@@ -117,7 +117,7 @@ checkDQ(asn_direct_file='ib3704050_asn.fits',
         
         # maybe want to put ds9 outside of the method
         # to preserve state between subsequent ASN files
-        self.ds9 = myDS9()
+        self.ds9 = myDS9(wait_time=30)
         self.ds9.set('width 600')
         
         self.asn_grism = threedhst.utils.ASNFile(asn_grism_file)
