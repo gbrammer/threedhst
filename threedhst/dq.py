@@ -104,7 +104,7 @@ checkDQ(asn_direct_file='ib3704050_asn.fits',
     
     def __init__(self, asn_direct_file='ib3704050_asn.fits',
            asn_grism_file='ib3704060_asn.fits',
-           path_to_flt='../RAW/'):
+           path_to_flt='../RAW/', SIMPLE_DS9=True):
            
         master = tk.Tk()
         self.master = master
@@ -120,6 +120,10 @@ checkDQ(asn_direct_file='ib3704050_asn.fits',
         self.ds9 = myDS9(wait_time=30)
         self.ds9.set('width 600')
         
+        if SIMPLE_DS9:
+            self.ds9.set('view panner no')
+            self.ds9.set('view magnifier no')
+            
         self.asn_grism = threedhst.utils.ASNFile(asn_grism_file)
         self.asn_direct = threedhst.utils.ASNFile(asn_direct_file)
         print '=== Grism ==='
