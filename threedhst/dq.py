@@ -104,7 +104,7 @@ checkDQ(asn_direct_file='ib3704050_asn.fits',
     
     def __init__(self, asn_direct_file='ib3704050_asn.fits',
            asn_grism_file='ib3704060_asn.fits',
-           path_to_flt='../RAW/', SIMPLE_DS9=True):
+           path_to_flt='../RAW/', SIMPLE_DS9=True, wait_time=30):
            
         master = tk.Tk()
         self.master = master
@@ -117,7 +117,7 @@ checkDQ(asn_direct_file='ib3704050_asn.fits',
         
         # maybe want to put ds9 outside of the method
         # to preserve state between subsequent ASN files
-        self.ds9 = myDS9(wait_time=30)
+        self.ds9 = myDS9(wait_time=wait_time)
         self.ds9.set('width 600')
         
         if SIMPLE_DS9:
