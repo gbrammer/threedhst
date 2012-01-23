@@ -1046,11 +1046,11 @@ class SWarp(object):
         #de0 = iraf.xy2rd.dec
         #print ra0,de0
         self.options['CENTER'] = ra0+', '+de0
-        if 'IDCSCALE' in head.keys():
-            self.options['PIXEL_SCALE'] = str(head['IDCSCALE'])
-        else:
-            #self.options['PIXEL_SCALE'] = str(np.abs(head['CD1_1']*3600.))
-            self.options['PIXEL_SCALE'] = str(np.sqrt(head['CD1_1']**2+head['CD1_2']**2)*3600.)
+        #if 'IDCSCALE' in head.keys():
+        #    self.options['PIXEL_SCALE'] = str(head['IDCSCALE'])
+        #else:
+        #    #self.options['PIXEL_SCALE'] = str(np.abs(head['CD1_1']*3600.))
+        self.options['PIXEL_SCALE'] = str(np.sqrt(head['CD1_1']**2+head['CD1_2']**2)*3600.)
         
         self.options['IMAGE_SIZE']  = '%s,%s' %(head['NAXIS1'],head['NAXIS2'])
         self.options['CENTER_TYPE'] = 'MANUAL'
