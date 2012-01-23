@@ -1050,7 +1050,11 @@ class SWarp(object):
         #    self.options['PIXEL_SCALE'] = str(head['IDCSCALE'])
         #else:
         #    #self.options['PIXEL_SCALE'] = str(np.abs(head['CD1_1']*3600.))
-        self.options['PIXEL_SCALE'] = str(np.sqrt(head['CD1_1']**2+head['CD1_2']**2)*3600.)
+        if 'CD1_2' in head.keys():
+            CD1_2 = head['CD1_2']
+        else:
+            CD1_2 = 0.
+        self.options['PIXEL_SCALE'] = str(np.sqrt(head['CD1_1']**2+CD1_2**2)*3600.)
         
         self.options['IMAGE_SIZE']  = '%s,%s' %(head['NAXIS1'],head['NAXIS2'])
         self.options['CENTER_TYPE'] = 'MANUAL'
