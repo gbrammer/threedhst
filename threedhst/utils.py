@@ -306,15 +306,15 @@ _read_asn_file(self)
         
         if grow:
             #### Allow more characters in the MEMNAME column
-            memname = pyfits.Column(name='MEMNAME', format='30A', array=self.in_fits[1].columns[0].array.astype('S30'), disp='A30')
+            memname = pyfits.Column(name='MEMNAME', format='40A', array=self.in_fits[1].columns[0].array.astype('S40'), disp='A40')
             memtype = self.in_fits[1].columns[1]
             memprsnt = self.in_fits[1].columns[2]
             coldefs = pyfits.ColDefs([memname, memtype, memprsnt])
             hdu = pyfits.new_table(coldefs)
             hdu.header = self.in_fits[1].header
-            hdu.header['TFORM1'] = '30A'
-            hdu.header['TDISP1'] = 'A30'
-            hdu.header['NAXIS1'] += 16
+            hdu.header['TFORM1'] = '40A'
+            hdu.header['TDISP1'] = 'A40'
+            hdu.header['NAXIS1'] += 26
             self.in_fits[1] = hdu        
     
         data = self.in_fits[1].data
