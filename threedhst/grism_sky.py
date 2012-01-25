@@ -61,13 +61,14 @@ def set_G102():
     flat[flat > 5] = 5
     bg.flat = flat
     
-def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky.G141.set001.fits','sky.G141.set002.fits','sky.G141.set003.fits','sky.G141.set004.fits','sky.G141.set005.fits','sky.G141.set025.fits','sky.G141.set120.fits'],  path_to_sky = '../CONF/', out_path='./', verbose=False, plot=False, flat_correct=True, sky_subtract=True, second_pass=True, overall=True):
+def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits'],  path_to_sky = '../CONF/', out_path='./', verbose=False, plot=False, flat_correct=True, sky_subtract=True, second_pass=True, overall=True):
     """ 
     Process a (G141) grism exposure by dividing by the F140W imaging flat-field
-    and then dividing by a master sky image.  
+    and then subtracting by a master sky image.  
     
     v1.6: list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits']
     
+    testing: list=['sky.G141.set001.fits','sky.G141.set002.fits','sky.G141.set003.fits','sky.G141.set004.fits','sky.G141.set005.fits','sky.G141.set025.fits','sky.G141.set120.fits']
     """
     
     import threedhst.grism_sky as bg
@@ -136,15 +137,23 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky.G141.set001.fits','sky
         sk[0].data = sk[0].data*0+1
         
     #### Divide by the sky flat
-    corr = im[1].data*flat/sk[0].data
+    #corr = im[1].data*flat/sk[0].data
+    # #### Show the result
+    # if plot:
+    #     ds9.frame(2)
+    #     ds9.v(corr-threedhst.utils.biweight(corr[mask], mean=True), vmin=-0.5,vmax=0.5)
+
+    ### Instead, subtract the sky flat
+    sky_stats = threedhst.utils.biweight((im[1].data*flat/sk[0].data)[mask], both=True)
+    corr = im[1].data*flat-sky_stats[0]*sk[0].data
+    # #### Show the result
+    # if plot:
+    #     ds9.frame(3)
+    #     ds9.v(corr, vmin=-0.5,vmax=0.5)
+    
+    #### Put the result in the FLT data extension
     im[1].data = corr*1.
-    
-    #### Show the result
-    if plot:
-        corr -= threedhst.utils.biweight(corr[mask], mean=True)
-        ds9.frame(2)
-        ds9.v(corr, vmin=-0.5,vmax=0.5)
-    
+     
     #### Need to write an output file to use `profile`
     im.writeto(out_path+os.path.basename(flt).replace('.gz',''), clobber=True)
     xin, yin = bg.profile(out_path+os.path.basename(flt).replace('.gz',''), extension=1, flatcorr=False, biweight=True)
