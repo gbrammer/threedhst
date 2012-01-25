@@ -17,6 +17,85 @@ import time
 import pyfits
 import numpy as np
 
+def test_conserve():
+    xfull = np.arange(0,1000001,1)
+    yfull = np.sin(xfull/np.pi/2/20)+1
+    
+    xint = np.arange(0,1000001,10000)
+    yint_0 = np.interp(xint, xfull, yfull)
+    yint_1 = threedhst.utils.interp_conserve(xint, xfull, yfull)
+    yint_2 = threedhst.utils.interp_conserve_c(xint, xfull, yfull)
+    np.trapz(yint_0, xint)/np.trapz(yfull,xfull)-1, np.trapz(yint_1, xint)/np.trapz(yfull,xfull)-1, np.trapz(yint_2, xint)/np.trapz(yfull,xfull)-1
+    
+def interp_conserve_c(x, xp, fp, left=0, right=0):
+    """
+    Interpolate `xp`,`yp` array to the output x array, conserving flux.  
+    `xp` can be irregularly spaced.
+    """
+    from scipy import weave
+    from scipy.weave import converters
+    
+    templmid = (x[1:]-x[:-1])/2.+x[:-1]
+    templmid = np.append(templmid, np.array([x[0], x[-1]]))
+    templmid = templmid[np.argsort(templmid)]
+    tempfmid = np.interp(templmid, xp, fp, left=left, right=right)
+        
+    #### Code from eazy
+    NTEMPL = len(templmid)
+    tf = fp
+    tlam = xp
+    ntlam = len(xp)
+    
+    outy = templmid[:-1]
+    
+    code = """
+    long i,k,istart;
+    double h, numsum;
+    
+    ////// Rebin template grid to master wavelength grid, conserving template flux
+    i=0;
+    for (k=0;k<NTEMPL;++k) {
+        numsum=0.;
+        
+        //// Go to where tlam is greater than the first midpoint
+        while ((tlam(i) < templmid(k)) && (i < ntlam)) ++i;
+        istart=i;
+        
+        /////// First point
+        if (tlam(i) < templmid(k+1)) {
+            h = tlam(i)-templmid(k);
+            numsum+=h*(tf(i)+tempfmid(k));
+            ++i;
+        }
+        if (i==0) ++i;
+                
+        /////// Template points between master grid points
+        while ((tlam(i) < templmid(k+1)) && (i < ntlam)) {
+            h = tlam(i)-tlam(i-1);
+            numsum+=h*(tf(i)+tf(i-1));
+            ++i;
+        }
+        
+        //// If no template points between master grid points, then just use interpolated midpoints
+        if ( i == istart ) {
+            h = templmid(k+1)-templmid(k);
+            numsum=h*(tempfmid(k+1)+tempfmid(k));
+        } else {  
+            ///// Last point              
+            --i;
+            h = templmid(k+1)-tlam(i);
+            numsum+=h*(tempfmid(k+1)+tf(i));
+        }
+        
+        outy(k) = numsum*0.5/(templmid(k+1)-templmid(k));
+    }
+    return_val = 1;
+    
+    """
+    
+    result = weave.inline(code,['templmid','tempfmid','NTEMPL','tlam','tf','ntlam','outy'], type_converters=converters.blitz, compiler = 'gcc', verbose=2)
+    return outy
+    
 def interp_conserve(x, xp, fp, left=0., right=0.):
     """
     Interpolate `xp`,`yp` array to the output x array, conserving flux.  
