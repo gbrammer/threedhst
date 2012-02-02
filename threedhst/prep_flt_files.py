@@ -1522,7 +1522,7 @@ def startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
     skysub=True, updatewcs=True, driz_cr=True, median=True,
     final_scale=0.06, pixfrac=0.8, clean=True,
     final_outnx='', final_outny='', final_rot=0., ra='', dec='', 
-    refimage='', unlearn=True, use_mdz_defaults=True, ivar_weights=True):
+    refimage='', unlearn=True, use_mdz_defaults=True, ivar_weights=True, build_drz=True):
     """
 startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
                   skysub=True, final_scale=0.06, updatewcs=True, driz_cr=True,
@@ -1650,7 +1650,12 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
         #### Generate inverse variance weight map, will need flat + dark images
         #### in the iref or jref directories
         iraf.dither.multidrizzle.setParam('final_wht_type','IVM')
-        
+    #
+    if build_drz:
+        build=iraf.yes
+    else:
+        build=iraf.no
+          
     #### Run Multidrizzle
     iraf.multidrizzle(input=asn_direct_file, \
        shiftfile=shiftfile, \
@@ -1659,7 +1664,7 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
        blot=median, driz_separate=median, static=median,
        driz_sep_outnx = final_outnx, driz_sep_outny = final_outny, 
        final_outnx=final_outnx, final_outny=final_outny, 
-       final_rot=final_rot, ra=ra, dec=dec, refimage=refimage)
+       final_rot=final_rot, ra=ra, dec=dec, refimage=refimage, build=build)
     
     #### Delete created files    
     if clean is True:
@@ -1981,7 +1986,7 @@ make_segmap(root='ib3701ryq_flt', sigma=1)
         threedhst.regions.apply_dq_mask(root+'.seg.fits', extension=0,
            addval=100)
            
-def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True):
+def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_flat=True):
     """
     Check that the flat used in the pipeline calibration is the 
     best available.  If not, multiply by the flat used and divide
@@ -2007,7 +2012,12 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True):
         if (use_cosmos_flat) & (im[0].header['DATE'] > '2010-11-01') & (im[0].header['FILTER'] == 'F140W'):
             #### Updated F140W flat from COSMOS
             BEST_PFL = 'cosmos_f140w_flat.fits'
-
+        
+        if (use_candels_flat) & (im[0].header['FILTER'] == 'F125W'):
+            BEST_PFL = 'flat.F125W.fits'
+        if (use_candels_flat) & (im[0].header['FILTER'] == 'F160W'):
+            BEST_PFL = 'flat.F160W.fits'
+           
         IREF = os.environ["iref"]+"/"
             
         MSG = 'PFLAT, %s: Used= %s, Best= %s' %(file, USED_PFL, BEST_PFL)
