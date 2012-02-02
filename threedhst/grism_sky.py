@@ -28,6 +28,7 @@ try:
     flat_f140 = pyfits.open(IREF+'/uc721143i_pfl.fits')
     #print 'Make grism_sky_flat'
     #flat_f140 = pyfits.open(IREF+'/flat.IR_avg.fits')
+    flat_f140 = pyfits.open(IREF+'cosmos_f140w_flat.fits')
     flat_g141 = pyfits.open(IREF+'/u4m1335mi_pfl.fits')
     flat = flat_g141[1].data[5:1019,5:1019] / flat_f140[1].data[5:1019, 5:1019]
     flat[flat <= 0] = 5
@@ -170,7 +171,8 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
         im[1].data -= threedhst.utils.biweight(im[1].data[mask], mean=True)
     
     #### Add a header keyword and write to the output image
-    im[0].header.update('GRISMSKY',keep)
+    im[0].header.update('GRISMSKY',keep,comment='Image used for sky subtraction')
+    im[0].header.update('SKYSCALE',sky_stats[0],comment='Scale factor of sky')
     bad = ~np.isfinite(im[1].data)
     im[1].data[bad] = 1
     im[3].data[bad] = im[3].data[bad] | 32
