@@ -44,7 +44,7 @@ scale(self, min, max)
         """
         self.set('scale limits %f %f' %(min,max))
     #
-    def match_all(self, alignType='wcs'):
+    def match_all(self, mode='wcs'):
         """
 match_all(self, alignType='wcs')
 
@@ -52,7 +52,7 @@ match_all(self, alignType='wcs')
     ds9.set('match colorbars')
     ds9.set('match scales')
         """
-        self.set('match frames %s' %(alignType))
+        self.set('match frames %s' %(mode))
         self.set('match colorbars')
         self.set('match scales')
     #
