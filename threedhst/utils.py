@@ -463,6 +463,9 @@ write(self,out_file=None, clobber=True)
             tbhdu.header.update('ASN_TAB',out_file)
             #### Create HDUList and write it to output file
             self.out_fits = pyfits.HDUList([hdu,tbhdu])
+            if 'EXTEND' not in hdu.header.keys():
+                hdu.header.update('EXTEND', True, after='NAXIS')
+                
             self.out_fits.writeto(out_file, clobber=clobber)
     
     def showContents(self):
