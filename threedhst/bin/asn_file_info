@@ -1,4 +1,4 @@
-#!/usr/stsci/pyssg/Python-2.5.4/bin/python
+#!/usr/bin/env python
 
 __version__ = "$Rev$"
 #   $URL$
