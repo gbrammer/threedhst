@@ -25,6 +25,8 @@ options = {}
 currentRun = {}
 currentRun['step'] = 'INIT'
 
+noNewLine = '\x1b[1A\x1b[1M'
+
 def showMessage(msg, warn=False):
     """
 showMessage(msg)

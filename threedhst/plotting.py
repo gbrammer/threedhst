@@ -524,7 +524,6 @@ def makeThumbs(SPCFile, mySexCat, path='./HTML/'):
     import os
     import tarfile
     
-    noNewLine = '\x1b[1A\x1b[1M'
     # im = pyfits.open(mySexCat.filename.split('.cat')[0]+'.fits')
     im = pyfits.open(threedhst.options['DIRECT_MOSAIC'])
     
@@ -534,7 +533,7 @@ def makeThumbs(SPCFile, mySexCat, path='./HTML/'):
     ids.sort()
     for id in ids:
         idstr = '%05d' %id
-        print noNewLine+'plotting.makeThumbs: %s_%s_thumb.png' %(root, idstr)
+        print threedhst.noNewLine+'plotting.makeThumbs: %s_%s_thumb.png' %(root, idstr)
         plotThumbNew(id, mySexCat, SPCFile,
                   outfile=path+'/'+root+'_'+idstr+'_thumb.png',
                   close_window=True)
@@ -672,13 +671,12 @@ def makeSpec2dImages(SPCFile, path='./HTML/', add_FITS=True):
     import os
     import shutil
     
-    noNewLine = '\x1b[1A\x1b[1M'
     root = os.path.basename(SPCFile.filename).split('_2')[0]
     ids = SPCFile._ext_map+0
     ids.sort()
     for id in ids:
         idstr = '%05d' %id
-        print noNewLine+'plotting.makeSpecImages: %s_%s_2D.png' %(root, idstr)
+        print threedhst.noNewLine+'plotting.makeSpecImages: %s_%s_2D.png' %(root, idstr)
         plot2Dspec(SPCFile, id, outfile=path+'/'+root+'_'+idstr+'_2D.png',
                    close_window=True)
         
@@ -968,7 +966,6 @@ def makeSpec1dImages(SPCFile, path='./HTML/'):
     Run plotObject for each object in SPCFile
     """
     import os
-    noNewLine = '\x1b[1A\x1b[1M'
     root = os.path.basename(SPCFile.filename).split('_2')[0]
     ids = SPCFile._ext_map+0
     ids.sort()
@@ -977,7 +974,7 @@ def makeSpec1dImages(SPCFile, path='./HTML/'):
     fp.write('# id lambda sigma eqw snpeak\n# 4 parameters for each detected em. line\n')
     for id in ids:
         idstr = '%05d' %id
-        print noNewLine+'plotting.makeSpec1dImages: %s_%s_1D.png' %(root, idstr)
+        print threedhst.noNewLine+'plotting.makeSpec1dImages: %s_%s_1D.png' %(root, idstr)
         lines = plot1Dspec(SPCFile, id,
                    outfile=path+'/'+root+'_'+idstr+'_1D.png',
                    close_window=True)
@@ -1394,7 +1391,6 @@ asciiSpec(SPCFile, root="spec", path="../HTML/ascii")
     
     ids = SPCFile._ext_map+0
     ids.sort()
-    noNewLine = '\x1b[1A\x1b[1M'
     
     #### hack: errors seem too large when you use 
     #### drizzle with updated DRZSCALE parameter.
@@ -1416,7 +1412,7 @@ asciiSpec(SPCFile, root="spec", path="../HTML/ascii")
         contam2 = sp1d['contam']
         
         out = root+'_%05d.dat' %id
-        print noNewLine+out
+        print threedhst.noNewLine+out
         
         # fp = gzip.open(path+'/'+out+'.gz','wb')
         fp = open(path+'/'+out,'w')

@@ -133,12 +133,11 @@ def trim_edge_objects(sexCat):
     drz_size = drz[1].data.shape
     
     NOBJ = sexCat.nrows*1.
-    noNewLine = '\x1b[1A\x1b[1M'
     
     kill = np.zeros(NOBJ)
     
     for idx in range(NOBJ):
-        print noNewLine+'Trim edge objects: %d of %d' %(idx+1,NOBJ)
+        print threedhst.noNewLine+'Trim edge objects: %d of %d' %(idx+1,NOBJ)
         
         rd0_drz = np.cast[float](np.array([[sexCat.X_WORLD[idx],
                                             sexCat.Y_WORLD[idx]]]))
