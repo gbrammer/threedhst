@@ -296,14 +296,14 @@ showExposure(self)
 
         ### Display SCI extension [1]
         self.ds9.frame(1)
-        self.ds9.view(fi_direct[1])
+        self.ds9.view(fi_direct[1].data)
         self.ds9.scale(-0.1,2)
         if os.path.exists(flt_direct+'_flt.fits.mask.reg'):
             self.ds9.set('regions load %s_flt.fits.mask.reg' %flt_direct)
             
         ### Display DQ extension [3]
         self.ds9.frame(2)
-        self.ds9.view(fi_direct[3])
+        self.ds9.view(fi_direct[3].data)
         self.ds9.scale(0,100)
 
         ### Display SCI extension [1]
@@ -315,7 +315,7 @@ showExposure(self)
         
         ### Display DQ extension [3]
         self.ds9.frame(4)
-        self.ds9.view(fi_grism[3])
+        self.ds9.view(fi_grism[3].data)
         self.ds9.scale(0,100)
 
         ### DS9 Tile and return to Frame 1
