@@ -1327,7 +1327,7 @@ def make_grism_subsets(root='GOODS-S', run_multidrizzle=True, single=None):
 def make_targname_asn(asn_file, newfile=True, use_filtname=True, path_to_flt='../RAW/'):
     """
     Take an ASN file like 'ibhm51030_asn.fits' and turn it into 
-    'COSMOS-3-D_asn.fits'
+    'COSMOS-3-F140W_asn.fits'
     """
     asn = threedhst.utils.ASNFile(asn_file)
     
@@ -1385,13 +1385,14 @@ def make_targname_asn(asn_file, newfile=True, use_filtname=True, path_to_flt='..
     
 def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                        asn_grism_file='ib3706060_asn.fits',
+                       adjust_targname=True,
                        ALIGN_IMAGE='../ACS/h_nz_sect*img.fits',
                        ALIGN_EXTENSION=0,
                        align_geometry='shift',
                        PATH_TO_RAW='../RAW',
-            IMAGES = ['../CONF/G141_sky_cleaned.fits',
-                      '../CONF/G141wLO_fixed_sky.fits', 
-                      '../CONF/G141wHI_fixed_sky.fits'],
+                       IMAGES = ['../CONF/G141_sky_cleaned.fits',
+                                 '../CONF/G141wLO_fixed_sky.fits', 
+                                 '../CONF/G141wHI_fixed_sky.fits'],
                        SKIP_GRISM=False,
                        SKIP_DIRECT=False,
                        GET_SHIFT=True,
@@ -1401,17 +1402,18 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                        save_fit=False, 
                        second_pass=True, overall=True,
                        sky_images=['sky.G141.set001.fits', 'sky.G141.set002.fits','sky.G141.set003.fits','sky.G141.set004.fits','sky.G141.set005.fits','sky.G141.set025.fits','sky.G141.set120.fits']):
-    
+        
     #### Old sky_images=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits']
     import threedhst
     import threedhst.prep_flt_files
     from threedhst.prep_flt_files import make_targname_asn
     
-    if asn_direct_file:
+    if (asn_direct_file is not None) & adjust_targname:
         asn_direct_file = make_targname_asn(asn_direct_file)
     
-    if asn_grism_file:
+    if (asn_grism_file is not None) & adjust_targname:
         asn_grism_file = make_targname_asn(asn_grism_file)
+    
     print 'DIRECT: %s, GRISM: %s\n' %(asn_direct_file, asn_grism_file)
         
     ##### Direct images
@@ -1487,7 +1489,14 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
         
         #### Now that we have the segmentation masks for the grism, do the
         #### division by the flat + sky image
-        threedhst.showMessage('Divide by the flat + sky images')
+        skies = ""
+        for img in sky_images:
+            skies += img+" "
+        message = """Divide by the flat and subtract the sky images.
+F140W flat: %s
+Sky images: %s""" %(threedhst.grism_sky.flat_f140.filename().replace('//','/'), skies)
+
+        threedhst.showMessage(message)
         
         ## Copy new FLT files
         threedhst.process_grism.fresh_flt_files(asn_grism_file, 
@@ -1502,7 +1511,7 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
         startMultidrizzle(asn_grism_file, use_shiftfile=True, skysub=False,
                 final_scale=0.128, pixfrac=1.0, driz_cr=True,
                 updatewcs=True, median=True, clean=True)
-                
+                       
         startMultidrizzle(asn_grism_file, use_shiftfile=True, skysub=False,
                 final_scale=0.06, pixfrac=0.8, driz_cr=False,
                 updatewcs=False, median=False, clean=True)
