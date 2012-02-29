@@ -363,9 +363,18 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
                                                     CACHE_FILE = CACHE_FILE)
     
     ##### Apply zeropoint factors
+    param = EazyParam(PARAM_FILE=OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.param')
+    fnumbers = np.zeros(len(param.filters), dtype=np.int)
+    for i in range(len(fnumbers)):
+        fnumbers[i] = int(param.filters[i].fnumber)
+    
     zpfile = OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.zeropoint'
     if os.path.exists(zpfile):
-        zpfilts,zpf = np.genfromtxt(zpfile, unpack=True)                                    
+        zpfilts, zpf_file = np.loadtxt(zpfile, unpack=True, dtype=np.str)                                    
+        zpf = np.ones(tempfilt['NFILT'])
+        for i in range(len(zpfilts)):
+            match = fnumbers == int(zpfilts[i][1:])
+            zpf[match] = np.float(zpf_file[i])
     else:
         zpf = np.ones(tempfilt['NFILT'])
 
@@ -654,17 +663,26 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         PATH += '/'
     
     ##### Read the param file
-    param = eazy.EazyParam('%s%s.param' %(PATH, root))
+    param = EazyParam('%s%s.param' %(PATH, root))
     
     ##### Read template fluxes and coefficients
     tempfilt, coeffs, temp_seds, pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE=root, OUTPUT_DIRECTORY=PATH,CACHE_FILE = 'Same')
     
+    param = eazy.EazyParam(PARAM_FILE=PATH+'/'+root+'.param')
+    fnumbers = np.zeros(len(param.filters), dtype=np.int)
+    for i in range(len(fnumbers)):
+        fnumbers[i] = int(param.filters[i].fnumber)
+        
     zpfile = PATH+'/'+root+'.zeropoint'
     if os.path.exists(zpfile):
-        zpfilts,zpf = np.genfromtxt(zpfile, unpack=True)                                    
+        zpfilts, zpf_file = np.loadtxt(zpfile, unpack=True, dtype=np.str)                                    
+        zpf = np.ones(tempfilt['NFILT'])
+        for i in range(len(zpfilts)):
+            match = fnumbers == int(zpfilts[i][1:])
+            zpf[match] = np.float(zpf_file[i])
     else:
         zpf = np.ones(tempfilt['NFILT'])
-
+        
     zpfactors = np.dot(zpf.reshape(tempfilt['NFILT'],1), np.ones(tempfilt['NOBJ']).reshape(1,tempfilt['NOBJ']))
     
     tempfilt['fnu'] *= zpfactors
@@ -782,6 +800,115 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     if savefig is not None:
         fig.savefig(savefig)
         plt.close()
+
+def init_nmf(obj, iz, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', verbose=True):
+    import threedhst.eazyPy as eazy
+    
+    MAIN_OUTPUT_FILE = 'cosmos-1.deblend.v5.1'
+    OUTPUT_DIRECTORY = './cosmos-1.deblend.redshifts'
+    CACHE_FILE='Same'
+    obj = 2407
+    iz = coeffs['izbest'][obj]
+    
+    eazy.param = eazy.EazyParam(PARAM_FILE=OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.param')
+    
+    try:
+        eazy.NTEMP = eazy.tempfilt['NTEMP']
+        eazy.NFILT = eazy.tempfilt['NFILT']
+        eazy.NZ = eazy.tempfilt['NZ']
+    except:
+        if verbose:
+            print 'Read EAZY binary files (%s/%s)....' %(OUTPUT_DIRECTORY, MAIN_OUTPUT_FILE)
+        eazy.tempfilt, eazy.coeffs, eazy.temp_sed, eazy.pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, CACHE_FILE=CACHE_FILE)
+        eazy.werr, eazy.terr = np.loadtxt('templates/TEMPLATE_ERROR.eazy_v1.0', unpack=True)
+    
+    #
+    
+    fnu = tempfilt['fnu'][:,obj]
+    efnu = tempfilt['efnu'][:,obj]
+    
+    lc_rest = tempfilt['lc']/(1+eazy.tempfilt['zgrid'][iz])
+    template_error = np.interp(lc_rest, eazy.werr, eazy.terr)
+
+    var = (fnu*eazy.param['SYS_ERR'])**2++(fnu*template_error)**2+efnu**2
+    sig = np.sqrt(var)
+    
+    mask = (fnu > -99) & (efnu > 0)
+    maskNFILT = len(mask[mask])
+    
+    #### A matrix for NMF
+    aa = tempfilt['tempfilt'][:,:,iz]/np.dot(sig.reshape(eazy.NFILT, 1), np.ones((1, eazy.NTEMP)))
+    eazy.amatrix = np.dot(aa[mask,:].transpose(), aa[mask,:])
+    
+    eazy.bvector = -np.dot((fnu[mask]/var[mask]).reshape(1,maskNFILT), tempfilt['tempfilt'][mask,:,iz]).reshape(eazy.NTEMP)
+    
+    nit, coeffs_fit = eazy.nonneg_fact()
+    
+    #### Test
+    obs_fit = np.dot(tempfilt['tempfilt'][:,:,iz], coeffs_fit)
+    plt.plot(lc[mask], fnu[mask]/(lc[mask]/5500.)**2)
+    plt.plot(lc[mask], obs_fit[mask]/(lc[mask]/5500.)**2)
+    
+def nonneg_fact(toler = 1.e-4, verbose=False):
+    import threedhst.eazyPy as eazy
+    from scipy import weave
+    from scipy.weave import converters
+    
+    out_coeffs = np.ones(eazy.NTEMP)
+    
+    NTEMP = eazy.NTEMP
+    
+    MAXITER=100000 # //// 1.e5
+    tol = 100
+    itcount=0
+    
+    while (tol > toler) & (itcount < MAXITER):
+        tolnum=0.
+        toldenom = 0.
+        tol=0
+        for i in range(NTEMP):
+            vold = out_coeffs[i]
+            av = np.sum(eazy.amatrix[i,:]*out_coeffs)
+            #////// Update coeffs in place      
+            out_coeffs[i] *= -1.*eazy.bvector[i]/av
+            tolnum += np.abs(out_coeffs[i]-vold)
+            toldenom += vold
+        #
+        tol = tolnum/toldenom
+        itcount += 1
+    
+    return itcount, out_coeffs
+    
+    c_code = """
+    long i,j;
+    long itcount,MAXITER,NTEMP;
+    double tolnum,toldenom,tol;
+    double vold,av;
+    //
+    NTEMP = 7;
+    MAXITER=100000; //// 1.e5
+    tol = 100;
+    itcount=0;
+    while (tol>toler && itcount<MAXITER) {
+        tolnum=0.;
+        toldenom = 0.;
+        tol=0;
+        for (i=0;i<NTEMP;++i) {
+            vold = coeffs[i];
+            av = 0.;
+            for (j=0;j<NTEMP;++j) av += amatrix[i][j]*coeffs[j];
+            ////// Update coeffs in place      
+            coeffs[i]*=-1.*bvector[i]/av;
+            tolnum+=fabs(coeffs[i]-vold);
+            toldenom+=vold;
+        }
+        tol = tolnum/toldenom;
+        ++itcount;
+    }
+    """ 
+    
+    #### Doesn't work with the matrix....
+    #result = weave.inline(c_code,['amatrix','bvector','coeffs','toler'], compiler = 'gcc', verbose=2)
     
 def milkyway_extinction(lamb=None, Rv=3.1):
     """
