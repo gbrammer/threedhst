@@ -1528,10 +1528,10 @@ Sky images: %s""" %(threedhst.grism_sky.flat_f140.filename().replace('//','/'), 
     
 
 def startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
-    skysub=True, updatewcs=True, driz_cr=True, median=True,
+    skysub=True, updatewcs=True, driz_cr=True, median=True, final_driz=True, 
     final_scale=0.06, pixfrac=0.8, clean=True,
     final_outnx='', final_outny='', final_rot=0., ra='', dec='', 
-    refimage='', unlearn=True, use_mdz_defaults=True, ivar_weights=True, build_drz=True):
+    refimage='', unlearn=True, use_mdz_defaults=True, ivar_weights=True, build_drz=True, generate_run=False):
     """
 startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
                   skysub=True, final_scale=0.06, updatewcs=True, driz_cr=True,
@@ -1588,6 +1588,11 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
         median=yes
     else:
         median=no
+    #
+    if final_driz:
+        driz_combine=yes
+    else:
+        driz_combine=no
     
     if unlearn:
         iraf.unlearn('multidrizzle')
@@ -1664,13 +1669,91 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
         build=iraf.yes
     else:
         build=iraf.no
-          
+    
+    if generate_run:        
+        import multidrizzle
+        from pydrizzle import pydrizzle, process_input
+        
+        md = multidrizzle.Multidrizzle(asn_direct_file, output='',
+           shiftfile=asn_direct_file.replace('_asn.fits','_shifts.txt'), editpars=iraf.no, 
+           skysub = 0, updatewcs = 0, driz_cr=0,
+           driz_final_scale = final_scale, driz_final_pixfrac = pixfrac, median=0, 
+           blot=0, driz_separate=1, static=0, driz_combine=0,
+           driz_sep_outnx = final_outnx, driz_sep_outny = final_outny, 
+           driz_final_outnx=final_outnx, driz_final_outny=final_outny, 
+           driz_final_rot=final_rot, ra=ra, dec=dec, refimage=refimage, build=0)
+           
+        md.build()
+        md.image_manager._setOutputFrame(md.driz_final_pars)
+
+        assoc = pydrizzle._PyDrizzle(md.asndict, output=md.output,
+                                    idckey=md.coeffs,
+                                    section=md.driz_sep_pars['group'],
+                                    bits_single=md.driz_sep_bits,
+                                    bits_final=md.final_bits,
+                                    )
+        #
+        drizpars = md.driz_final_pars
+        _final_shape = (drizpars['outnx'],drizpars['outny'])
+        _new_field = pydrizzle.SkyField(shape=_final_shape)
+        _new_field.set(psize=drizpars['scale'], orient=drizpars['rot'],
+                        ra=drizpars['ra'], dec=drizpars['dec'])
+        #
+        assoc.resetPars(field=_new_field, 
+                    pixfrac=drizpars['pixfrac'], 
+                    kernel=drizpars['kernel'], units=drizpars['units'] ) 
+        
+        runfile = asn_direct_file.replace('_asn.fits','.run')
+        runlog = open(runfile,'w')
+
+        runlog.write("drizzle.outnx = "+str(assoc.parlist[0]['outnx'])+"\n")
+        runlog.write("drizzle.outny = "+str(assoc.parlist[0]['outny'])+"\n")
+        runlog.write("drizzle.scale = "+str(assoc.parlist[0]['scale'])+"\n")
+        runlog.write("drizzle.pixfrac = "+str(assoc.parlist[0]['pixfrac'])+"\n")
+        runlog.write("drizzle.shft_fr = 'output'\n")
+        runlog.write("drizzle.shft_un = 'output'\n")
+        runlog.write("drizzle.in_un = "+str(assoc.parlist[0]['in_units'])+"\n")
+        runlog.write("drizzle.out_un = '"+assoc.parlist[0]['units']+"'\n")
+        runlog.write("drizzle.align = 'center'\n")
+        runlog.write("drizzle.expkey = 'EXPTIME'\n")
+        runlog.write("drizzle.fillval = "+str(assoc.parlist[0]['fillval'])+"\n")
+        runlog.write("drizzle.outcont = '"+assoc.parlist[0]['outcontext']+"'\n")
+        runlog.write("drizzle.kernel = '"+assoc.parlist[0]['kernel']+"'\n")
+        runlog.write("\n")
+
+        for p in assoc.parlist:
+            xsh_str = "%.4f"  % p['xsh']
+            ysh_str = "%.4f"  % p['ysh']
+            rot_str = "%.5f"  % p['rot']
+
+            print("\ndrizzle "+p['data']+" "+p['outdata']+
+                  " in_mask="+p['driz_mask']+" outweig="+p['outweight']+
+                  " xsh="+xsh_str+" ysh="+ysh_str+" rot="+rot_str+
+                  " coeffs='"+p['coeffs']+"' wt_scl='"+str(p['wt_scl'])+"'"+
+                  " xgeoim='"+p['xgeoim']+"' ygeoim='"+p['ygeoim']+"'\n")
+            
+            runlog.write("drizzle "+p['data']+" "+p['outdata']+
+                         " in_mask="+p['driz_mask']+" outweig="+p['outweight']+
+                         " xsh="+xsh_str+" ysh="+ysh_str+" rot="+rot_str+
+                         " coeffs='"+p['coeffs']+"' wt_scl='"+str(p['wt_scl'])+"'"+
+                         " xgeoim='"+p['xgeoim']+"' ygeoim='"+p['ygeoim']+"'\n")
+
+        # Close the "runfile" log
+        if runlog != None:
+            runlog.close()
+        
+        ### Need to copy back the flt files
+        threedhst.utils.replace_OrIg()
+        threedhst.process_grism.cleanMultidrizzleOutput()
+        
+        return md
+        
     #### Run Multidrizzle
     iraf.multidrizzle(input=asn_direct_file, \
        shiftfile=shiftfile, \
        output = '', skysub = skysub, updatewcs = updatewcs, driz_cr=driz_cr,
        final_scale = final_scale, final_pixfrac = pixfrac, median=median, 
-       blot=median, driz_separate=median, static=median,
+       blot=median, driz_separate=median, static=median, driz_combine=driz_combine,
        driz_sep_outnx = final_outnx, driz_sep_outny = final_outny, 
        final_outnx=final_outnx, final_outny=final_outny, 
        final_rot=final_rot, ra=ra, dec=dec, refimage=refimage, build=build)
@@ -1699,8 +1782,14 @@ MultidrizzleRun(root='IB3728050')
         self.rot = []
         self.scl = 1.
         self.exptime = []
+        self.outnx = 1.
+        self.outny = 1.
         
         for line in open(runfile,'r'):
+            if line.startswith('drizzle.outnx'):
+                self.outnx = int(line.split()[2])
+            if line.startswith('drizzle.outny'):
+                self.outny = int(line.split()[2])
             if line.startswith('drizzle.scale'):
                 self.scl = line.split()[2]
             if line.startswith('drizzle '):

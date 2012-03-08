@@ -645,11 +645,11 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
             if number not in numbers:
                 continue
         
-            idx = np.where(numbers == number)[0]
+            idx = np.where(np.array(numbers) == number)[0]
             
             lineOut = self.rowlines.pop(idx)
             num = numbers.pop(idx)
-            
+            ll = self.linelist.pop(idx+self.ncols)
             if verbose:
                 print lineOut
         
@@ -783,11 +783,11 @@ makeRaDec()
         """
         Add a column to a SExtractor catalog
         """
-        if not isinstance(data,np.array(1).__class__):
+        if not isinstance(data, np.array(1).__class__):
             print "ERROR: `data` is not a numpy array."
             return False
                 
-        if data.shape != (self.nrows,):
+        if data.shape != (self.nrows, ):
             print "ERROR: `data` must have shape (%0d,); has" %(self.nrows), data.shape
             return False
         

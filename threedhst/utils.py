@@ -986,4 +986,13 @@ def subimage(input="test.fits", output="sibimage.fits", ra=0, dec=0, size=10, ex
     if verbose:
         print 'Wrote: %s' %(output)
         
+def gen_tempname(root='tmp'):
+    """
+    Generate a temporary filename from the current time.time().
+    
+    Default is like 'tmp12345'
+    """
+    import time
+    t0 = int(time.time()*100 % 1.e5)
+    return '%s%05d' %(root, t0)
     
