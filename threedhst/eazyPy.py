@@ -392,9 +392,13 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
     ##### Broad-band SED
     obs_sed = np.dot(tempfilt['tempfilt'][:,:,coeffs['izbest'][idx]],\
                      coeffs['coeffs'][:,idx])/(lci/5500.)**2
-                     
-    fobs = tempfilt['fnu'][:,idx]/(lci/5500.)**2
-    efobs = tempfilt['efnu'][:,idx]/(lci/5500.)**2
+    
+    # fobs = tempfilt['fnu'][:,idx]/(lci/5500.)**2*flam_factor
+    # efobs = tempfilt['efnu'][:,idx]/(lci/5500.)**2*flam_factor
+    ### Physical f_lambda fluxes, 10**-17 ergs / s / cm2 / A
+    flam_factor = 10**(-0.4*(params['PRIOR_ABZP']+48.6))*3.e18/1.e-17
+    fobs = tempfilt['fnu'][:,idx]/lci**2*flam_factor
+    efobs = tempfilt['efnu'][:,idx]/lci**2*flam_factor
     
     zi = tempfilt['zgrid'][coeffs['izbest'][idx]]
     
@@ -402,6 +406,8 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
     lambdaz = temp_seds['templam']*(1+zi)
     temp_sed = np.dot(temp_seds['temp_seds'],coeffs['coeffs'][:,idx])
     temp_sed /= (1+zi)**2
+    
+    temp_sed *= (1/5500.)**2*flam_factor
     
     ###### IGM absorption
     lim1 = np.where(temp_seds['templam'] < 912)
