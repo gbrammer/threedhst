@@ -152,7 +152,7 @@ class Readfile():
     strings, floats, and ints.  Should rewrite using numpy.loadtxt with
     format keywords.
     """
-    def __init__(self, infile='files.info', force_lowercase = True, comment_char='#'
+    def __init__(self, infile='files.info', force_lowercase = True, comment_char='#', 
                  verbose=False):
         
         self.filename = infile
