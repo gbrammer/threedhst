@@ -152,17 +152,31 @@ class Readfile():
     strings, floats, and ints.  Should rewrite using numpy.loadtxt with
     format keywords.
     """
-    def __init__(self, infile='files.info', force_lowercase = True,
+    def __init__(self, infile='files.info', force_lowercase = True, comment_char='#'
                  verbose=False):
+        
+        self.filename = infile
+        self.comment_char = comment_char
         
         #### read the lines of the file
         fp = open(infile,'r')
         lines = fp.readlines()
         fp.close()
         
+        if len(lines) < 2:
+            threedhst.showMessage('Only %d lines in %s.' %(len(lines), infile), warn=True)
+            self.status = None
+            return None
+        
+        if not lines[0].startswith(comment_char):
+            threedhst.showMessage('First line of %s doesn\'t start with \'%s\':\n%s' %(infile,
+                                   comment_char, lines[0]), warn=True)
+            self.status = None
+            return None
+            
         #### get the column names from the first line
         header = lines[0]
-        columns = header.replace('#','').split()
+        columns = header.replace(comment_char,'').split()
         NCOLUMNS = len(columns)
         
         #### parse column names, fixing characters.
@@ -183,7 +197,7 @@ class Readfile():
         #### skip header lines
         ix=0
         line = lines[ix]
-        while line.startswith('#') & (ix < len(lines)-1):
+        while line.startswith(comment_char) & (ix < len(lines)-1):
             ix+=1
             line = lines[ix]
         
