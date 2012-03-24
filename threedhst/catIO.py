@@ -183,10 +183,14 @@ class Readfile():
         #### skip header lines
         ix=0
         line = lines[ix]
-        while line.startswith('#'):
+        while line.startswith('#') & (ix < len(lines)-1):
             ix+=1
             line = lines[ix]
         
+        if ix == len(lines)-1:
+            self.status = None
+            return None
+            
         #### Parse the lines into the data columns
         N=0
         for line in lines[ix:]:
@@ -226,7 +230,8 @@ class Readfile():
         self.NCOLUMNS = NCOLUMNS
         self.columns = columns
         self.N = N
-    
+        self.status = True
+        
     def __getitem__(self, key):
         """
     Allow you to address the column names as strings, e.g.
