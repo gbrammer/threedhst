@@ -388,17 +388,17 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
     
     params = EazyParam(PARAM_FILE=OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.param')
     abzp = np.float(params['PRIOR_ABZP'])
-    
-    ##### Broad-band SED
-    obs_sed = np.dot(tempfilt['tempfilt'][:,:,coeffs['izbest'][idx]],\
-                     coeffs['coeffs'][:,idx])/(lci/5500.)**2
-    
+        
     # fobs = tempfilt['fnu'][:,idx]/(lci/5500.)**2*flam_factor
     # efobs = tempfilt['efnu'][:,idx]/(lci/5500.)**2*flam_factor
     ### Physical f_lambda fluxes, 10**-17 ergs / s / cm2 / A
     flam_factor = 10**(-0.4*(params['PRIOR_ABZP']+48.6))*3.e18/1.e-17
     fobs = tempfilt['fnu'][:,idx]/lci**2*flam_factor
     efobs = tempfilt['efnu'][:,idx]/lci**2*flam_factor
+    
+    ##### Broad-band SED
+    obs_sed = np.dot(tempfilt['tempfilt'][:,:,coeffs['izbest'][idx]],\
+                     coeffs['coeffs'][:,idx])/(lci)**2*flam_factor
     
     zi = tempfilt['zgrid'][coeffs['izbest'][idx]]
     
