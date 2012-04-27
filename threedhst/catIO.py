@@ -5,6 +5,8 @@ import time
 import numpy as np 
 import pyfits
 
+import threedhst
+
 def columnFormat(colname):
     """
 Set format for common column names.  

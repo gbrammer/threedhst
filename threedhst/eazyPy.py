@@ -343,7 +343,7 @@ tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
     return tempfilt, coeffs, temp_sed, pz
 
         
-def getEazySED(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same'):
+def getEazySED(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', scale_flambda=True):
     """
 lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
      getEazySED(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same')
@@ -392,7 +392,11 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
     # fobs = tempfilt['fnu'][:,idx]/(lci/5500.)**2*flam_factor
     # efobs = tempfilt['efnu'][:,idx]/(lci/5500.)**2*flam_factor
     ### Physical f_lambda fluxes, 10**-17 ergs / s / cm2 / A
-    flam_factor = 10**(-0.4*(params['PRIOR_ABZP']+48.6))*3.e18/1.e-17
+    if scale_flambda:
+        flam_factor = 10**(-0.4*(params['PRIOR_ABZP']+48.6))*3.e18/1.e-17
+    else:
+        flam_factor = 5500.**2
+        
     fobs = tempfilt['fnu'][:,idx]/lci**2*flam_factor
     efobs = tempfilt['efnu'][:,idx]/lci**2*flam_factor
     
