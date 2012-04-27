@@ -1472,8 +1472,7 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                     sfg.write(sfg.filename)
                     #    
                     break
-                    
-        
+                
         threedhst.process_grism.fresh_flt_files(asn_grism_file,
                       from_path=PATH_TO_RAW)
         
@@ -1488,7 +1487,7 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                         initial_order=-1, save_fit=save_fit)
         
         #### Now that we have the segmentation masks for the grism, do the
-        #### division by the flat + sky image
+        #### division by the flat + subtracting the sky image
         skies = ""
         for img in sky_images:
             skies += img+" "
@@ -1646,25 +1645,28 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
         #### Don't use these default values from the mdrz file
         iraf.dither.multidrizzle.setParam('crbit','')
         iraf.dither.multidrizzle.setParam('combine_type','minmed')
+        #iraf.dither.multidrizzle.setParam('combine_type','median')
         iraf.dither.multidrizzle.setParam('mdriztab',iraf.no)
         iraf.dither.multidrizzle.setParam('context',iraf.no)
         iraf.dither.multidrizzle.setParam('clean',iraf.no)
         iraf.dither.multidrizzle.setParam('ra','')
-        iraf.dither.multidrizzle.setParam('dec','')
         iraf.dither.multidrizzle.setParam('dec','')
         iraf.dither.multidrizzle.setParam('runfile','')
         # iraf.dither.multidrizzle.setParam('driz_cr_snr','3.5 3.0')
         
     ### Set CR SNR parameter following candels
     if flt[0].header['INSTRUME'] == 'WFC3':
-        iraf.dither.multidrizzle.driz_cr_snr = '6 3.0'
-        iraf.dither.multidrizzle.driz_cr_scale = '1.6 0.7'
+        #iraf.dither.multidrizzle.driz_cr_snr = '6.0 3.0'
+        iraf.dither.multidrizzle.driz_cr_snr = '3.5 3.0'
+        #iraf.dither.multidrizzle.driz_cr_scale = '1.6 0.7'
+        ### More conservative to avoid rejecting central pixels of stars
+        iraf.dither.multidrizzle.driz_cr_scale = '2.5 0.7'
         
     if ivar_weights:
-        #### Generate inverse variance weight map, will need flat + dark images
-        #### in the iref or jref directories
+        #### Generate inverse variance weight map, will need 
+        #### flat + dark images in the iref or jref directories
         iraf.dither.multidrizzle.setParam('final_wht_type','IVM')
-    #
+    
     if build_drz:
         build=iraf.yes
     else:
