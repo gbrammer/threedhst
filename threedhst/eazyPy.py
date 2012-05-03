@@ -424,7 +424,7 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
         
     ###### Done
     return lambdaz, temp_sed, lci, obs_sed, fobs, efobs
-
+    
 def getEazyPz(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same'):
     """
 zgrid, pz = getEazyPz(idx, \
@@ -983,4 +983,25 @@ def milkyway_extinction(lamb=None, Rv=3.1):
     else:
         return AloAv
      
+#
+from . import __file__ as rootfile
+igm_z, igm_da, igm_db = np.loadtxt(os.path.join( os.path.dirname(rootfile), 'data', 'igm_factors.txt'), unpack=True)
+
+def igm_factor(wavelength, z):
+    
+    wz = wavelength/(1+z)
+    lim1 = (wz < 912)
+    lim2 = (wz >= 912) & (wz < 1026)
+    lim3 = (wz >= 1026) & (wz < 1216)
+    
+    da = np.interp(z, igm_z, igm_da)
+    db = np.interp(z, igm_z, igm_db)
+    
+    factor = wavelength*0.+1
+    
+    if lim1.sum() > 0: factor[lim1] *= 0.
+    if lim2.sum() > 0: factor[lim2] *= 1.-db
+    if lim3.sum() > 0: factor[lim3] *= 1.-da
+    
+    return factor
     
