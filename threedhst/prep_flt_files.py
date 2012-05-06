@@ -31,13 +31,6 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 USE_PLOT_GUI = False
 
-from pyraf import iraf
-from iraf import stsdas,dither,slitless,axe 
-
-INDEF = iraf.INDEF
-no = iraf.no
-yes = iraf.yes
-
 import threedhst
 import threedhst.grism_sky
 
@@ -805,6 +798,13 @@ def process_all():
     """
     Initial processing of all 3D-HST frames
     """
+    from pyraf import iraf
+    from iraf import stsdas,dither,slitless,axe 
+
+    INDEF = iraf.INDEF
+    no = iraf.no
+    yes = iraf.yes
+    
     from threedhst.prep_flt_files import process_3dhst_pair as pair
     import threedhst.prep_flt_files
     
@@ -1553,6 +1553,13 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
     final_scale: Final pixel scale of output image (arcsec)
     
     """
+    from pyraf import iraf
+    from iraf import stsdas,dither,slitless,axe 
+
+    INDEF = iraf.INDEF
+    no = iraf.no
+    yes = iraf.yes
+    
     asn_direct_file = root #'ib3727050_asn.fits'
     
     asn_direct = threedhst.utils.ASNFile(file=asn_direct_file)
@@ -1824,6 +1831,13 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
         imcopy SCI and WHT extensions of DRZ image to separate files.
         
         """
+        from pyraf import iraf
+        from iraf import stsdas,dither,slitless,axe 
+
+        INDEF = iraf.INDEF
+        no = iraf.no
+        yes = iraf.yes
+        
         #flt_orig = pyfits.open('../RAW/'+self.flt[ii]+'.fits.gz')
         threedhst.process_grism.flprMulti()
         
@@ -2182,6 +2196,13 @@ def prep_acs(force=False):
     *** requires irafx, i.e. type 'irafx' before starting pyraf ***
     
     """
+    from pyraf import iraf
+    from iraf import stsdas,dither,slitless,axe 
+
+    INDEF = iraf.INDEF
+    no = iraf.no
+    yes = iraf.yes
+    
     from acstools import acs_destripe
     from acstools import PixCteCorr
     

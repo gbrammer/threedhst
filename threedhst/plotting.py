@@ -26,9 +26,6 @@ USE_PLOT_GUI=False
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
-from pyraf import iraf
-from iraf import dither
-
 import threedhst
 
 def defaultPlotParameters():
@@ -263,6 +260,9 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     """
     import os
     import glob
+    
+    from pyraf import iraf
+    from iraf import dither
     
     root = os.path.basename(SPCFile.filename).split('_2')[0]
     

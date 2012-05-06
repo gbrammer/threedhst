@@ -11,9 +11,6 @@ __version__ = "$Rev$"
 
 import os
 import pyfits
-import pyraf
-from pyraf import iraf
-from iraf import stsdas,dither
 
 import numpy as np
 
@@ -27,10 +24,6 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 import threedhst
 import threedhst.prep_flt_files
 
-no = iraf.no
-yes = iraf.yes
-INDEF = iraf.INDEF
-
 def run_tweakshifts(asn_direct, verbose=False, clean=True):
     """
 run_tweakshifts(asn_direct)
@@ -40,6 +33,12 @@ run_tweakshifts(asn_direct)
     This routine only uses dither.tweakshifts to compute the relative shifts of 
     the direct images
     """
+    from pyraf import iraf
+    from iraf import stsdas,dither
+
+    no = iraf.no
+    yes = iraf.yes
+    INDEF = iraf.INDEF
     
     root = asn_direct.split('_asn.fits')[0]#.lower()
 
@@ -198,6 +197,13 @@ def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=True, ALIGN_EXTENS
     `align_img_list` to find ALIGN_IMAGEs
     """
     import glob
+    
+    from pyraf import iraf
+    from iraf import stsdas,dither
+
+    no = iraf.no
+    yes = iraf.yes
+    INDEF = iraf.INDEF
     
     if os.path.exists(ROOT_DIRECT+'_align.fits') & (not force):
         if verbose:
@@ -381,6 +387,13 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     import glob
     import shutil
     import numpy as np
+    
+    from pyraf import iraf
+    from iraf import stsdas,dither
+
+    no = iraf.no
+    yes = iraf.yes
+    INDEF = iraf.INDEF
     
     #### Clean slate    
     rmfiles = ['SCI.fits','WHT.fits','align.cat','direct.cat'

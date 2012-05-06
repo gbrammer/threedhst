@@ -54,13 +54,6 @@ __version__ = "$Rev$"
 
 import os
 import pyfits
-import pyraf
-from pyraf import iraf
-from iraf import stsdas,dither,slitless,axe 
-
-no = iraf.no
-yes = iraf.yes
-INDEF = iraf.INDEF
 
 import threedhst
    
@@ -149,7 +142,17 @@ Pipeline to process a set of grism/direct exposures.
     import shutil
     import glob
     import numpy as np
+    
+    import pyraf
     import aXe2html.sexcat.sextractcat
+    
+    from pyraf import iraf
+    from iraf import stsdas,dither,slitless,axe 
+    
+    no = iraf.no
+    yes = iraf.yes
+    INDEF = iraf.INDEF
+    
     #import threedhst.dq
     if threedhst.options['USE_TAXE']:
         try:
@@ -1278,117 +1281,6 @@ def cleanMultidrizzleOutput():
             os.remove(rmfile)
 
 
-# class MultidrizzleRun():
-#     """
-# MultidrizzleRun(root='IB3728050')
-#     
-#     Read a .run file output from MultiDrizzle.
-#     
-#     Get list of flt files and their shifts as used by multidrizzle.
-#     """
-#     def __init__(self, root='IB3728050'):
-#         import numpy as np
-#         
-#         runfile = root+'.run'
-#         self.root = root
-#         
-#         self.flt = []
-#         self.xsh = []
-#         self.ysh = []
-#         self.rot = []
-#         self.scl = 1.
-#         
-#         for line in open(runfile,'r'):
-#             if line.startswith('drizzle.scale'):
-#                 self.scl = line.split()[2]
-#                 
-#             if line.startswith('drizzle '):
-#                 spl = line.split()
-#                 self.flt.append(spl[1].split('.fits')[0])
-#                 for tag in spl:
-#                     if tag.startswith('xsh'):
-#                         self.xsh.append(np.float(tag.split('=')[1]))
-#                     if tag.startswith('ysh'):
-#                         self.ysh.append(np.float(tag.split('=')[1]))
-#                     if tag.startswith('rot'):
-#                         self.rot.append(np.float(tag.split('=')[1]))
-#                         
-#     def blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True):
-#         """
-# blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
-#     
-#     Blot the output DRZ file back to exposure #ii pixels.
-#     
-#     if SCI is True:
-#         blot science extension to FLT+'.BLOT.SCI.fits'
-# 
-#     if WHT is True:
-#         blot weight extension to FLT+'.BLOT.WHT.fits'
-#     
-#     if copy_new is True:
-#         imcopy SCI and WHT extensions of DRZ image to separate files.
-#         
-#         """
-#         #flt_orig = pyfits.open('../RAW/'+self.flt[ii]+'.fits.gz')
-#         threedhst.process_grism.flprMulti()
-#         
-#         flt_orig = pyfits.open(self.flt[ii]+'.fits')
-#         exptime = flt_orig[0].header.get('EXPTIME')
-#         flt_orig.close()
-#         
-#         inNX = flt_orig[1].header.get('NAXIS1')
-#         inNY = flt_orig[1].header.get('NAXIS2')
-#         
-#         iraf.delete(self.flt[ii]+'.BLOT.*.fits')
-#         if copy_new:
-#             iraf.delete('drz_*.fits')
-#             # iraf.imcopy(self.root+'_drz.fits[1]','drz_sci.fits')
-#             # iraf.imcopy(self.root+'_drz.fits[2]','drz_wht.fits')
-#             
-#             ### NEED TO STRIP FITS HEADER
-#             im_drz = pyfits.open(self.root+'_drz.fits')
-#             sci = im_drz[1].data            
-#             s_hdu = pyfits.PrimaryHDU(sci)
-#             s_list = pyfits.HDUList([s_hdu])
-#             copy_keys = ['CTYPE1','CTYPE2','CRVAL1','CRVAL2','CRPIX1','CRPIX2','CD1_1','CD1_2','CD2_1','CD2_2','LTM1_1','LTM2_2']
-#             s_list[0].header.update('EXPTIME',im_drz[0].header.get('EXPTIME'))
-#             s_list[0].header.update('CDELT1',im_drz[1].header.get('CD1_1'))
-#             s_list[0].header.update('CDELT2',im_drz[1].header.get('CD2_2'))
-#             for key in copy_keys:
-#                 s_list[0].header.update(key, im_drz[1].header.get(key))
-#             s_list.writeto('drz_sci.fits', clobber=True)
-#             
-#             wht = im_drz[2].data
-#             w_hdu = pyfits.PrimaryHDU(sci)
-#             w_list = pyfits.HDUList([w_hdu])
-#             copy_keys = ['CTYPE1','CTYPE2','CRVAL1','CRVAL2','CRPIX1','CRPIX2','CD1_1','CD1_2','CD2_1','CD2_2','LTM1_1','LTM2_2']
-#             w_list[0].header.update('EXPTIME',im_drz[0].header.get('EXPTIME'))
-#             w_list[0].header.update('CDELT1',im_drz[1].header.get('CD1_1'))
-#             w_list[0].header.update('CDELT2',im_drz[1].header.get('CD2_2'))
-#             for key in copy_keys:
-#                 w_list[0].header.update(key, im_drz[1].header.get(key))
-#             w_list.writeto('drz_wht.fits', clobber=True)
-#             
-#         if SCI:
-#             iraf.blot(data='drz_sci.fits',
-#                 outdata=self.flt[ii]+'.BLOT.SCI.fits', scale=self.scl,
-#                 coeffs=self.flt[ii]+'_coeffs1.dat', xsh=self.xsh[ii], 
-#                 ysh=self.ysh[ii], 
-#                 rot=self.rot[ii], outnx=inNX, outny=inNY, align='center', 
-#                 shft_un='input', shft_fr='input', in_un='cps', out_un='cps', 
-#                 interpol='poly5', sinscl='1.0', expout=exptime, 
-#                 expkey='EXPTIME',fillval=0.0)
-#         
-#         if WHT:
-#             iraf.blot(data='drz_wht.fits',
-#                 outdata=self.flt[ii]+'.BLOT.WHT.fits', scale=self.scl,
-#                 coeffs=self.flt[ii]+'_coeffs1.dat', xsh=self.xsh[ii], 
-#                 ysh=self.ysh[ii], 
-#                 rot=self.rot[ii], outnx=inNX, outny=inNY, align='center', 
-#                 shft_un='input', shft_fr='input', in_un='cps', out_un='cps', 
-#                 interpol='poly5', sinscl='1.0', expout=exptime, 
-#                 expkey='EXPTIME',fillval=0.0)
-
 
 def flprMulti(n=3):
     """
@@ -1396,6 +1288,8 @@ def flprMulti(n=3):
     
     Run iraf.flpr() `n` times.
     """
+    from pyraf import iraf
+
     if n < 1:
         n=1
     for i in range(n):
@@ -1427,6 +1321,13 @@ multridrizzle_defaults():
 
     Set multidrizzle default parameters according to the reference MDZ images
     """
+    from pyraf import iraf
+    from iraf import stsdas,dither,slitless,axe 
+    
+    no = iraf.no
+    yes = iraf.yes
+    INDEF = iraf.INDEF
+    
     iraf.unlearn('multidrizzle')
     asn = threedhst.utils.ASNFile(asn_file)
     NEXP = len(asn.exposures)
@@ -1518,12 +1419,14 @@ multridrizzle_defaults():
     iraf.multidrizzle.final_rot = 0.0
     iraf.multidrizzle.final_fillval = INDEF
     
+    #### Set OK bits for output
     if INSTRUME == 'WFC3':
         iraf.multidrizzle.final_bits = 576
     if INSTRUME == 'ACS':
         iraf.multidrizzle.final_bits = 96
     
-    iraf.multidrizzle.final_bits = 0
+    #### use only unflagged pixels
+    # iraf.multidrizzle.final_bits = 0
     
     iraf.multidrizzle.final_units = 'cps'
     iraf.multidrizzle.gnkeyword = "ATODGNA,ATODGNB,ATODGNC,ATODGND"
