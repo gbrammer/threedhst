@@ -489,8 +489,10 @@ PlotSEDExample(idx=20)
     Plot an example Eazy best-fit SED.
     """
 
-    zout = catIO.ReadASCIICat(OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.zout')
+    #zout = catIO.ReadASCIICat(OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.zout')
+    zout = catIO.Readfile(OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.zout')
     #qz = np.where(zout.z_spec > 0)[0]
+    print zout.filename
     qz = np.arange(len(zout.id))
     
     lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
