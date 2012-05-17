@@ -151,13 +151,24 @@ def easyCat(cat):
 class Readfile():
     """
     Read column data from an ASCII file where the data contain a mix of 
-    strings, floats, and ints.  Should rewrite using numpy.loadtxt with
-    format keywords.
+    strings, floats, and ints.  
+    
+    This function now seems to be both reasonably fast and robust.  It
+    supports storing FITS versions of the catalogs and is to be preferred
+    over "ReadASCIICat" because it is able to handle files with string
+    columns.
     """
-    def __init__(self, infile='files.info', force_lowercase = True, comment_char='#', 
-                 verbose=False):
+    def __init__(self, infile='files.info', force_lowercase = True,
+                 comment_char='#', verbose=False, save_fits = True):
         
         self.filename = infile
+        self.verbose = verbose
+        
+        #### Load the FITS version of the catalog, if it exists
+        status = self.load_fits()
+        if status:
+            return None
+            
         self.comment_char = comment_char
         
         #### read the lines of the file
@@ -248,6 +259,9 @@ class Readfile():
         self.N = N
         self.status = True
         
+        if save_fits:
+            self.write_fits()
+            
     def __getitem__(self, key):
         """
     Allow you to address the column names as strings, e.g.
@@ -293,13 +307,188 @@ class Readfile():
         """
         str = 'self.%s = value' %name
         exec(str)
+    
+    def write_fits(self):
+        """
+        Save the ascii catalog data into a FITS bintable.
+        
+        The modification date of the ascii catalog is saved in the 'MODTIME'
+        keyword of the FITS file
+        """
+        import time
+        
+        formats = {}
+        formats['bool'] = 'L'
+        formats['int16'] = 'I'
+        formats['int32'] = 'J'
+        formats['int64'] = 'K'
+        formats['float32'] = 'E'
+        formats['float64'] = 'D'
+        
+        #### Make the table columns, translating numpy data types to "TFORM"
+        coldefs = []
+        for column in self.columns:
+            dtype = str(self.__getitem__(column).dtype)
+            #print column, dtype
+            if dtype in formats.keys():
+                TFORM=formats[dtype]
+            else:
+                if 'S' not in dtype:
+                    threedhst.showMessage('Unrecognized data type in %s: %s' %(self.filename, dtype), warn=True)
+                    return False
+                #
+                TFORM = 'A'+dtype.split('S')[1]
+            #    
+            coldefs.append(pyfits.Column(name=column, array=self.__getitem__(column), format=TFORM))
+        
+        #### Done, now make the binary table
+        tbhdu = pyfits.new_table(coldefs)
 
+        #### Primary HDU
+        hdu = pyfits.PrimaryHDU()
+        thdulist = pyfits.HDUList([hdu,tbhdu])
+
+        #### Add modification time of "infile" to FITS header
+        infile_mod_time = time.strftime("%m/%d/%Y %I:%M:%S %p",
+                            time.localtime(os.path.getmtime(self.filename)))
+        
+        thdulist[1].header.update('MODTIME',infile_mod_time)
+
+        thdulist.writeto(self.filename+'.FITS', clobber=True)
+        return True
+        
+    def load_fits(self):
+        """
+        Read the FITS bintable version of the catalog.   
+        
+        If the modification date of the ascii file is different than that
+        founc in the FITS file, return a status of False and re-read the
+        file generating the FITS file again, if "save_fits" is set during
+        __init__
+        """
+        import time
+        if not os.path.exists(self.filename+'.FITS'):
+            return False
+        
+        infile_mod_time = time.strftime("%m/%d/%Y %I:%M:%S %p",
+                            time.localtime(os.path.getmtime(self.filename)))
+        
+        im = pyfits.open(self.filename+'.FITS')[1]
+        
+        if infile_mod_time != im.header['MODTIME']:
+            print('%s has changed.  Re-generating FITS file...' %(self.filename))
+            return False
+        
+        if self.verbose:
+            print 'Read from: %s.FITS' %(self.filename)
+                   
+        self.NCOLUMNS = len(im.data.names)
+        self.columns = im.data.names
+        self.N = len(im.data[im.data.names[0]])
+        for column in self.columns:
+            run_str = 'self.%s = im.data[\'%s\']' %(column, column)
+            exec(run_str)
+            
+        return True
+        
 class markerXML():
     def __init__(self, ra, dec, mag):
         self.ra = np.float(ra)
         self.dec = np.float(dec)
         self.mag = np.float(mag)
 
+class CoordinateMatcher():
+    """
+    Class for providing automatic methods for retrieving 
+    nearest neighbors at a given position from a Readfile object
+    
+    Example:
+        >>> cat = catIO.Readfile('fireworks.cat')
+        >>> cat_coords = catIO.CoordinateMatcher(cat)
+        >>> ra, dec = cat.ra[100], cat.dec[100]
+        >>> cat_coords.find_nearest(ra, dec, N=5)
+        (array([  0., 3.21631753, 9.56851659, 9.57823153, 10.48355936]),
+         array([100,  90,  95, 157, 174], dtype=int32))
+    
+    """
+    def __init__(self, cat, ra_column = 'ra', dec_column = 'dec', USE_WORLD=False):
+        
+        if USE_WORLD:
+            ra_column, dec_column = 'x_world', 'y_world'
+                
+        for test in [ra_column, dec_column]:
+            if test not in cat.columns:
+                print 'Column %s not found in the input catalog' %(test)
+                self.status = False
+                return None
+                
+        else:
+            self.ra_column = ra_column
+            self.dec_column = dec_column
+            self.cat = cat
+            self.init_tree()
+    
+        self.status = True
+    
+    def init_tree(self):
+        """
+        Set up the tree for retrieving nearest zSpec objects from
+        test coordinate positions.
+        
+        The match is done using the scipy.spatial.cKDTree function, which is
+        apparently some 80 times faster than doing it "by hand" with numpy.
+        """
+        import scipy.spatial
+        
+        cosd = self.cat[self.ra_column] * np.cos(self.cat[self.dec_column]/360*2*np.pi)
+        self.xy = np.array([cosd, self.cat[self.dec_column]]).T
+        self.tree = scipy.spatial.cKDTree(self.xy, 10)
+    
+    def find_nearest(self, ra, dec, N=1):
+        """
+        Find N nearest neighbors to (ra, dec) in the zSpec catalogs.  
+        
+        Example: 
+            
+            >>> dist, ids = zsp.find_nearest(zsp.ra[100], zsp.dec[100], N=5)
+            >>> print dist, ids
+            (array([  0.        ,  12.96253365,  17.63697491,  29.72497372,  31.16232403]), array([100,  86, 119, 116,  80], dtype=int32))
+            
+        """
+        if self.tree is None:
+            self.init_tree()
+            
+        xy_test = [ra*np.cos(dec/360.*2*np.pi), dec]
+        dist, ids = self.tree.query(xy_test, k=N)
+        return dist*3600, ids
+    
+    def match_list(self, ra=[], dec=[], N=1, MATCH_SELF=False, verbose=True):
+        """
+        Make a full matched list, input 'ra' and 'dec' are
+        arrays
+        
+        If MATCH_SELF, find nearest matches *within* the self catalog
+        """
+        noNewLine = '\x1b[1A\x1b[1M'
+        
+        if MATCH_SELF:
+            ra = self.cat[self.ra_column]
+            dec = self.cat[self.dec_column]
+        
+        Nlist = len(ra)
+        dr_match = ra*0.
+        id_match = np.cast[int](ra*0)
+        
+        for i in range(Nlist):
+            if verbose:
+                print noNewLine+'%d of %d' %(i+1, Nlist)
+            
+            dist, ids = self.find_nearest(ra[i], dec[i], N=1+N)
+            dr_match[i] = dist[N-1+MATCH_SELF]
+            id_match[i] = ids[N-1+MATCH_SELF]
+        
+        return dr_match, id_match
+        
 def readMarkerXML(xml_file):
     """
     Read a threedhst XML file, which provides ra, dec, mag
