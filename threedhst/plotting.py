@@ -805,7 +805,7 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
                 
                 ### Fit a gaussian to the line position
                 near = np.where(np.abs(lam-line.wave) < 800)[0]                                         
-                if 1 == 0:                    
+                if 1 == 1:                    
                 #if len(near) > 2:                    
                     p0 = np.array([np.max(flux[near]), line.wave,
                          50, np.median(flux[sub]), 0.])
@@ -1051,8 +1051,8 @@ def makeHTML(SPCFile, mySexCat, mapParams,
     var root = '%s';
     
     var myIcon = new GIcon();
-   	myIcon.iconSize = new GSize(12,12);
-   	myIcon.iconAnchor = new GPoint(6,6);
+   	myIcon.iconSize = new GSize(30,25);
+   	myIcon.iconAnchor = new GPoint(15,14);
    		
     function initialize() {        
         if (GBrowserIsCompatible()) {

@@ -195,15 +195,17 @@ class Readfile():
         #### parse column names, fixing characters.
         dict = {}
         for i in range(NCOLUMNS):
+            if verbose > 1:
+                print columns[i]
             col = columns[i].replace('-','_').replace('.','p')
             if force_lowercase:
                 col = col.lower()
             for str in '()[]':
                 col = col.replace(str,'')
-            
+            #
             if col[0].isdigit():
                 col = '_'+col
-                
+            #    
             columns[i] = col
             dict[col] = []
         
@@ -214,7 +216,7 @@ class Readfile():
             ix+=1
             line = lines[ix]
         
-        if ix == len(lines)-1:
+        if ix == len(lines):
             self.status = None
             return None
             
@@ -227,6 +229,9 @@ class Readfile():
                 for i in range(NCOLUMNS):
                     dict[columns[i]].append(spl[i])
         
+        if verbose > 3:
+            print dict
+            
         #### Convert data to numpy arrays and change data types from
         #### strings to int and float as necessary
         for col in columns:

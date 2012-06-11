@@ -1092,6 +1092,26 @@ polygon(34.361166,-5.203999,34.392072,-5.218563,34.408309,-5.183499,34.377008,-5
 polygon(34.396167,-5.214486,34.366652,-5.197295,34.347407,-5.230817,34.377392,-5.247178) # color=magenta width=2  text={UDS-7}
 polygon(34.367695,-5.201449,34.339798,-5.181761,34.317693,-5.213485,34.346131,-5.232386) # color=magenta width=2  text={UDS-8}
 polygon(34.346372,-5.232274,34.318473,-5.212586,34.296367,-5.244310,34.324806,-5.263211) # color=magenta width=2  text={UDS-9}"""
+    
+    #### CANDELS SN and COOPER EGS pointings
+    pointings += """polygon( 53.047381,-27.696185, 53.088765,-27.685558, 53.099610,-27.718251, 53.058226,-27.728878) # color=cyan width=2 text={ERS}
+polygon( 53.138492,-27.758488, 53.136643,-27.792488, 53.180229,-27.793926, 53.180988,-27.759895) # color=cyan text={SN-PRIMO}
+polygon( 53.111766,-27.843283, 53.093896,-27.813137, 53.055472,-27.831405, 53.074280,-27.861099) # color=cyan text={SN-GEORGE}
+polygon( 34.455240, -5.243509, 34.421062, -5.243304, 34.421240, -5.281884, 34.455410, -5.281136) # color=cyan text={SN-MARSHALL}
+polygon(214.275840,52.475143,214.221331,52.467670,214.235844,52.430083,214.289985,52.438482) # color=cyan width=2 text={COOPER/EGS12004280}
+polygon(214.132993,52.411228,214.183039,52.396129,214.210554,52.430905,214.159838,52.445144) # color=cyan width=2 text={COOPER/EGS12004754}
+polygon(214.517658,52.546031,214.464967,52.534565,214.486923,52.498337,214.539063,52.510694) # color=cyan width=2 text={COOPER/EGS12007881.12012083}
+polygon(214.643818,52.562188,214.591307,52.574014,214.569842,52.537674,214.622873,52.526747) # color=cyan width=2 dash=1 text={COOPER/EGS12011767}
+polygon(214.721838,52.607467,214.682415,52.631679,214.637647,52.604260,214.678167,52.580728) # color=cyan width=2 text={COOPER/EGS12015684}
+polygon(214.567181,52.670648,214.535231,52.698650,214.483221,52.676369,214.516449,52.648921) # color=cyan width=2 dash=1 text={COOPER/EGS12020405}
+polygon(214.549134,52.726809,214.542945,52.692966,214.606352,52.689092,214.610975,52.723025) # color=cyan width=2 dash=1 text={COOPER/EGS12024866}
+polygon(214.630347,52.835657,214.607146,52.804629,214.665613,52.789073,214.687368,52.820480) # color=cyan width=2 text={COOPER/EGS13004661}
+polygon(214.883627,52.914686,214.834597,52.897827,214.866829,52.864469,214.915055,52.882148) # color=cyan width=2 dash=1 text={COOPER/EGS13011148}
+polygon(214.835962,52.882940,214.802256,52.910249,214.751314,52.886881,214.786271,52.860153) # color=cyan width=2 text={COOPER/EGS13011439}
+polygon(215.174708,53.026993,215.142495,53.054995,215.090056,53.032713,215.123558,53.005266) # color=cyan width=2 dash=1 text={COOPER/EGS13034445}
+polygon(214.994022,53.040119,215.013087,53.008057,215.073327,53.021417,215.052779,53.053144) # color=cyan width=2 dash=1 text={COOPER/EGS13035123}
+"""
+    
     if isinstance(ra, str):
         ra = DMS2decimal(ra, hours=True)
     #
@@ -1152,7 +1172,25 @@ def decimal2HMS(input, hours=False):
     return '%s%02d:%02d:%05.2f' %(pm, deg, min, sec)
 
 def DMS2decimal(string, hours=True):
-    dms = np.abs(np.cast[float](string.split(':')))
+    """
+    Convert degree-minute-second string into decimal value.
+    
+    EXAMPLE:
+    
+    >>> print threedhst.utils.DMS2decimal('100127.5', hours=True)
+    >>> print threedhst.utils.DMS2decimal('10:01:27.5', hours=True)
+    >>> print threedhst.utils.DMS2decimal('+02:00:00')
+    
+    """
+    
+    split_DMS = string.split(':')
+    #### If no colons in the string, assume DDMMSS.S
+    if len(split_DMS) != 3:
+        repl = string.replace('-','')
+        split_DMS = [repl[0:2], repl[2:4], repl[4:]]
+        #print split_DMS
+        
+    dms = np.abs(np.cast[float](split_DMS))
     if string.startswith('-'):
         neg = True
     else:

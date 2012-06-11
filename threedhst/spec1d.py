@@ -209,7 +209,7 @@ lines = spWFindLines(SPCFile, idx=195, show=True, check_contam=False)
     gthresh = 1.5
     wthresh = 1.5
     
-    if SPCFile.__class__ is threedhst.plotting.SPCFile:
+    if isinstance(SPCFile, threedhst.plotting.SPCFile):
         spec = SPCFile.getSpec(idx)
         lam  = spec.field('LAMBDA')*1.
         flux = spec.field('FLUX')*1.
