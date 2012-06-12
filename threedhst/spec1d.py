@@ -160,7 +160,7 @@ lines = findLines(SPCFile, idx=195, show=False, verbose=False, trim_abs=False)
             print '\nContam: \n'
             for line in contam:
                 print line.wave, line.type, line.flag
-        contam_toler = 70
+        contam_toler = 150
         for i in range(NLINE):
             for j in range(NCONTAM):
                 if ( (contam[j].type == 'em') & 
@@ -396,12 +396,15 @@ lines = spWFindLines(SPCFile, idx=195, show=True, check_contam=False)
                 line.wave = x[i]
                 line.waveMin = x[ilo]
                 line.waveMax = x[ihi]
-                line.height = corr[i] - ssmooth[i]
-                line.sigma = 0.75*(x[ihi] - x[ilo])
+                line.height = corr[i] #- ssmooth[i]
+                #line.sigma = 0.75*(x[ihi] - x[ilo])
                 line.sigmaMin = sigmaMin
                 line.ew = 0
                 line.ewMin = ewMin
-                line.continuum = 0
+                line.continuum = np.median(corr)
+                line.sn = (line.height-line.continuum) / np.median(ferr)
+                line.fcontam = contam[i]/flux[i]
+                
                 if (t[i] > 0):
                   line.nsigma = wave[i]/t[i]
                 else:
@@ -484,7 +487,7 @@ class readLinesDat():
         self.sigma = np.cast[float](sigma)
         self.eqw = np.cast[float](eqw)
         self.sn = np.cast[float](sn)
-
+        
 def test1D():
     import threedhst
     
