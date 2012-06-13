@@ -222,8 +222,10 @@ lines = spWFindLines(SPCFile, idx=195, show=True, check_contam=False)
         ferr = SPCFile.error*1.
         contam = SPCFile.contam*1.
         
-    ok = np.where( (lam > wavemin) & (lam < wavemax) )
-    
+    ok = (lam > wavemin) & (lam < wavemax) 
+    if ok.sum() < 3:
+        return []
+        
     flux = flux[ok]
     ferr = ferr[ok]
     contam = contam[ok]
