@@ -136,7 +136,7 @@ align_img_list = find_align_images_that_overlap()
 def refine_shifts(ROOT_DIRECT='f160w',
                   ALIGN_IMAGE='../../ACS/h_sz*drz_img.fits',
                   fitgeometry='shift', clean=True,
-                  ALIGN_EXTENSION=0):
+                  ALIGN_EXTENSION=0, shift_params=None):
     """
 refine_shifts(ROOT_DIRECT='f160w',
               ALIGN_IMAGE='../../ACS/h_sz*drz_img.fits',
@@ -146,16 +146,19 @@ refine_shifts(ROOT_DIRECT='f160w',
     ROOT_DIRECT+'_drz.fits' to one or more alignment images
     """
     import numpy as np
-    
-    threedhst.showMessage('Aligning WCS to %s (%s)' %(threedhst.options['ALIGN_IMAGE'], fitgeometry))
-    
+        
     run = threedhst.prep_flt_files.MultidrizzleRun(ROOT_DIRECT.upper())
     
     ## radius for match is 2**toler.  Make it larger if fit comes out bad
     toler, maxtoler = 3, 5  
     xrms, yrms = 100, 100
-    while ((xrms > 1) | (yrms > 1)) & (toler <= maxtoler):
-        xshift, yshift, rot, scale, xrms, yrms = threedhst.shifts.align_to_reference(
+    if shift_params is not None:
+        xshift, yshift, rot, scale = shift_params
+        threedhst.showMessage('Using specified DRZ-frame shifts: %f %f %f %f' %(xshift, yshift, rot, scale))
+    else:
+        threedhst.showMessage('Aligning WCS to %s (%s)' %(threedhst.options['ALIGN_IMAGE'], fitgeometry))
+        while ((xrms > 1) | (yrms > 1)) & (toler <= maxtoler):
+            xshift, yshift, rot, scale, xrms, yrms = threedhst.shifts.align_to_reference(
                         ROOT_DIRECT,
                         ALIGN_IMAGE,
                         fitgeometry=fitgeometry, clean=clean,

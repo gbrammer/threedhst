@@ -63,7 +63,44 @@ Create a DS9 region file for the exposures defined in an ASN file.
     #print '3D-HST / ASN_REGION: %s\n' %(output_file)
     threedhst.showMessage('Create region file, %s.' %output_file)
     
+def fits_regions(fits_list, output_file='list.reg', force_extension=None):
+    ##### Output file
+    fp = open(output_file,'w')
+    fp.write('fk5\n') ### WCS coordinates
+    
+    NEXP = len(fits_list)
+    
+    ##### Loop through exposures and get footprints
+    for i, exp_root in enumerate(fits_list):
+        flt_file =threedhst.utils.find_fits_gz(exp_root, hard_break = True)
+        
+        #head = pyfits.getheader(exp_root.lower()+'_flt.fits')
+        head = pyfits.getheader(flt_file)
+        if (head.get('INSTRUME') == 'ACS') | ('UVIS' in head.get('APERTURE')):
+            extensions=[1,4]
+        else:
+            extensions=[1]
+        
+        if force_extension is not None:
+            extensions = force_extension
+            
+        RAcenters, DECcenters = 0.,0.
+        
+        for ext in extensions:
+            regX, regY = wcs_polygon(flt_file,extension=ext)
+            line = "polygon(%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f)"  %(regX[0],regY[0],regX[1],regY[1],regX[2],regY[2],regX[3],regY[3])
+            fp.write(line+' # color=magenta\n')
 
+            RAcenters += np.mean(regX)/len(extensions)
+            DECcenters += np.mean(regY)/len(extensions)
+
+            ##### Text label with ASN filename
+            fp.write('# text(%10.6f,%10.6f) text={%s} font="Helvetica 9 normal" color=magenta\n' \
+                %(RAcenters,DECcenters, exp_root.split('.fits')[0]))
+            
+    fp.close()
+    threedhst.showMessage('Create region file, %s.' %output_file)
+    
 def make_zeroth(sexCat, outfile='zeroth.reg'):
     """
 make_zeroth(sexCat, outfile='zeroth.reg')

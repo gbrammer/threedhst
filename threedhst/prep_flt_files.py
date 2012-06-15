@@ -1336,7 +1336,10 @@ def make_targname_asn(asn_file, newfile=True, use_filtname=True, path_to_flt='..
     
     instrum = im[0].header['INSTRUME']
     if instrum == 'ACS':
-        filter=im[0].header['FILTER1']
+        filter = ''
+        for fkey in ['FILTER1','FILTER2']:
+            if 'CLEAR' not in im[0].header[fkey]:
+                filter=im[0].header[fkey]
     else:
         filter=im[0].header['FILTER']
         

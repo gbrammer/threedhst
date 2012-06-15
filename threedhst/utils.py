@@ -405,8 +405,14 @@ _read_asn_file(self)
         types = data.field('MEMTYPE')
         
         ##### Exposures
-        exp_idx  = np.where(types == 'EXP-DTH')
-        if exp_idx[0].shape[0] == 0:
+        #exp_idx  = np.where(types == 'EXP-DTH')
+        exp_idx = types == 'EXP-DTH'
+        #### check if MEMTYPE starts with EXP, have other cases where type is "EXP-RP#"
+        for ii, type in enumerate(types):
+            if types[ii].startswith('EXP'):
+                exp_idx[ii] = True
+                
+        if exp_idx.sum() == 0:
             warn('ASN file %s has no EXP-DTH items')
         else:
             self.exposures = []
