@@ -916,6 +916,9 @@ class SWarp(object):
         """
         self.options['SUBTRACT_BACK'] = 'N'
         self.options['WRITE_XML'] = 'N'
+        self.options['VMEM_MAX'] = '8192'
+        self.options['MEM_MAX'] = '8192'
+        self.options['COMBINE_BUFSIZE'] = '8192'
     
     def getOptInfo(self,aslist=False):
         """
