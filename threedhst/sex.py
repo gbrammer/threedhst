@@ -813,6 +813,29 @@ makeRaDec()
             print 'Added column, %s, with format, %s' %(name, format)
             
         return success == 0
+    
+    def renameColumn(self, original='X_IMAGE', new='X_NEW', verbose=True):
+        if original not in self.column_names:
+            print 'Column %s not in the current catalog.' %(original)
+            return False
+        
+        for i, line in enumerate(self.headerlines):
+            if ' %s ' %(original) in line:
+                #print line
+                new_header = self.headerlines[i].replace(' %s ' %(original), ' %s ' %(new))
+                self.headerlines[i] = new_header
+                self.linelist[i] = new_header
+                
+        ### Reprocess the header with the new column
+        allheads    = self.makeheads(self.headerlines)
+        self.nrows  = self.makecols(allheads, self.rowlines)
+        success     = self.makeorder()
+        self._easy_columns()
+        
+        if verbose:
+            print 'Renamed column %s -> %s' %(original, new)
+            
+        return success == 0
         
 class SWarp(object):
     """
