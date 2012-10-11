@@ -2196,8 +2196,8 @@ def find_best_flat(flt_fits, verbose=True): #, IREF='/research/HST/GRISM/IREF/')
             print '%s %s %s' %(pfl, the_filter, time.ctime(latest))
     
     return best_pfl #, the_filter, time.ctime(latest)
-    
-def prep_acs(force=False):
+
+def prep_acs(root='jbhj01',force=False):
     """
     Apply destripe and CTE correction to ACS images.
     
@@ -2224,30 +2224,32 @@ def prep_acs(force=False):
     if not os.path.exists('../FIXED'):
         print "Making output directory ../FIXED"
         os.mkdir('../FIXED')
-        
-    files = glob.glob('*flt.fits')
+
+    files = glob.glob('%s*_flt.fits' %(root))
+    print files
     for file in files:
         #epar acs_destripe # *flt.fits dstrp clobber+
         flt = pyfits.open(file)
         if (not os.path.exists(file.replace('flt','flt_dstrp'))) & ('PCTEFILE' not in flt[0].header.keys()):
             acs_destripe.clean(file,'dstrp',clobber=True)
         
-    files=glob.glob('*dstrp*')
+    files=glob.glob('%s*dstrp*' %(root))
+    print files
     for file in files:
         iraf.hedit(images=file+'[0]', fields='PCTEFILE',
             value='jref$pctefile_101109.fits', add=iraf.yes, verify=iraf.no, 
             update=iraf.yes, show=iraf.no)
     
     ## epar PixCteCorr # *dstrp*fits ''
-    PixCteCorr.CteCorr('*dstrp*fits')
-    files=glob.glob('*cte.fits')
+    PixCteCorr.CteCorr('%s*dstrp*fits' %(root))
+    files=glob.glob('%s*cte.fits' %(root))
     for file in files:
         out=file.replace('cte','flt')
         shutil.move(file,'../FIXED/'+out)
     
     ### Clean up dstrp files
-    files=glob.glob('*dstrp*fits')
+    files=glob.glob('%s*dstrp*fits' %(root))
     for file in files:
         print file
         os.remove(file)
-        
+
