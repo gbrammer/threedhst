@@ -395,6 +395,14 @@ Pipeline to process a set of grism/direct exposures.
         #### Assumes that the MAG_AUTO column has already been changed 
         #### appropriately to something like MAG_F1392W
         sexCat = threedhst.sex.mySexCat(threedhst.options['FORCE_CATALOG'])
+        col_name = 'MAG_F%0dW' %(np.round(threedhst.options['FILTWAVE']))
+        mag = np.cast[float](sexCat[col_name])
+        q = np.where(mag > threedhst.options['LIMITING_MAGNITUDE'])[0]
+        if len(q) > 0:
+            threedhst.showMessage('Trimming objects with direct M < %6.2f.' 
+                                  %(threedhst.options['LIMITING_MAGNITUDE']))
+            numbers = np.cast[int](sexCat.NUMBER)[q]
+            sexCat.popItem(numbers)
         ##### Note: segmentation image has to accompany the force_catalog!
         
     sexCat.write(ROOT_GRISM+'_drz.cat')
