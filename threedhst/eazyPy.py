@@ -482,7 +482,7 @@ def convert_chi_to_pdf(tempfilt, pz):
             
     return tempfilt['zgrid']*1., pdf
     
-def plotExampleSED(idx=20, writePNG=True, MAIN_OUTPUT_FILE = 'photz', OUTPUT_DIRECTORY = 'OUTPUT', CACHE_FILE = 'Same', lrange=[3000,8.e4]):
+def plotExampleSED(idx=20, writePNG=True, MAIN_OUTPUT_FILE = 'photz', OUTPUT_DIRECTORY = 'OUTPUT', CACHE_FILE = 'Same', lrange=[3000,8.e4], axes=None):
     """
 PlotSEDExample(idx=20)
 
@@ -515,15 +515,20 @@ PlotSEDExample(idx=20)
     #plt.rcParams['text.latex.preamble'] = ''
 
     ##### start plot
-    fig = plt.figure(figsize=[8,4],dpi=100)
-    fig.subplots_adjust(wspace=0.15,hspace=0.0,left=0.08,bottom=0.15,right=0.98,top=0.98)
+    if axes is None:
+        fig = plt.figure(figsize=[8,4],dpi=100)
+        fig.subplots_adjust(wspace=0.18, hspace=0.0,left=0.09,bottom=0.15,right=0.98,top=0.98)
     
     #### Plot parameters
     plotsize=20
     alph=0.7
     
     #### Full best-fit template
-    ax = fig.add_subplot(121)
+    if axes is None:
+        ax = fig.add_subplot(121)
+    else:
+        ax = axes[0]
+        
     ax.plot(lambdaz, temp_sed, linewidth=1.0, color='blue',alpha=alph)
     
     #### template fluxes integrated through the filters
@@ -538,25 +543,29 @@ PlotSEDExample(idx=20)
     ax.semilogx()
     ax.set_xlim(lrange[0],lrange[1])
     ax.set_ylim(-0.05*max(obs_sed),1.1*max(obs_sed))
-    plt.xlabel(r'$\lambda$ [$\AA$]')
-    plt.ylabel(r'$f_\lambda$')
+    ax.set_xlabel(r'$\lambda$ [$\AA$]')
+    ax.set_ylabel(r'$f_\lambda$')
     
     ##### P(z)
     if pz is not None:
-        ax = fig.add_subplot(122)
-        ax.plot(zgrid, pz, linewidth=1.0, color='orange',alpha=alph)
-        ax.fill_between(zgrid,pz,np.zeros(zgrid.size),color='yellow')
+        if axes is None:
+            axp = fig.add_subplot(122)
+        else:
+            axp = axes[1]
+            
+        axp.plot(zgrid, pz, linewidth=1.0, color='orange',alpha=alph)
+        axp.fill_between(zgrid,pz,np.zeros(zgrid.size),color='yellow')
 
         if zout.z_spec[qz[idx]] > 0:
-            ax.plot(zout.z_spec[qz[idx]]*np.ones(2),np.array([0,1e6]),color='red',alpha=0.4)
+            axp.plot(zout.z_spec[qz[idx]]*np.ones(2), np.array([0,1e6]),color='red',alpha=0.4)
 
         #### Set axis range and titles
-        ax.set_xlim(0,np.ceil(np.max(zgrid)))
-        ax.set_ylim(0,1.1*max(pz))
-        plt.xlabel(r'$z$')
-        plt.ylabel(r'$p(z)$')
+        axp.set_xlim(0,np.ceil(np.max(zgrid)))
+        axp.set_ylim(0,1.1*max(pz))
+        axp.set_xlabel(r'$z$')
+        axp.set_ylabel(r'$p(z)$')
         
-    if writePNG:
+    if writePNG & (axes is None):
         fig.savefig('/tmp/test.pdf',dpi=100)
 
 def nMAD(arr):

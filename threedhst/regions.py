@@ -319,6 +319,42 @@ Note: something like this could be used to flag grism 0th order contaminants
     dq[flag_idx] = 1
     return dq
 
+class Polyreg():
+    """
+    Class for a polygon region to store the vertices, any text if it exists
+    and a method for testing whether a specified coordinate lies within
+    the polygon.
+    """
+    def __init__(self, line=None):
+        self.px = []
+        self.py = []
+        self.text = ''
+        if line is not None:
+            self.parse(line)
+            
+    def parse(self, line='polygon(0,0,1,0,1,1,0,1) # text={test}'):
+        import re
+        spl = np.cast[float](re.split('[()]', line)[1].split(','))
+        self.px = spl[0::2]
+        self.py = spl[1::2]
+        spl = line.split('text')
+        if len(spl) > 1:
+            self.text = re.split('[{}]', spl[1])[1]
+            
+    def contains(self, x, y):
+        return point_in_polygon(x,y,self.px, self.py)
+        
+def parse_polygons(file='goods-s_ACSz.reg'):
+    regions = []
+    fp = open(file)
+    lines = fp.readlines()
+    fp.close()
+    for line in lines:
+        if line.startswith('polygon'):
+            regions.append(Polyreg(line))
+    
+    return regions
+    
 def apply_dq_mask(flt_file, extension=3, mask_file=None, addval=2048, fk5=False, verbose=False):
     """
 apply_dq_mask(flt_file, addval=2048)
