@@ -1323,8 +1323,7 @@ def make_grism_subsets(root='GOODS-S', run_multidrizzle=True, single=None):
                  updatewcs=False, clean=True, median=False,
                  refimage=direct_ref)
                  
-        
-def make_targname_asn(asn_file, newfile=True, use_filtname=True, path_to_flt='../RAW/'):
+def make_targname_asn(asn_file, newfile=True, use_filtname=True, path_to_flt='../RAW/',field='ANY'):
     """
     Take an ASN file like 'ibhm51030_asn.fits' and turn it into 
     'COSMOS-3-F140W_asn.fits'
@@ -1355,6 +1354,7 @@ def make_targname_asn(asn_file, newfile=True, use_filtname=True, path_to_flt='..
     target = target.replace('SOUTH','S')
     target = target.replace('GNGRISM','GOODS-N-')
     target = target.replace('GEORGE','GEORGE-')
+    target = target.replace('ANY',field)
     
     if target == 'MARSHALL':
         #### Add the pointing number, 1-6
@@ -1373,6 +1373,11 @@ def make_targname_asn(asn_file, newfile=True, use_filtname=True, path_to_flt='..
             target='GEORGE-2'
         else:
             target='GEORGE-1'
+            
+    if instrum == 'ACS':
+        ID = asn.exposures[0][4:6]
+        target+='-'+ID
+
     # 
     # if target.startswith('GOODS-N'):
     #     #### Some Visits were redone
@@ -1381,6 +1386,8 @@ def make_targname_asn(asn_file, newfile=True, use_filtname=True, path_to_flt='..
     #         target = target.replace('GOODS-N','GOODS-N2')
     
     product = target+'-'+type
+    print product
+
     asn.product = product
     if newfile:
         asn.write(product+'_asn.fits', clobber=True)
