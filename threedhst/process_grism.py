@@ -1,6 +1,7 @@
 """
 process_grism.py - Pipeline to process a set of grism+direct exposures
 
+
 The overall outline of the process is as follows:
 
 o Copy a fresh set of raw flt files that haven't been touched by 
