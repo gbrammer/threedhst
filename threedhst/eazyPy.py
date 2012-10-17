@@ -160,6 +160,7 @@ class EazyParam():
     """    
     def __init__(self, PARAM_FILE='zphot.param', READ_FILTERS=False):
         self.filename = PARAM_FILE
+        self.param_path = os.path.dirname(PARAM_FILE)
         
         f = open(PARAM_FILE,'r')
         self.lines = f.readlines()

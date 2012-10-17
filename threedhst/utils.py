@@ -1097,7 +1097,8 @@ polygon(34.347388,-5.155249,34.378291,-5.169813,34.394527,-5.134749,34.363229,-5
 polygon(34.361166,-5.203999,34.392072,-5.218563,34.408309,-5.183499,34.377008,-5.169803) # color=magenta width=2  text={UDS-6}
 polygon(34.396167,-5.214486,34.366652,-5.197295,34.347407,-5.230817,34.377392,-5.247178) # color=magenta width=2  text={UDS-7}
 polygon(34.367695,-5.201449,34.339798,-5.181761,34.317693,-5.213485,34.346131,-5.232386) # color=magenta width=2  text={UDS-8}
-polygon(34.346372,-5.232274,34.318473,-5.212586,34.296367,-5.244310,34.324806,-5.263211) # color=magenta width=2  text={UDS-9}"""
+polygon(34.346372,-5.232274,34.318473,-5.212586,34.296367,-5.244310,34.324806,-5.263211) # color=magenta width=2  text={UDS-9}
+"""
     
     #### CANDELS SN and COOPER EGS pointings
     pointings += """polygon( 53.047381,-27.696185, 53.088765,-27.685558, 53.099610,-27.718251, 53.058226,-27.728878) # color=cyan width=2 text={ERS}
@@ -1115,8 +1116,7 @@ polygon(214.630347,52.835657,214.607146,52.804629,214.665613,52.789073,214.68736
 polygon(214.883627,52.914686,214.834597,52.897827,214.866829,52.864469,214.915055,52.882148) # color=cyan width=2 dash=1 text={COOPER/EGS13011148}
 polygon(214.835962,52.882940,214.802256,52.910249,214.751314,52.886881,214.786271,52.860153) # color=cyan width=2 text={COOPER/EGS13011439}
 polygon(215.174708,53.026993,215.142495,53.054995,215.090056,53.032713,215.123558,53.005266) # color=cyan width=2 dash=1 text={COOPER/EGS13034445}
-polygon(214.994022,53.040119,215.013087,53.008057,215.073327,53.021417,215.052779,53.053144) # color=cyan width=2 dash=1 text={COOPER/EGS13035123}
-"""
+polygon(214.994022,53.040119,215.013087,53.008057,215.073327,53.021417,215.052779,53.053144) # color=cyan width=2 dash=1 text={COOPER/EGS13035123}"""
     
     if isinstance(ra, str):
         ra = DMS2decimal(ra, hours=True)
@@ -1128,6 +1128,7 @@ polygon(214.994022,53.040119,215.013087,53.008057,215.073327,53.021417,215.05277
     matched_list = []
     
     for i, polystr in enumerate(pointings.split('\n')):
+        #print polystr
         poly = polystr[polystr.find('(')+1:polystr.find(')')].split(',')
         pointing = polystr[polystr.find('{')+1:polystr.find('}')]
         px = np.cast[float](poly[0::2])
