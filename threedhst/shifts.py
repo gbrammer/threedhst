@@ -164,7 +164,7 @@ refine_shifts(ROOT_DIRECT='f160w',
                         fitgeometry=fitgeometry, clean=clean,
                         ALIGN_EXTENSION=ALIGN_EXTENSION,
                         toler=toler, skip_swarp=(toler > 3))
-        toler+=1
+            toler+=1
 
     #### shifts measured in DRZ frame.  Translate to FLT frame
     drz = pyfits.open(ROOT_DIRECT+'_drz.fits')
