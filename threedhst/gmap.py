@@ -9,6 +9,7 @@ __version__ = "$Rev$"
 
 import os
 import numpy as np
+import glob
 
 # Specifies the size of the map (in pixels).
 TILE_SIZE = 256
@@ -18,32 +19,51 @@ MAP_KEY = 'ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb' \
     '_rzgcy5bqzSaTV8cyi2Bgsx3g'
 
 def makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1,
-                  zmin=-0.1, zmax=1, verbose=False):
+                  zmin=-0.1, zmax=1, rgb_params=(5, 3, -0.05), verbose=False):
     """
 makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1,
               zmin=-0.1, zmax=1)
     
     Make Google map tiles for an input FITS image, which is assumed to be
     North-up, East-left, like normal Multidrizzle output.
+    
+    "fitsfile" can be a single FITS image or a comma-separated list of three
+    images (R,G,B) that will be used to generate a 3-color image.  
     """
     import pyfits
     import pywcs
     #import fitsimage
     import numpy as np
     
-    if not fitsfile:
+    if fitsfile is None:
         fitsfile = 'ib3721050_drz.fits'
-    if not outPath:
+    
+    if outPath is None:
         outPath = '/tmp/'
     
+    RGB = False
+    
+    if ',' in fitsfile:
+        fitsfile = fitsfile.split(',')
+        RGB = True
+        if len(fitsfile) != 3:
+            threedhst.showMessage("`fitsfile` must be either a single image filename or a comma-separated list of 3 images for RGB", warn=True)
+            raise ValueError
+    else:
+        fitsfile=[fitsfile]
+        
     # print fitsfile, outPath
     
     ### Read the FITS file
-    fi = pyfits.open(fitsfile)
+    fi = pyfits.open(fitsfile[0])
     head = fi[extension].header
-    data = fi[extension].data
-    #data = np.fliplr(fi[1].data)
-    xsize, ysize = data.shape #[1]
+    data = [fi[extension].data]
+    if RGB:
+        for file in fitsfile[1:]:
+            fi = pyfits.open(file)
+            data.append(fi[extension].data)
+            
+    xsize, ysize = data[0].shape #[1]
     
     ### Image corners in Lat/Lon
     wcs = pywcs.WCS(head)
@@ -124,7 +144,7 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1,
     pixRatio = m.pixels_per_lon_degree[zoomLevel]/pixPerDeg
     
     #data_copy = congrid(data,(dy,dx))
-    data_copy = data
+    #data_copy = data
     #print xsize-dy
     
     fix_LR = (xsize-dy)/2.
@@ -151,17 +171,21 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1,
     #data_copy.resize((dy,dx))
     fullx = padL+padR+dx
     fully = padT+padB+dy
-    full_image = np.zeros((fully,fullx))    
-    if (np.int(padT) == 0) | (np.int(padR) == 0):
-        if (np.int(padT)+np.int(padR)) == 0:
-            full_image[padB:, padR:] = data_copy
-        if (np.int(padT) == 0) & (np.int(padR) != 0):
-            full_image[padB:, padL:-padR] = data_copy
-        if (np.int(padT) != 0) & (np.int(padR) == 0):
-            full_image[padB:-padT, padL:] = data_copy
-    else:
-        full_image[padB:-padT, padL:-padR] = data_copy
-    
+    full_images = []
+    for ch in range(len(data)):
+        full_image = np.zeros((fully,fullx))    
+        if (np.int(padT) == 0) | (np.int(padR) == 0):
+            if (np.int(padT)+np.int(padR)) == 0:
+                full_image[padB:, padR:] = data[ch]*1
+            if (np.int(padT) == 0) & (np.int(padR) != 0):
+                full_image[padB:, padL:-padR] = data[ch]*1
+            if (np.int(padT) != 0) & (np.int(padR) == 0):
+                full_image[padB:-padT, padL:] = data[ch]*1
+        else:
+            full_image[padB:-padT, padL:-padR] = data[ch]*1
+        
+        full_images.append(full_image)
+        
     # print pixRatio, dx/xsize, fullx/256., fully/256.
     
     NX = (padL+padR+dx)*1./TILE_SIZE
@@ -173,16 +197,24 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1,
     for i in np.arange(NX):
         for j in np.arange(NY):
             #i,j = 0,0
-            sub = full_image[fully-(j+1)*TILE_SIZE:fully-j*TILE_SIZE,
+            subs = []
+            for ch in range(len(data)):
+                sub = full_images[ch][fully-(j+1)*TILE_SIZE:fully-j*TILE_SIZE,
                              i*TILE_SIZE:(i+1)*TILE_SIZE]
-            
+                subs.append(sub)
+                
             if (sub.shape[0] == 0) | (sub.shape[1] == 0):
                 continue
                 
-            subim = data2image(sub, zmin=zmin, zmax=zmax)
             outfile = outPath+'%s_%d_%d_%d.png' %(tileroot,
                             tileX0+i,tileY0+j,zoomLevel)
-            subim.save(outfile)
+            
+            if len(subs) == 1:
+                subim = data2image(sub, zmin=zmin, zmax=zmax)
+                subim.save(outfile)
+            else:
+                luptonRGB(subs[0]*zmax[0], subs[1]*zmax[1], subs[2]*zmax[2], Q=rgb_params[0], alpha=rgb_params[1], m0=rgb_params[2], m1=1, shape=None, filename=outfile, ds9=None, verbose=False, rgb_clip=True)
+                
             if verbose: 
                 print 'threedhst.gmap: %s' %(outfile)
             #print outfile
@@ -452,7 +484,66 @@ data2image(data,zmin=-0.1,zmax=0.5)
     # create the image
     image = Image.frombuffer("L", (xsize, ysize), scaled_data, "raw", "L", 0, 0)
     return image
+
+def luptonRGB(imr, img, imb, Q=5, alpha=3, m0=-0.05, m1=1, shape=None, filename='junk.png', ds9=None, verbose=False, rgb_clip=True):
+    """
+    Make a 3 color image scaled with the color clipping and 
+    asinh scaling from Lupton et al. (2004)
+    """   
+    import Image
     
+    I = (imr+img+imb-3*m0)/3.
+    fI = np.arcsinh(alpha*Q*I)/Q
+    M = m0 + np.sinh(Q*1.)/(alpha*Q)
+    #ds9.v(fI, vmin=0, vmax=1)
+    if verbose:
+        print 'min, max = %f, %f' %(m0, M)
+        
+    fI[I < m0] = 0
+    R = np.maximum(imr-m0, 0)*fI/I
+    G = np.maximum(img-m0, 0)*fI/I
+    B = np.maximum(imb-m0, 0)*fI/I
+        
+    min_RGB = np.minimum(np.minimum(R,G),B)
+    zero = min_RGB < 0
+    zero = fI < 0
+    R[zero] = 0.
+    G[zero] = 0.
+    B[zero] = 0.
+    
+    R[R < 0] = 0
+    G[G < 0] = 0
+    B[B < 0] = 0
+    
+    max_RGB = np.maximum(np.maximum(R,G),B)
+    if rgb_clip:
+        clip = max_RGB > 1
+        R[clip] = R[clip]/max_RGB[clip]
+        G[clip] = G[clip]/max_RGB[clip]
+        B[clip] = B[clip]/max_RGB[clip]
+    else:
+        R[R > 1] = 1.
+        G[G > 1] = 1.
+        B[B > 1] = 1.
+
+    if ds9 is not None:
+        #ds9.set('rgb True')
+        v1=1
+        ds9.set('rgb lock colorbar')
+        ds9.set('rgb red'); ds9.v(R, vmin=0, vmax=v1); ds9.set('scale linear')
+        ds9.set('rgb green'); ds9.v(G, vmin=0, vmax=v1); ds9.set('scale linear')
+        ds9.set('rgb blue'); ds9.v(B, vmin=0, vmax=v1); ds9.set('scale linear')
+        return True
+        
+    #rgb = np.array([R,G,B]).T
+    #im = Image.merge('RGB', (Image.fromarray((R[::-1,:]*255).astype('uint8')), Image.fromarray((G[::-1,:]*255).astype('uint8')), Image.fromarray((B[::-1,:]*255).astype('uint8'))))
+    im = Image.merge('RGB', (Image.fromarray((R[::-1,:]*255).astype('int8'), mode='L'), Image.fromarray((G[::-1,:]*255).astype('int8'), mode='L'), Image.fromarray((B[::-1,:]*255).astype('int8'), mode='L')))
+    
+    if shape is not None:
+        im = im.resize(shape)
+    
+    im.save(filename)
+  
 def radec2latlon(radec):
     """
 radec2latlon(radec)
@@ -781,26 +872,45 @@ def parseImageString(IMAGE_STRING="test.fits[1]*1.", default_extension=1):
     
     Output is a tuple with (image.fits, extension, scale).
     """
-    sp_scl = IMAGE_STRING.split('*')
-    if len(sp_scl) == 2:
-        scale = float(sp_scl[1])
-    else:
-        scale = 1.
-        
-    sp_ext = sp_scl[0].split('[')
-    if len(sp_ext) == 2:
-        extension=int(sp_ext[1][:-1])
-    else:
-        extension=default_extension
-    
-    image = sp_ext[0]
+    input_list = IMAGE_STRING.split(',')
+    image, extension, scale = [], [], []
+    for input in input_list:
+        sp_scl = input.split('*')
+        if len(sp_scl) == 2:
+            scale.append(float(sp_scl[1]))
+        else:
+            scale.append(1.)
+
+        sp_ext = sp_scl[0].split('[')
+        if len(sp_ext) == 2:
+            extension.append(int(sp_ext[1][:-1]))
+        else:
+            extension.append(default_extension)
+
+        image.append(sp_ext[0])
     
     return image, extension, scale
     
 def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
-                 path=os.getenv('HOME')+'/Sites/FITS/', tileroot='tile', aper_list=[15], polyregions=None):
+                 path=os.getenv('HOME')+'/Sites/FITS/', tileroot='tile',
+                 aper_list=[15], polyregions=None, rgb_params=(5, 3, -0.05)):
     """
     Make a google map viewer for a FITS image.
+    
+    FITS_IMAGES is a [list] of images that are used to generate the map.  
+    The first image is used to define the extent of the output map.
+    
+    Entries in FITS_IMAGES can be simple filenames and can also contain
+    extensions and scale values, specified like
+    
+        FITS_IMAGES = ['image1.fits[1]*10']
+    
+    The list entries can also be comma-separated list of three images 
+    (R,G,B) that will be used to generate a 3-color image following 
+    Lupton et al. (2004):
+    
+        FITS_IMAGES = ['red.fits[1]*10,green.fits[0]*2,blue.fits[0]*1.']
+      
     """
     import threedhst
     import pyfits
@@ -808,11 +918,13 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
     
     
     #### Make into lists if not already
-    if FITS_IMAGES.__class__ == ''.__class__:
+    #if FITS_IMAGES.__class__ == ''.__class__:
+    if isinstance(FITS_IMAGES, str):
         FITS_IMAGES = [FITS_IMAGES]
     
     roots = tileroot
-    if tileroot.__class__ == ''.__class__:
+    #if tileroot.__class__ == ''.__class__:
+    if isinstance(tileroot, str):
         if len(FITS_IMAGES) > 1:
             roots = []
             for i,im in enumerate(FITS_IMAGES):
@@ -830,7 +942,7 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
     sw = threedhst.sex.SWarp()
     
     im0, ext0, scale0 = parseImageString(FITS_IMAGES[0], default_extension=extension)
-    sw.swarpMatchImage(im0, extension=ext0, verbose=verbose)
+    sw.swarpMatchImage(im0[0], extension=ext0[0], verbose=verbose)
     
     ########### Prepare map tiles for different zoom levels:
     ########### 0.07 x [1,2,4,8] arcsec/pix
@@ -857,22 +969,42 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
                                     default_extension=extension)
             
             print imi, exti, scalei
-            zmi = zmin/scalei
-            zma = zmax/scalei
                 
             #### Direct
             # sw.swarpImage(ROOT_DIRECT.lower()+'_drz.fits[1]', mode='wait')
-            sw.swarpImage(imi+'[%0d]' %(exti), mode='wait')
-            im = pyfits.open('coadd.fits')
-            if aper <= 14:
-                im[0].data /= 4
-
-            im.writeto('scale.fits', clobber=True)
-            mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile='scale.fits',
+            if len(imi) == 3:
+                ### RGB
+                channels = ['r','g','b']
+                for ch in range(3):
+                    sw.swarpImage(imi[ch]+'[%0d]' %(exti[ch]), mode='wait')
+                
+                    im = pyfits.open('coadd.fits')
+                    if aper <= 14:
+                        im[0].data /= 4
+                    
+                    im.writeto('ch_%s.fits' %(channels[ch]), clobber=True)
+                
+                fitsfile='ch_r.fits,ch_g.fits,ch_b.fits'
+                zmi = None
+                zma = np.array(scalei)*(0.06/aperpix[aper])**1.5 ## soften a bit
+                
+            else:
+                sw.swarpImage(imi[0]+'[%0d]' %(exti[0]), mode='wait')
+                im = pyfits.open('coadd.fits')
+                if aper <= 14:
+                    im[0].data /= 4
+                
+                im.writeto('scale.fits', clobber=True)
+                fitsfile='scale.fits'
+                zmi = zmin/scalei[0]
+                zma = zmax/scalei[0]
+                
+            mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile=fitsfile,
                                                      outPath=path+'tiles/',
                                                      tileroot=tileroot[i],
                                                      extension=0,
                                                      zmin=zmi, zmax=zma,
+                                                     rgb_params=rgb_params,
                                                      verbose=verbose)
         
         #### Get map parameters from high-resolution image
@@ -886,13 +1018,15 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
     threedhst.gmap.makeJavascript(path=path+'scripts/', tileroot=tileroot, mapParams=mapParams)
     threedhst.gmap.makePolygons(mapParams, polyregions=polyregions, path=path+'scripts/')
     
-    try:
-        os.remove('scale.fits')
-        os.remove('coadd.fits')
-        os.remove('coadd.weight.fits')
-    except:
-        pass
-    
+    ####
+    files = glob.glob('threedhst_auto-*swarp')
+    files.extend(['scale.fits', 'coadd.fits', 'coadd.weight.fits', 'ch_r.fits', 'ch_g.fits', 'ch_b.fits'])
+    for file in files:
+        try:
+            os.remove(file)
+        except:
+            pass
+        
 #
 def makePolygons(mapParams=None, polyregions=None, path='./', color='#00aa00', alpha=0.5, linewidth=2):
     """
@@ -1016,6 +1150,9 @@ def makeMapHTML(FITS_IMAGES, mapParams, output='./HTML/index.html', title=None, 
     else:
         # localhost
         GMAPS_KEY = 'ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb_rzgcy5bqzSaTV8cyi2Bgsx3g'
+    
+    #### New general key for all referers
+    GMAPS_KEY = 'AIzaSyAMtpy9tGl609hpmt30fPKjSf0Jl34D0PM'
         
     #### Header
     lines = ["""
@@ -1381,7 +1518,7 @@ make_Javascript(path="../HTML/scripts")
         var dsplit = decstr.split(":");
         if (dsplit.length != 3) dsplit = decstr.split(" ");
         var dec = parseFloat(decstr);
-        if (rsplit.length == 3) {
+        if (dsplit.length == 3) {
             dec = Math.abs(parseInt(dsplit[0])+
                 Math.abs(parseInt(dsplit[1])/60.)+
                 Math.abs(parseFloat(dsplit[2])/3600.));
