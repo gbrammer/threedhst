@@ -359,9 +359,7 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
         fobs: observed fluxes, including zeropoint offsets if used, F_lambda
         efobs: observed flux errors,    "            "        "        "
     """
-    tempfilt, coeffs, temp_seds, pz = readEazyBinary(MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, \
-                                                    OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, \
-                                                    CACHE_FILE = CACHE_FILE)
+    tempfilt, coeffs, temp_seds, pz = readEazyBinary(MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, CACHE_FILE = CACHE_FILE)
     
     ##### Apply zeropoint factors
     param = EazyParam(PARAM_FILE=OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.param')

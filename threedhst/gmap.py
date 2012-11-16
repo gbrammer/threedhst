@@ -893,7 +893,8 @@ def parseImageString(IMAGE_STRING="test.fits[1]*1.", default_extension=1):
     
 def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
                  path=os.getenv('HOME')+'/Sites/FITS/', tileroot='tile',
-                 aper_list=[15], polyregions=None, rgb_params=(5, 3, -0.05)):
+                 aper_list=[15], polyregions=None, rgb_params=(5, 3, -0.05),
+                 invert=False):
     """
     Make a google map viewer for a FITS image.
     
@@ -994,10 +995,16 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
                 if aper <= 14:
                     im[0].data /= 4
                 
+                if invert:
+                    im[0].data = 0-im[0].data
+                    zma = -zmin/scalei[0]
+                    zmi = -zmax/scalei[0]
+                else:
+                    zmi = zmin/scalei[0]
+                    zma = zmax/scalei[0]
+                    
                 im.writeto('scale.fits', clobber=True)
                 fitsfile='scale.fits'
-                zmi = zmin/scalei[0]
-                zma = zmax/scalei[0]
                 
             mapParamsD = threedhst.gmap.makeGMapTiles(fitsfile=fitsfile,
                                                      outPath=path+'tiles/',
@@ -1164,7 +1171,7 @@ def makeMapHTML(FITS_IMAGES, mapParams, output='./HTML/index.html', title=None, 
     <script type="text/javascript" src="scripts/jquery-1.4.2.min.js"></script> 
 
     <script type="text/javascript" src="scripts/jquery.sprintf.js"></script> 
-
+    
     <script type="text/javascript" src="scripts/threedhst.js"></script> 
 
     <!--  www.astro.yale.edu/ --> 
@@ -1239,7 +1246,10 @@ def makeMapHTML(FITS_IMAGES, mapParams, output='./HTML/index.html', title=None, 
     
     #### HTML Body   
     lines.append("""
-
+    
+    <!-- Dummy text for search/replace insertion -->
+    <!-- xxx -->
+    
 </head>
 <body onload="initialize()" onunload="GUnload()">
     

@@ -1190,6 +1190,9 @@ def DMS2decimal(string, hours=True):
     
     """
     
+    if string.startswith('+'):
+        string = string[1:]
+        
     split_DMS = string.split(':')
     #### If no colons in the string, assume DDMMSS.S
     if len(split_DMS) != 3:
@@ -1202,7 +1205,7 @@ def DMS2decimal(string, hours=True):
         neg = True
     else:
         neg = False
-    
+            
     decimal = dms[0]+dms[1]/60.+dms[2]/3600.
     if hours:
         decimal *= 360./24
