@@ -150,14 +150,15 @@ refine_shifts(ROOT_DIRECT='f160w',
     run = threedhst.prep_flt_files.MultidrizzleRun(ROOT_DIRECT.upper())
     
     ## radius for match is 2**toler.  Make it larger if fit comes out bad
-    toler, maxtoler = 3, 5  
+    toler, maxtoler, iter, MAXIT = 3, 5, 0, 5
     xrms, yrms = 100, 100
     if shift_params is not None:
         xshift, yshift, rot, scale = shift_params
         threedhst.showMessage('Using specified DRZ-frame shifts: %f %f %f %f' %(xshift, yshift, rot, scale))
     else:
         threedhst.showMessage('Aligning WCS to %s (%s)' %(threedhst.options['ALIGN_IMAGE'], fitgeometry))
-        while ((xrms > 1) | (yrms > 1)) & (toler <= maxtoler):
+        while ((xrms > 1) | (yrms > 1)) & (toler <= maxtoler) & (iter < MAXIT):
+            iter = iter + 1
             xshift, yshift, rot, scale, xrms, yrms = threedhst.shifts.align_to_reference(
                         ROOT_DIRECT,
                         ALIGN_IMAGE,
@@ -497,12 +498,16 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
                        output="align.match",
                        tolerance=2**pow, separation=0, verbose=yes, Stdout=1)
         
-        while status1[-1].startswith('0'):
+        nmatch = 0
+        while status1[-1].startswith('0') | (nmatch < 10):
             pow+=1
             os.remove('align.match')
             status1 = iraf.xyxymatch(input="direct.xy", reference="align.xy",
                            output="align.match",
                            tolerance=2**pow, separation=0, verbose=yes, Stdout=1)
+            #
+            nmatch = 0
+            for line in open('align.match').xreadlines(  ): nmatch += 1
             
         if verbose:
             for line in status1:
