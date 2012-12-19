@@ -25,7 +25,7 @@ FILTER_THRESH                   # Threshold[s] for retina filtering
 DEBLEND_NTHRESH  32             # Number of deblending sub-thresholds
 DEBLEND_MINCONT  0.005          # Minimum contrast parameter for deblending
  
-CLEAN            Y              # Clean spurious detections? (Y or N)?
+CLEAN            N              # Clean spurious detections? (Y or N)?
 CLEAN_PARAM      1.0            # Cleaning efficiency
  
 MASK_TYPE        CORRECT        # type of detection MASKing: can be one of
