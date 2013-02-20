@@ -1177,7 +1177,7 @@ def decimal2HMS(input, hours=False):
     sec = (rem-min/60.)*3600
     
     return '%s%02d:%02d:%05.2f' %(pm, deg, min, sec)
-
+    
 def DMS2decimal(string, hours=True):
     """
     Convert degree-minute-second string into decimal value.
@@ -1269,4 +1269,110 @@ def gen_tempname(root='tmp'):
     import time
     t0 = int(time.time()*100 % 1.e5)
     return '%s%05d' %(root, t0)
+    
+def contiguous_extent(array, x0, y0):
+    """
+    Find extent of contigous region of a segmentation image.
+    
+    compare to scipy.ndimage.label --> should be better and faster
+    
+    im = np.zeros((2048,2048))
+    yi, xi = np.indices(im.shape)
+    r = np.sqrt((xi-1024)**2+(yi-1024)**2)
+    object = (r < 10)*1.
+    
+    xmi, xma, ymi, yma = threedhst.utils.contiguous_extent(object, 1024, 1024)
+    
+    import scipy.ndimage as nd
+    s = [[0,1,0],
+         [1,1,1],
+         [0,1,0]]
+    
+    labeled_array, num_features = nd.label(object, structure=s)
+    
+    """
+    import scipy.ndimage as nd
+    s = [[0,1,0],
+         [1,1,1],
+         [0,1,0]]
+    
+    labeled_array, num_features = nd.label(array, structure=s)
+    matched = labeled_array == labeled_array[y0, x0]
+    yi, xi = np.indices(array.shape)
+    return xi[matched].min(), xi[matched].max(), yi[matched].min(), yi[matched].max()
+    
+    # mask = array == array[y0, x0]    
+    # 
+    # ### Grow the mask by shifting 1 pix in each direction to join a region 
+    # ### like
+    # #             o
+    # #              o    oo
+    # #              oooooo
+    # #               ooooo            
+    # mask = mask | np.roll(mask, 1, axis=1) | np.roll(mask, -1, axis=1)
+    # mask = mask | np.roll(mask, 1, axis=0) | np.roll(mask, -1, axis=0)
+    # 
+    # ##### First pass
+    # xmi, xma = x0, x0
+    # ymi, yma = y0, y0
+    # 
+    # ## compare current row with row above and below to find if any overlap
+    # while (mask[:, xma] & mask[:, xma+1]).sum() > 0:
+    #     xma += 1
+    #     
+    # while (mask[:, xmi] & mask[:, xmi-1]).sum() > 0:
+    #     xmi -= 1
+    # 
+    # ## compare columns
+    # while (mask[yma, xmi:xma] & mask[yma+1, xmi:xma]).sum() > 0:
+    #     yma += 1
+    # 
+    # while (mask[ymi, xmi:xma] & mask[ymi-1, xmi:xma]).sum() > 0:
+    #     ymi -= 1
+    # 
+    # ##### Second pass on x after finding y extent
+    # xmi, xma = x0, x0
+    # while (mask[ymi:yma, xma] & mask[ymi:yma, xma+1]).sum() > 0:
+    #     xma += 1
+    # 
+    # while (mask[ymi:yma, xmi] & mask[ymi:yma, xmi-1]).sum() > 0:
+    #     xmi -= 1
+    # 
+    # return xmi+1, xma, ymi+1, yma
+    #return xmi+1, xma-1, ymi+1, yma-1
+    
+def calc_mag(wavelength, flux, xfilt, yfilt, fnu_units=False, CCD=True):
+    """
+    Integrate a spectrum through a filter passband.  
+    
+    If CCD=True, assume filter is for a photon-counting detector
+    (see Maiz-Apellaniz 2006)
+    
+    #### Photon-counting
+    flux = int(flam * R * lam, lam) / int(R * f_ref_lam * lam, lam)
+    
+      ## AB mags
+      f_ref_lam = 3631 Jy * 3.e18 / lam**2 = 3631.e-23 * 3.e18 / lam**2 (flam)
+      flux = int(flam * R * lam, lam) / int(R * 3631 Jy * 3.e18 / lam, lam)
+    
+    #### Energy-counting (photometer???)
+    flux = int(flam * R, lam) / int(R * f_ref_lam, lam)
+    
+    """
+    
+    yf_int = np.interp(wavelength, xfilt, yfilt, left=0, right=0)
+    
+    if not fnu_units:
+        fnu = flux*wavelength**2/3.e18
+    else:
+        fnu = flux
+    
+    if CCD:
+        detector_scale = wavelength
+    else:
+        detector_scale = np.ones(len(wavelength))
+    #
+    filter_flux = np.trapz(fnu*3.e18/wavelength**2*yf_int*detector_scale, wavelength)/np.trapz(yf_int*detector_scale*3631.e-23*3.e18/wavelength**2, wavelength)
+    filter_mag = -2.5*np.log10(filter_flux) #-48.6
+    return filter_mag
     

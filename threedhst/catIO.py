@@ -145,6 +145,53 @@ def easyCat(cat):
         
     return cat
     
+class EmptyCat(dict):
+    """
+    Make a simple class to make a dict behave rather like the Readfile class
+    with attributes rather than dict elements for the catalog columns.
+    
+    Note: 
+        If you set a column first as an attribute, it isn't added to the 
+        columns until you try to retrieve it as an item of the dict:
+        
+        >>> x = EmptyCat()
+        >>> x.ra = np.arange(5)
+        >>> x.columns
+        []
+        >>> x['ra']
+        array([0, 1, 2, 3, 4])
+        >>> x.columns
+        ['ra']
+        
+    """
+    def __init__(self):
+        self.d = {}
+        #self = self.d
+        self.N = None
+        self.filename = None
+        
+    def __setitem__(self, key, value):
+        self.d[key] = value
+        self.__setattr__(key, self.d[key])
+        if self.N is None:
+            self.N = len(self.d[self.d.keys()[0]])
+            
+    def __getitem__(self, key):
+        if key not in self.d.keys():
+            self.__setitem__(key, self.__getattribute__(key))
+        
+        return self.d[key]
+    
+    def __repr__(self):
+        return self.d.__repr__()
+    
+    def __str__(self):
+        return self.d.__str__()
+        
+    @property
+    def columns( self ):
+        return self.d.keys()
+                    
 #infile='AEGIS/OUTPUT/cat1.0_default_lines.rf'
 #data = ReadASCIIFile('AEGIS/OUTPUT/cat1.0_default_lines.rf', verbose=True)
 #data = ReadASCIIFile('AEGIS/aegis-n2.v3.3.cat', verbose=True)
@@ -313,6 +360,36 @@ class Readfile():
         str = 'self.%s = value' %name
         exec(str)
     
+    def write_text(self, filename='junk.cat', columns=None, select=None, comment='#'):
+        """
+        Write an ascii file with a boolean selection `select` on the input
+        columns
+        """
+        if select is None:
+            select = np.ones(self.N) > 0
+        
+        format_codes = {'int64':'%d','float64':'%.5e','>i8':'%d', '>f8':'%.5e'}
+        
+        data = []
+        formats = []
+        header = comment
+        if columns is None:
+            columns = self.columns
+        
+        for column in columns:
+            header = '%s %s' %(header, column)
+            data.append(self.__getitem__(column)[select])
+            dtype = str(data[-1].dtype)
+            if (column == 'ra') | (column == 'dec'):
+                formats.append('%.6f')
+            else:
+                formats.append(format_codes[dtype])
+        
+        fp = open(filename,'w')
+        fp.write(header+'\n')
+        np.savetxt(fp, np.array(data).T, fmt=tuple(formats))
+        fp.close()
+        
     def write_fits(self):
         """
         Save the ascii catalog data into a FITS bintable.
@@ -330,6 +407,9 @@ class Readfile():
         formats['float32'] = 'E'
         formats['float64'] = 'D'
         
+        formats['>i8'] = 'K'
+        formats['>f8'] = 'D'
+        
         #### Make the table columns, translating numpy data types to "TFORM"
         coldefs = []
         for column in self.columns:
@@ -343,8 +423,13 @@ class Readfile():
                     return False
                 #
                 TFORM = 'A'+dtype.split('S')[1]
-            #    
-            coldefs.append(pyfits.Column(name=column, array=self.__getitem__(column), format=TFORM))
+            #
+            data = self.__getitem__(column)
+            if '>' in dtype:
+                cast_types = {'>i8':np.int64, '>f8':np.float64}
+                data = np.cast[cast_types[dtype]](data)
+            #
+            coldefs.append(pyfits.Column(name=column, array=data, format=TFORM))
         
         #### Done, now make the binary table
         tbhdu = pyfits.new_table(coldefs)
@@ -509,5 +594,5 @@ def readMarkerXML(xml_file):
         sp = line.split('"')
         if len(sp) > 3:
             dict[np.int(sp[1])] = markerXML(sp[3], sp[5], sp[7])
-
+    
     return dict
