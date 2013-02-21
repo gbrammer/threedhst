@@ -358,6 +358,7 @@ class Readfile():
         addColumn(self, name, value)
         """
         str = 'self.%s = value' %name
+        self.columns.append(name)
         exec(str)
     
     def write_text(self, filename='junk.cat', columns=None, select=None, comment='#'):
@@ -480,7 +481,36 @@ class Readfile():
             exec(run_str)
             
         return True
+    #
+    def match_list(self, ra=[], dec=[], N=1, MATCH_SELF=False, verbose=True):
+        """
+        Make a full matched list, input 'ra' and 'dec' are
+        arrays
         
+        If MATCH_SELF, find nearest matches *within* the self catalog
+        """
+        noNewLine = '\x1b[1A\x1b[1M'
+        
+        if MATCH_SELF:
+            ra = self.ra
+            dec = self.ra
+        
+        Nlist = len(ra)
+        dr_match = ra*0.
+        id_match = np.cast[int](ra*0)
+        
+        for i in range(Nlist):
+            if verbose:
+                print noNewLine+'%d of %d' %(i+1, Nlist)
+            
+            dist, ids = self.find_nearest(ra[i], dec[i], N=1+N)
+            dr_match[i] = dist[N-1+MATCH_SELF]
+            id_match[i] = ids[N-1+MATCH_SELF]
+        
+        self.dr_zsp = dr_match
+        self.id_zsp = id_match
+        return dr_match, id_match
+    
 class markerXML():
     def __init__(self, ra, dec, mag):
         self.ra = np.float(ra)
