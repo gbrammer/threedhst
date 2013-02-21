@@ -24,6 +24,9 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 import threedhst
 import threedhst.prep_flt_files
 
+#### DS9 reference catalog for use with refine_shifts
+REFERENCE_CATALOG = 'sdss8'
+
 def run_tweakshifts(asn_direct, verbose=False, clean=True):
     """
 run_tweakshifts(asn_direct)
@@ -136,7 +139,8 @@ align_img_list = find_align_images_that_overlap()
 def refine_shifts(ROOT_DIRECT='f160w',
                   ALIGN_IMAGE='../../ACS/h_sz*drz_img.fits',
                   fitgeometry='shift', clean=True,
-                  ALIGN_EXTENSION=0, shift_params=None):
+                  ALIGN_EXTENSION=0, shift_params=None,
+                  toler=3, maxtoler=5, align_sdss_ds9=False):
     """
 refine_shifts(ROOT_DIRECT='f160w',
               ALIGN_IMAGE='../../ACS/h_sz*drz_img.fits',
@@ -150,7 +154,7 @@ refine_shifts(ROOT_DIRECT='f160w',
     run = threedhst.prep_flt_files.MultidrizzleRun(ROOT_DIRECT.upper())
     
     ## radius for match is 2**toler.  Make it larger if fit comes out bad
-    toler, maxtoler, iter, MAXIT = 3, 5, 0, 5
+    #toler, maxtoler = 3, 5  
     xrms, yrms = 100, 100
     if shift_params is not None:
         xshift, yshift, rot, scale = shift_params
@@ -164,7 +168,8 @@ refine_shifts(ROOT_DIRECT='f160w',
                         ALIGN_IMAGE,
                         fitgeometry=fitgeometry, clean=clean,
                         ALIGN_EXTENSION=ALIGN_EXTENSION,
-                        toler=toler, skip_swarp=(toler > 3))
+                        toler=toler, skip_swarp=(toler > 3),
+                        align_sdss_ds9=align_sdss_ds9)
             toler+=1
 
     #### shifts measured in DRZ frame.  Translate to FLT frame
@@ -383,7 +388,8 @@ def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=True, ALIGN_EXTENS
                 pass
        
 def align_to_reference(ROOT_DIRECT, ALIGN_IMAGE, fitgeometry="shift",
-    clean=True, verbose=False, ALIGN_EXTENSION=0, toler=3, skip_swarp=False):
+    clean=True, verbose=False, ALIGN_EXTENSION=0, toler=3, skip_swarp=False,
+    align_sdss_ds9=False):
     """
 xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     """        
@@ -394,7 +400,9 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     
     from pyraf import iraf
     from iraf import stsdas,dither
-
+    
+    import threedhst
+    
     no = iraf.no
     yes = iraf.yes
     INDEF = iraf.INDEF
@@ -402,7 +410,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     #### Clean slate    
     rmfiles = ['SCI.fits','WHT.fits','align.cat','direct.cat'
                'align.map','align.match','align.reg','align.xy', 
-               'direct.reg','direct.xy']
+               'direct.reg','direct.xy','ds9_align.tsv']
     
     for file in rmfiles:
         try:
@@ -411,14 +419,15 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
             pass
                 
     #### Get only images that overlap from the ALIGN_IMAGE list    
-    align_img_list = find_align_images_that_overlap(ROOT_DIRECT+'_drz.fits', ALIGN_IMAGE, ALIGN_EXTENSION=ALIGN_EXTENSION)
-    if not align_img_list:
-        print 'threedhst.shifts.align_to_reference: no alignment images overlap.'
-        return 0,0
+    if not align_sdss_ds9:
+        align_img_list = find_align_images_that_overlap(ROOT_DIRECT+'_drz.fits', ALIGN_IMAGE, ALIGN_EXTENSION=ALIGN_EXTENSION)
+        if not align_img_list:
+            print 'threedhst.shifts.align_to_reference: no alignment images overlap.'
+            return 0,0
     
     #### Use swarp to combine the alignment images to the same image 
     #### dimensions as the direct mosaic
-    if not skip_swarp:
+    if (not skip_swarp) & (not align_sdss_ds9):
         try:
             os.remove(ROOT_DIRECT+'_align.fits')
         except:
@@ -439,8 +448,8 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     se.options['WEIGHT_IMAGE']    = 'WHT.fits'
     se.options['FILTER']    = 'Y'
     ## Detect thresholds (default = 1.5)
-    se.options['DETECT_THRESH']    = '10' 
-    se.options['ANALYSIS_THRESH']  = '10' 
+    se.options['DETECT_THRESH']    = '%d' %(10+20*align_sdss_ds9) 
+    se.options['ANALYSIS_THRESH']  = '%d' %(10)
     se.options['MAG_ZEROPOINT'] = str(threedhst.options['MAG_ZEROPOINT'])
 
     #### Run SExtractor on direct and alignment images
@@ -450,14 +459,44 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     iraf.imcopy(ROOT_DIRECT+'_drz.fits[2]',"WHT.fits")
     status = se.sextractImage('SCI.fits')
 
-    ## alignment image
-    se.options['CATALOG_NAME']    = 'align.cat'
-    status = se.sextractImage(ROOT_DIRECT+'_align.fits')
-
-    ## Read the catalogs
+    ## Read the catalog
     directCat = threedhst.sex.mySexCat('direct.cat')
-    alignCat = threedhst.sex.mySexCat('align.cat')
+
+    if align_sdss_ds9:
+        ### Use ds9 SDSS catalog to refine alignment
+        import threedhst.dq
+        import pywcs
+        import threedhst.catIO as catIO
         
+        wcs = pywcs.WCS(pyfits.getheader('SCI.fits', 0))
+        #wcs = pywcs.WCS(pyfits.getheader('Q0821+3107-F140W_drz.fits', 1))
+        
+        ds9 = threedhst.dq.myDS9()
+        ds9.set('file SCI.fits')
+        #ds9.set('file Q0821+3107-F140W_drz.fits')
+        ds9.set('catalog %s' %(REFERENCE_CATALOG))
+        ### Can't find XPA access point for "copy to regions"
+        ds9.set('catalog export tsv ds9_align.tsv')
+        lines = open('ds9_align.tsv').readlines()
+        x_image, y_image = [], []
+        for line in lines[1:]:
+            spl = line.split()
+            ra, dec = float(spl[0]), float(spl[1])
+            x, y = wcs.wcs_sky2pix([[ra, dec]], 1)[0]
+            x_image.append(x)
+            y_image.append(y)
+        
+        alignCat = catIO.EmptyCat()
+        alignCat['X_IMAGE'] = np.array(x_image)
+        alignCat['Y_IMAGE'] = np.array(y_image)
+        del(ds9)
+        
+    else:
+        ## alignment image
+        se.options['CATALOG_NAME']    = 'align.cat'
+        status = se.sextractImage(ROOT_DIRECT+'_align.fits')
+        alignCat = threedhst.sex.mySexCat('align.cat')
+    
     xshift = 0
     yshift = 0
     rot = 0
