@@ -155,6 +155,7 @@ refine_shifts(ROOT_DIRECT='f160w',
     
     ## radius for match is 2**toler.  Make it larger if fit comes out bad
     #toler, maxtoler = 3, 5  
+    iter, MAXIT = 0, 5
     xrms, yrms = 100, 100
     if shift_params is not None:
         xshift, yshift, rot, scale = shift_params
