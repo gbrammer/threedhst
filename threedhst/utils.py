@@ -1376,3 +1376,55 @@ def calc_mag(wavelength, flux, xfilt, yfilt, fnu_units=False, CCD=True):
     filter_mag = -2.5*np.log10(filter_flux) #-48.6
     return filter_mag
     
+def survey_area(ra_in, dec_in):
+    """
+    Compute survey area sampled by a list of ra/dec points
+    
+    Requires Shapely: http://toblerity.github.com/shapely/manual.html
+    
+    Returns: (x, y, area, Shapely)
+        x, y = Boundary arrays
+        area = area in square arcsec
+        Shapely = shapely polygon, etc. object for the convex hull around the 
+                  points.  Note that the point coordinates are scaled to the 
+                  median positions of the input ra/dec coordinates
+                      
+    Example:
+    
+    xfoot, yfoot, area, geom = survey_area(ra, dec)
+    plt.scatter(ra, dec)
+    plt.plot(xfoot, yfoot, color='red')
+    
+    """
+    from shapely.geometry import Point, MultiPoint
+
+    d0 = np.median(dec_in)
+    ra = (ra_in-np.median(ra_in))*np.cos(dec_in/360.*2*np.pi)*3600.
+    de = (dec_in-np.median(dec_in))*3600.
+    N = ra.shape[0]
+    
+    points = []
+    for i in range(N):
+        points.append((ra[i], de[i]))
+    
+    points_list = MultiPoint(points)
+    points_geom = points_list.convex_hull
+    xb, yb = points_geom.boundary.xy
+    
+    xout = np.asarray(xb)/3600./np.cos(d0/360.*2*np.pi) + np.median(ra_in)
+    yout = np.asarray(yb)/3600. + d0
+    
+    return xout, yout, points_geom.area, points_geom
+    ##
+    # from shapely.ops import cascaded_union
+    # polygons = [Point(ra[i], de[i]).buffer(pointsize) for i in range(N)]
+    # geom = cascaded_union(polygons)
+    # x, y = geom.boundary.xy
+    # plt.scatter(ra, de)
+    # plt.plot(xg, yg, color='red')
+    # 
+    # The function is particularly useful in dissolving MultiPolygons.
+    # 
+    # m = MultiPolygon(polygons)
+    # geom = cascaded_union(m)
+    
