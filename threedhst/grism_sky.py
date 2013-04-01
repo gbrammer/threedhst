@@ -24,44 +24,65 @@ import os
 
 IREF = os.getenv('iref')
 
-try:
-    flat_f140 = pyfits.open(IREF+'/uc721143i_pfl.fits')
-    #print 'Make grism_sky_flat'
-    #flat_f140 = pyfits.open(IREF+'/flat.IR_avg.fits')
-    flat_f140 = pyfits.open(IREF+'cosmos_f140w_flat.fits')
-    flat_g141 = pyfits.open(IREF+'/u4m1335mi_pfl.fits')
-    flat = flat_g141[1].data[5:1019,5:1019] / flat_f140[1].data[5:1019, 5:1019]
-    flat[flat <= 0] = 5
-    flat[flat > 5] = 5
-except:
-    print '\nthreedhst.grism_sky: Flat-field files (uc721143i_pfl.fits) not found in IREF: %s\n' %(IREF)
-    flat = np.ones((1014,1014))
+# try:
+#     flat_f140 = pyfits.open(IREF+'/uc721143i_pfl.fits')
+#     #print 'Make grism_sky_flat'
+#     #flat_f140 = pyfits.open(IREF+'/flat.IR_avg.fits')
+#     flat_f140 = pyfits.open(IREF+'cosmos_f140w_flat.fits')
+#     flat_g141 = pyfits.open(IREF+'/u4m1335mi_pfl.fits')
+#     flat_master_g141 = flat_g141[1].data[5:1019,5:1019] / flat_f140[1].data[5:1019, 5:1019]
+#     flat_master_g141[flat_master_g141 <= 0] = 5
+#     flat_master_g141[flat_master_g141 > 5] = 5
+#     #
+#     flat_f105 = pyfits.open(IREF+'/uc72113oi_pfl.fits')
+#     #print 'Make grism_sky_flat'
+#     flat_g102 = pyfits.open(IREF+'/u4m1335li_pfl.fits')
+#     flat_master_g102 = flat_g102[1].data[5:1019,5:1019] / flat_f105[1].data[5:1019, 5:1019]
+#     flat_master_g102[flat_master_g102 <= 0] = 5
+#     flat_master_g102[flat_master_g102 > 5] = 5    
+# except:
+#     print '\nthreedhst.grism_sky: Flat-field files (uc721143i_pfl.fits) not found in IREF: %s\n' %(IREF)
+#     flat_master_g141 = np.ones((1014,1014))
+#     flat_master_g102 = np.ones((1014,1014))
 
 xprofile = None
 yprofile = None
 
-def set_G141():
-    import threedhst.grism_sky as bg
+flat_grism = None
+flat_direct = IREF
 
-    IREF = os.getenv('iref')
-    flat_f140 = pyfits.open(IREF+'/uc721143i_pfl.fits')
-    flat_g141 = pyfits.open(IREF+'/u4m1335mi_pfl.fits')
-    flat = flat_g141[1].data[5:1019,5:1019] / flat_f140[1].data[5:1019, 5:1019]
-    flat[flat <= 0] = 5
-    flat[flat > 5] = 5
-    bg.flat = flat
-    
-def set_G102():
+def set_grism_flat(grism='G141', verbose=True):
     import threedhst.grism_sky as bg
     
-    IREF = os.getenv('iref')
-    flat_f098 = pyfits.open(IREF+'/uc72113ni_pfl.fits')
-    flat_g102 = pyfits.open(IREF+'/u4m1335li_pfl.fits')
-    flat = flat_g102[1].data[5:1019,5:1019] / flat_f098[1].data[5:1019, 5:1019]
-    flat[flat <= 0] = 5
-    flat[flat > 5] = 5
-    bg.flat = flat
+    if bg.flat_grism == grism:
+        return True
     
+    if verbose:
+        print 'Set flat for grism: %s' %(grism)
+    
+    if grism == 'G141':
+        #flat_f140 = pyfits.open(IREF+'/uc721143i_pfl.fits')
+        flat_f140 = pyfits.open(IREF+'cosmos_f140w_flat.fits')
+        flat_g141 = pyfits.open(IREF+'/u4m1335mi_pfl.fits')
+        flat = flat_g141[1].data[5:1019,5:1019] / flat_f140[1].data[5:1019, 5:1019]
+        flat[flat <= 0] = 5
+        flat[flat > 5] = 5
+        bg.flat = flat
+        bg.flat_grism = 'G141'
+        bg.flat_direct = flat_f140.filename()
+        
+    else:
+        flat_f105 = pyfits.open(IREF+'/uc72113oi_pfl.fits')
+        flat_g102 = pyfits.open(IREF+'/u4m1335li_pfl.fits')
+        flat = flat_g102[1].data[5:1019,5:1019] / flat_f105[1].data[5:1019, 5:1019]
+        flat[flat <= 0] = 5
+        flat[flat > 5] = 5
+        bg.flat = flat
+        bg.flat_grism = 'G102'
+        bg.flat_direct = flat_f105.filename()
+        
+    return True
+        
 def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits'],  path_to_sky = '../CONF/', out_path='./', verbose=False, plot=False, flat_correct=True, sky_subtract=True, second_pass=True, overall=True):
     """ 
     Process a (G141) grism exposure by dividing by the F140W imaging flat-field
@@ -77,6 +98,8 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
     
     # flt = '../../GOODS-N/RAW/ib3708ilq_flt.fits.gz'
     im = pyfits.open(flt)
+    bg.set_grism_flat(grism=im[0].header['FILTER'])
+    
     segfile = os.path.basename(flt.replace('.fits','.seg.fits')).replace('.gz','')
     if os.path.exists(segfile):
         seg = pyfits.open(segfile)[0].data

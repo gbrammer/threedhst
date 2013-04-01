@@ -1483,27 +1483,34 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                     #    
                     break
                 
-        threedhst.process_grism.fresh_flt_files(asn_grism_file,
-                      from_path=PATH_TO_RAW)
+        #
+        asn = threedhst.utils.ASNFile(asn_grism_file)
+        test = True
+        for exp in asn.exposures:
+            test = test & (os.path.exists(exp+'_flt.seg.fits'))
         
-        if not os.path.exists(asn_grism_file.replace('fits','pointing.reg')):
-            threedhst.regions.asn_region(asn_grism_file)
-        
-        threedhst.prep_flt_files.prep_flt(asn_file=asn_grism_file,
-                        get_shift=False, 
-                        bg_only=False, bg_skip=False, redo_background=True,
-                        skip_drz=False, final_scale=0.06, pixfrac=0.8,
-                        IMAGES=IMAGES, clean=True,
-                        initial_order=-1, save_fit=save_fit)
+        if not test:
+            threedhst.process_grism.fresh_flt_files(asn_grism_file,
+                          from_path=PATH_TO_RAW)
+
+            if not os.path.exists(asn_grism_file.replace('fits','pointing.reg')):
+                threedhst.regions.asn_region(asn_grism_file)
+
+            threedhst.prep_flt_files.prep_flt(asn_file=asn_grism_file,
+                            get_shift=False, 
+                            bg_only=False, bg_skip=False, redo_background=True,
+                            skip_drz=False, final_scale=0.06, pixfrac=0.8,
+                            IMAGES=IMAGES, clean=True,
+                            initial_order=-1, save_fit=save_fit)
         
         #### Now that we have the segmentation masks for the grism, do the
         #### division by the flat + subtracting the sky image
-        skies = ""
-        for img in sky_images:
-            skies += img+" "
+        skies = " ".join(sky_images)
+        # for img in sky_images:
+        #     skies += img+" "
         message = """Divide by the flat and subtract the sky images.
-F140W flat: %s
-Sky images: %s""" %(threedhst.grism_sky.flat_f140.filename().replace('//','/'), skies)
+Imaging flat: %s
+Sky images: %s""" %(threedhst.grism_sky.flat_direct.replace('//','/'), skies)
 
         threedhst.showMessage(message)
         

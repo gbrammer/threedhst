@@ -189,11 +189,13 @@ class EazyParam():
     def _process_params(self):
         params = {}
         formats = {}
+        self.param_names = []
         for line in self.lines:
             if line.startswith('#') is False:
                 lsplit = line.split()
                 if lsplit.__len__() >= 2:
                     params[lsplit[0]] = lsplit[1]
+                    self.param_names.append(lsplit[0])
                     try:
                         flt = float(lsplit[1])
                         formats[lsplit[0]] = 'f'
@@ -202,7 +204,7 @@ class EazyParam():
                         formats[lsplit[0]] = 's'
                     
         self.params = params
-        self.param_names = params.keys()
+        #self.param_names = params.keys()
         self.formats = formats
     
     def show_filters(self):
@@ -215,8 +217,12 @@ class EazyParam():
         else:
             fp = open(file,'w')
             for param in self.param_names:
-                str = '%-25s %'+self.formats[param]+'\n'
-                fp.write(str %(param, self.params[param]))
+                if isinstance(self.params[param], np.str):
+                    fp.write('%-25s %s\n' %(param, self.params[param]))
+                else:
+                    fp.write('%-25s %f\n' %(param, self.params[param]))
+                    #str = '%-25s %'+self.formats[param]+'\n'
+            #
             fp.close()
             
     #
@@ -237,6 +243,9 @@ class EazyParam():
             #exec(str)
             return self.params[param_name]
     
+    def __setitem__(self, param_name, value):
+        self.params[param_name] = value
+        
 def readEazyBinary(MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same'):
     """
 tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
@@ -672,7 +681,7 @@ zPhot_zSpec(zoutfile="./OUTPUT/photz.zout', zmax=4)
     
     #fig.savefig('/tmp/test.pdf',dpi=100)
     
-def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, adjust_zeropoints='zphot.zeropoint'):
+def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, adjust_zeropoints='zphot.zeropoint', fix_filter=None):
     """
     Plot the EAZY fit residuals to evaluate zeropoint updates
     """
@@ -731,9 +740,10 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     #### Plot the residuals
     xx, yy, ss = [], [], []
     for i in np.argsort(lc):
-        keep = signoise[i,:] > 3
+        keep = signoise[i,:] > 0
         sc = ax.plot(lc[i]/(1+zi[keep]), resid[i,keep], marker='.', alpha=0.03, linestyle='None', color=colors[i])
-        xm, ym, ys, nn = threedhst.utils.runmed(lc[i]/(1+zi[keep]), resid[i,keep], NBIN=int(len(keep)/1000.))
+        #xm, ym, ys, nn = threedhst.utils.runmed(lc[i]/(1+zi[keep]), resid[i,keep], NBIN=int(len(keep)/1000.))
+        xm, ym, ys, nn = threedhst.utils.runmed(lc[i]/(1+zi[keep]), resid[i,keep], NBIN=np.maximum(int(keep.sum()/1000.), 5))
         xx.append(xm)
         yy.append(ym)
         ss.append(ys)
@@ -747,11 +757,12 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     residfull = []
     for i in np.argsort(lc):
         keep = signoise[i,:] > 3
+        keep = signoise[i,:] > 0
         lcfull.extend(lc[i]/(1+zi[keep]))
         residfull.extend(resid[i,keep])
         
-    xmfull, ymfull, ysfull, nnfull = threedhst.utils.runmed(np.array(lcfull), np.array(residfull), NBIN=int(len(residfull)/5000.))
-    plt.plot(xmfull, ymfull, color='black', alpha=0.3, linewidth=2)
+    xmfull, ymfull, ysfull, nnfull = threedhst.utils.runmed(np.array(lcfull), np.array(residfull), NBIN=np.maximum(int(len(residfull)/5000.), 10))
+    ax.plot(xmfull, ymfull, color='black', alpha=0.3, linewidth=2)
     
     if not os.path.exists(adjust_zeropoints):
         fp = open(adjust_zeropoints,'w')
@@ -771,11 +782,18 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     ## Normalize to F140W
     offsets /= offsets[0]
     
+    ref_offset = 1.
+    if fix_filter is not None:
+        for ci, i in enumerate(np.argsort(lc)):
+            if param.filters[i].fnumber == fix_filter:
+                ref_offset = offsets[i]
+                print 'Filt %d: %f' %(param.filters[i].fnumber, offsets[i])
+                
     ## Write a new zphot.translate file
     for ci, i in enumerate(np.argsort(lc)):
         mat = zpfilt == 'F%0d' %(param.filters[i].fnumber)
         if (len(mat[mat]) > 0): # & (param.filters[i].lambda_c < 3.e4):
-            zpval[mat] *= offsets[i]
+            zpval[mat] *= offsets[i]/ref_offset
     
     fp = open(adjust_zeropoints,'w')
     for i in range(len(zpval)):
@@ -784,9 +802,9 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     fp.close()
             
     #### Plot things
+    ax.set_xlim(800,1.e5)
     ax.semilogx()
     ax.set_ylim(0.5,1.5)
-    ax.set_xlim(800,1.e5)
     ax.set_xlabel(r'$\lambda_\mathrm{rest}\ [\mu\mathrm{m}]$')
     ax.set_ylabel(r'(temp - phot) / temp')
     ax.set_xticklabels([0.1,0.5,1,5])
@@ -794,7 +812,8 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     
     #### Add labels for filters
     for ci, i in enumerate(np.argsort(lc)):
-        ax.text(0.98, 0.92-0.05*ci, '%s %.2f' %(os.path.basename(param.filters[i].name).replace('_','\_'), offsets[i]), transform = ax.transAxes, color=colors[i], horizontalalignment='right', fontsize=9)
+        ax.text(0.98, 0.92-0.05*ci, '%s %.2f' %(os.path.basename(param.filters[i].name).replace('_','\_'), offsets[i]/ref_offset), transform = ax.transAxes, color='0.5', horizontalalignment='right', fontsize=9)
+        ax.text(0.98, 0.92-0.05*ci, '%s %.2f' %(os.path.basename(param.filters[i].name).replace('_','\_'), offsets[i]/ref_offset), transform = ax.transAxes, color=colors[i], alpha=0.8, horizontalalignment='right', fontsize=9)
 
     #### Add zphot zspec plot
     ax = fig.add_axes((0.67, 0.12, 0.32, 0.86))
