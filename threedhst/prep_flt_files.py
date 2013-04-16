@@ -2117,13 +2117,13 @@ make_segmap(root='ib3701ryq_flt', sigma=1)
         threedhst.regions.apply_dq_mask(root+'.seg.fits', extension=0,
            addval=100)
            
-def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_flat=True):
+def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_flat=True, apply_BPM=True):
     """
     Check that the flat used in the pipeline calibration is the 
     best available.  If not, multiply by the flat used and divide
     by the better flat.
     
-    Input fits_file can either be an ASN list or an individuatl FLT file
+    Input fits_file can either be an ASN list or an individual FLT file
      """
     fits_list = [fits_file]
     
@@ -2137,21 +2137,44 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_
         im = pyfits.open(file, 'update')
         if im[0].header['INSTRUME'] == 'ACS':
             return 'ACS'
+        
         USED_PFL = im[0].header['PFLTFILE'].split('$')[1]
         BEST_PFL = find_best_flat(file, verbose=False)
         
-        if (use_cosmos_flat) & (im[0].header['DATE'] > '2010-11-01') & (im[0].header['FILTER'] == 'F140W'):
+        if (use_cosmos_flat) & (im[0].header['DATE'] > '2010-08-01') & (im[0].header['FILTER'] == 'F140W'):
             #### Updated F140W flat from COSMOS
-            BEST_PFL = 'cosmos_f140w_flat.fits'
-        
+            #BEST_PFL = 'cosmos_f140w_flat.fits'
+            ### Time dependent flats
+            BEST_PFL = 'flat_3DHST_F140W_t1_v0.1.fits'
+            
+            if im[0].header['EXPSTART'] > 55793.:
+                BEST_PFL = 'flat_3DHST_F140W_t1_v0.1.fits'
+            
+            if im[0].header['EXPSTART'] > 55911.:
+                BEST_PFL = 'flat_UDF_F140W_v0.fits'
+            
         if (use_candels_flat) & (im[0].header['FILTER'] == 'F125W'):
-            BEST_PFL = 'flat.F125W.fits'
+            #BEST_PFL = 'flat.F125W.fits'
+            BEST_PFL = 'flat_F125W_t1_v0.1.fits'
+            if im[0].header['EXPSTART'] > 55780.:
+                BEST_PFL = 'flat_F125W_t2_v0.1.fits'
+                
         if (use_candels_flat) & (im[0].header['FILTER'] == 'F160W'):
-            BEST_PFL = 'flat.F160W.fits'
+            #BEST_PFL = 'flat.F160W.fits'
+            BEST_PFL = 'flat_F160W_t1_v0.1.fits'
+            if im[0].header['EXPSTART'] > 55780.:
+                BEST_PFL = 'flat_F160W_t2_v0.1.fits'
            
         IREF = os.environ["iref"]+"/"
+        
+        MSG = ''
+        if apply_BPM:
+            my_bpm = pyfits.open('%s/flat_BPM_v0.1.fits' %(os.environ['iref']))[0].data
+            im[3].data |= (my_bpm > 0)*4096
+            im[1].data += my_bpm*1000000
+            MSG = 'extra BPM: flat_BPM_v0.1.fits\n'
             
-        MSG = 'PFLAT, %s: Used= %s, Best= %s' %(file, USED_PFL, BEST_PFL)
+        MSG += 'PFLAT, %s: Used= %s, Best= %s' %(file, USED_PFL, BEST_PFL)
         
         if BEST_PFL is None:
             threedhst.showMessage("No PFL file found! (NEED %s)" %(USED_PFL), warn=True)
@@ -2167,7 +2190,7 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_
             im[1].data *= (used[1].data/best[1].data)[5:-5,5:-5]
             im[0].header.update('PFLTFILE', 'iref$'+BEST_PFL)
             im.flush()
-            
+                    
         if verbose:
             print MSG
             
