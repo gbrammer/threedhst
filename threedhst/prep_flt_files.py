@@ -645,7 +645,12 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
     # ALIGN_IMAGE = '../ACS/h_nz_sect*img.fits'
     
     asn = threedhst.utils.ASNFile(asn_file)
-    
+    flt = pyfits.open(asn.exposures[0]+'_flt.fits')
+
+    if flt[0].header['DETECTOR'] == 'UVIS':
+        bg_skip = True
+        redo_background = False
+        
     #### First guess at shifts
     if get_shift:
 
@@ -711,6 +716,9 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
         skip=2
     else:
         skip=1
+    
+    if flt[0].header['DETECTOR'] == 'UVIS':
+        skip=2
         
     if redo_background:
         for i,exp in enumerate(asn.exposures):
@@ -1547,7 +1555,7 @@ def startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
     skysub=True, updatewcs=True, driz_cr=True, median=True, final_driz=True, 
     final_scale=0.06, pixfrac=0.8, clean=True,
     final_outnx='', final_outny='', final_rot=0., ra='', dec='', 
-    refimage='', unlearn=True, use_mdz_defaults=True, ivar_weights=True, build_drz=True, generate_run=False):
+    refimage='', unlearn=True, use_mdz_defaults=True, ivar_weights=True, rms_weights=False, build_drz=True, generate_run=False):
     """
 startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
                   skysub=True, final_scale=0.06, updatewcs=True, driz_cr=True,
@@ -1686,6 +1694,12 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
         ### More conservative to avoid rejecting central pixels of stars
         iraf.dither.multidrizzle.driz_cr_scale = '2.5 0.7'
         
+    #
+    if rms_weights:
+        #### Generate inverse variance weight map, will need 
+        #### flat + dark images in the iref or jref directories
+        iraf.dither.multidrizzle.setParam('final_wht_type','IVM')
+    
     if ivar_weights:
         #### Generate inverse variance weight map, will need 
         #### flat + dark images in the iref or jref directories
@@ -2105,7 +2119,7 @@ make_segmap(root='ib3701ryq_flt', sigma=1)
     if IS_GRISM:
         se.options['FILTER_NAME'] = 'grism.conv'
     else:
-        se.options['FILTER_NAME'] = 'default.conv'
+        se.options['FILTER_NAME'] = threedhst.sex.USE_CONVFILE #'default.conv'
     
     #### Detect thresholds (default = 1.5)
     se.options['DETECT_THRESH']    = '%f' %sigma
@@ -2170,7 +2184,7 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_
         MSG = ''
         if apply_BPM:
             my_bpm = pyfits.open('%s/flat_BPM_v0.1.fits' %(os.environ['iref']))[0].data
-            im[3].data |= (my_bpm > 0)*4096
+            im[3].data |= (my_bpm > 0)*100
             im[1].data += my_bpm*1000000
             MSG = 'extra BPM: flat_BPM_v0.1.fits\n'
             
