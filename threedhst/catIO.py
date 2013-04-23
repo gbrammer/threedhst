@@ -535,9 +535,14 @@ class CoordinateMatcher():
         
         if USE_WORLD:
             ra_column, dec_column = 'x_world', 'y_world'
-                
+        
+        try:
+            columns = cat.columns
+        except:
+            columns = cat.keys()
+                   
         for test in [ra_column, dec_column]:
-            if test not in cat.columns:
+            if test not in columns:
                 print 'Column %s not found in the input catalog' %(test)
                 self.status = False
                 return None
