@@ -465,6 +465,130 @@ zgrid, pz = getEazyPz(idx, \
     ###### Done
     return tempfilt['zgrid'],pzi
     
+class TemplateError():
+    """
+    Make an easy (spline) interpolator for the template error function
+    """
+    def __init__(self, file='templates/TEMPLATE_ERROR.eazy_v1.0'):
+        from scipy import interpolate
+        self.te_x, self.te_y = np.loadtxt(file, unpack=True)
+        self._spline = interpolate.InterpolatedUnivariateSpline(self.te_x, self.te_y)
+        
+    def interpolate(self, filter_wavelength, z):
+        """
+        observed_wavelength is observed wavelength of photometric filters.  But 
+        these sample the *rest* wavelength of the template error function at lam/(1+z)
+        """
+        return self._spline(filter_wavelength/(1+z))
+        
+class TemplateInterpolator():
+    """
+    Class to use scipy spline interpolator to interpolate pre-computed eazy template 
+    photometry at arbitrary redshift(s).
+    """
+    def __init__(self, bands=None, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', zout=None):
+        from scipy import interpolate
+        import threedhst.eazyPy as eazy
+        
+        if bands is None:
+            self.bands = np.arange(tempfilt['NFILT'])
+        else:
+            self.bands = np.array(bands)
+        
+        self.band_names = ['' for b in self.bands]
+        
+        if zout is not None:
+            param = eazy.EazyParam(PARAM_FILE=zout.filename.replace('.zout','.param'))
+            self.band_names = [f.name for f in param.filters]
+            self.bands = np.array([f.fnumber-1 for f in param.filters])
+        
+        tempfilt, coeffs, temp_seds, pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, CACHE_FILE = CACHE_FILE)
+                
+        self.NFILT = len(self.bands)
+        self.NTEMP = tempfilt['NTEMP']
+        self.lc = tempfilt['lc'][self.bands]
+        self.sed = temp_seds
+        self.templam = self.sed['templam']
+        self.temp_seds = self.sed['temp_seds']
+        
+        self.in_zgrid = tempfilt['zgrid']
+        self.tempfilt = tempfilt['tempfilt'][self.bands, :, :]
+        
+        ###### IGM absorption
+        self.igm_wave = []
+        self.igm_wave.append(self.templam < 912)
+        self.igm_wave.append((self.templam >= 912) & (self.templam < 1026))
+        self.igm_wave.append((self.templam >= 1026) & (self.templam < 1216))
+        
+        self._spline_da = interpolate.InterpolatedUnivariateSpline(self.in_zgrid, temp_seds['da'])
+        self._spline_db = interpolate.InterpolatedUnivariateSpline(self.in_zgrid, temp_seds['db'])
+        
+        #### Make a 2D list of the spline interpolators
+        self._interpolators = [range(self.NTEMP) for i in range(self.NFILT)]                
+        for i in range(self.NFILT):
+            for j in range(self.NTEMP):
+                self._interpolators[i][j] = interpolate.InterpolatedUnivariateSpline(self.in_zgrid, self.tempfilt[i, j, :])
+        #
+        self.output = None
+        self.zout = None
+    
+    def interpolate_photometry(self, zout):
+        """
+        Interpolate the EAZY template photometry at `zout`, which can be a number or an 
+        array.
+        
+        The result is returned from the function and also stored in `self.output`.
+        """               
+        output = [range(self.NTEMP) for i in range(self.NFILT)]                
+        for i in range(self.NFILT):
+            for j in range(self.NTEMP):
+                output[i][j] = self._interpolators[i][j](zout)
+        
+        self.zgrid = np.array(zout)
+        self.output = np.array(output)
+        return self.output
+        
+    def check_extrapolate(self):
+        """
+        Check if any interpolated values are extrapolated from the original redshift grid
+        
+        Result is both returned and stored in `self.extrapolated`
+        """
+        if self.zout is None:
+            return False
+        
+        self.extrapolated = np.zeros(self.output.shape, dtype=np.bool) ## False
+
+        bad = (self.zgrid < self.in_zgrid.min()) | (self.zgrid > self.in_zgrid.max())
+        self.extrapolated[:, :, bad] = True
+        
+        return self.extrapolated
+        
+    def get_IGM(self, z, matrix=False, silent=False):
+        """
+        Retrieve the full SEDs with IGM absorption
+        """
+        ###### IGM absorption
+        # lim1 = self.templam < 912
+        # lim2 = (self.templam >= 912) & (self.templam < 1026)
+        # lim3 = (self.templam >= 1026) & (self.templam < 1216)
+        
+        igm_factor = np.ones(self.templam.shape[0])
+        igm_factor[self.igm_wave[0]] = 0.
+        igm_factor[self.igm_wave[1]] = 1. - self._spline_db(z)
+        igm_factor[self.igm_wave[1]] = 1. - self._spline_da(z)
+        
+        if matrix:
+            self.igm_factor = np.dot(igm_factor.reshape(-1,1), np.ones((1, self.NTEMP)))
+        else:
+            self.igm_factor = igm_factor
+            
+        self.igm_z = z
+        self.igm_lambda = self.templam*(1+z)
+        
+        if not silent:
+            return self.igm_lambda, self.igm_factor
+             
 def convert_chi_to_pdf(tempfilt, pz):
     """
     Convert the `chi2fit` array in the `pz` structure to probability densities.
