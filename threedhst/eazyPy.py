@@ -490,6 +490,9 @@ class TemplateInterpolator():
         from scipy import interpolate
         import threedhst.eazyPy as eazy
         
+        #### Read the files from the specified output
+        tempfilt, coeffs, temp_seds, pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, CACHE_FILE = CACHE_FILE)
+        
         if bands is None:
             self.bands = np.arange(tempfilt['NFILT'])
         else:
@@ -501,9 +504,7 @@ class TemplateInterpolator():
             param = eazy.EazyParam(PARAM_FILE=zout.filename.replace('.zout','.param'))
             self.band_names = [f.name for f in param.filters]
             self.bands = np.array([f.fnumber-1 for f in param.filters])
-        
-        tempfilt, coeffs, temp_seds, pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, CACHE_FILE = CACHE_FILE)
-                
+                        
         self.NFILT = len(self.bands)
         self.NTEMP = tempfilt['NTEMP']
         self.lc = tempfilt['lc'][self.bands]
