@@ -353,7 +353,7 @@ tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
     return tempfilt, coeffs, temp_sed, pz
 
         
-def getEazySED(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', scale_flambda=True):
+def getEazySED(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', scale_flambda=True, verbose=False):
     """
 lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
      getEazySED(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same')
@@ -388,7 +388,10 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
 
     zpfactors = np.dot(zpf.reshape(tempfilt['NFILT'],1),\
                        np.ones(tempfilt['NOBJ']).reshape(1,tempfilt['NOBJ']))
-    
+
+    if verbose:
+        print zpf
+        
     tempfilt['fnu'] *= zpfactors
     tempfilt['efnu'] *= zpfactors
     
@@ -486,7 +489,7 @@ class TemplateInterpolator():
     Class to use scipy spline interpolator to interpolate pre-computed eazy template 
     photometry at arbitrary redshift(s).
     """
-    def __init__(self, bands=None, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', zout=None):
+    def __init__(self, bands=None, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', zout=None, f_lambda=True):
         from scipy import interpolate
         import threedhst.eazyPy as eazy
         
@@ -514,7 +517,10 @@ class TemplateInterpolator():
         
         self.in_zgrid = tempfilt['zgrid']
         self.tempfilt = tempfilt['tempfilt'][self.bands, :, :]
-        
+        if f_lambda:
+            for i in range(self.NFILT):
+                self.tempfilt[i,:,:] /= (self.lc[i]/5500.)**2
+                
         ###### IGM absorption
         self.igm_wave = []
         self.igm_wave.append(self.templam < 912)
