@@ -140,7 +140,8 @@ def refine_shifts(ROOT_DIRECT='f160w',
                   ALIGN_IMAGE='../../ACS/h_sz*drz_img.fits',
                   fitgeometry='shift', clean=True,
                   ALIGN_EXTENSION=0, shift_params=None,
-                  toler=3, maxtoler=5, align_sdss_ds9=False):
+                  toler=3, maxtoler=5, align_sdss_ds9=False,
+                  verbose=False):
     """
 refine_shifts(ROOT_DIRECT='f160w',
               ALIGN_IMAGE='../../ACS/h_sz*drz_img.fits',
@@ -170,7 +171,7 @@ refine_shifts(ROOT_DIRECT='f160w',
                         fitgeometry=fitgeometry, clean=clean,
                         ALIGN_EXTENSION=ALIGN_EXTENSION,
                         toler=toler, skip_swarp=(toler > 3),
-                        align_sdss_ds9=align_sdss_ds9)
+                        align_sdss_ds9=align_sdss_ds9, verbose=verbose)
             toler+=1
 
     #### shifts measured in DRZ frame.  Translate to FLT frame
@@ -449,8 +450,13 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     se.options['WEIGHT_IMAGE']    = 'WHT.fits'
     se.options['FILTER']    = 'Y'
     ## Detect thresholds (default = 1.5)
-    se.options['DETECT_THRESH']    = '%d' %(10+20*align_sdss_ds9) 
-    se.options['ANALYSIS_THRESH']  = '%d' %(10)
+    THRESH = 10
+    if align_sdss_ds9:
+        if 'Vizier' not in REFERENCE_CATALOG:
+            THRESH = 20
+            
+    se.options['DETECT_THRESH']    = '%d' %(THRESH)
+    se.options['ANALYSIS_THRESH']  = '%d' %(THRESH)
     se.options['MAG_ZEROPOINT'] = str(threedhst.options['MAG_ZEROPOINT'])
 
     #### Run SExtractor on direct and alignment images
@@ -472,17 +478,50 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
         wcs = pywcs.WCS(pyfits.getheader('SCI.fits', 0))
         #wcs = pywcs.WCS(pyfits.getheader('Q0821+3107-F140W_drz.fits', 1))
         
-        ds9 = threedhst.dq.myDS9()
-        ds9.set('file SCI.fits')
-        #ds9.set('file Q0821+3107-F140W_drz.fits')
-        ds9.set('catalog %s' %(REFERENCE_CATALOG))
-        ### Can't find XPA access point for "copy to regions"
-        ds9.set('catalog export tsv ds9_align.tsv')
-        lines = open('ds9_align.tsv').readlines()
+        if 'Vizier' in REFERENCE_CATALOG:
+            #### Use (unstable) astroquery Vizier search
+            #### CFHTLS-Deep: 'Vizier.II/317'
+            VIZIER_CAT = REFERENCE_CATALOG.split('Vizier.')[1]
+            print 'Align to Vizier catalog: http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=%s' %(VIZIER_CAT)
+            from astroquery import vizier
+            query = {}
+            query["-source"] = VIZIER_CAT
+            #query["-out"] = ["_r", "CFHTLS", "rmag"]
+            query["-out"] = ["_RAJ2000", "_DEJ2000"]
+            r0, d0 = wcs.wcs_pix2sky([[wcs.naxis1/2., wcs.naxis2/2.]], 1)[0]
+            rll, dll = wcs.wcs_pix2sky([[0, 0]], 1)[0]
+            corner_radius = np.sqrt((r0-rll)**2*np.cos(d0/360.*2*np.pi)**2+(d0-dll)**2)*60.
+            h = query["-c"] = "%.6f %.6f" %(r0, d0)
+            query["-c.rm"] = "%.3f" %(corner_radius)  ### xxx check image size
+            vt = vizier.vizquery(query)
+            ra_list, dec_list = vt['_RAJ2000'], vt['_DEJ2000']
+            print 'Vizier, found %d objects.' %(len(ra_list))
+            fp = open('%s.vizier.reg' %(ROOT_DIRECT),'w')
+            fp.write('fk5\n')
+            for ra, dec in zip(ra_list, dec_list):
+                fp.write('circle(%.6f, %.6f, 0.5")\n' %(ra, dec))
+            #
+            fp.close()
+        else:
+            #### Use DS9 catalog
+            ds9 = threedhst.dq.myDS9()
+            ds9.set('file SCI.fits')
+            #ds9.set('file Q0821+3107-F140W_drz.fits')
+            ds9.set('catalog %s' %(REFERENCE_CATALOG))
+            ### Can't find XPA access point for "copy to regions"
+            ds9.set('catalog export tsv ds9_align.tsv')
+            lines = open('ds9_align.tsv').readlines()
+            ra_list, dec_list = [], []
+            for line in lines[1:]:
+                spl = line.split()
+                ra, dec = float(spl[0]), float(spl[1])
+                ra_list.append(ra)
+                dec_list.append(dec)
+            #
+            del(ds9)
+            
         x_image, y_image = [], []
-        for line in lines[1:]:
-            spl = line.split()
-            ra, dec = float(spl[0]), float(spl[1])
+        for ra, dec in zip(ra_list, dec_list):
             x, y = wcs.wcs_sky2pix([[ra, dec]], 1)[0]
             x_image.append(x)
             y_image.append(y)
@@ -490,7 +529,6 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
         alignCat = catIO.EmptyCat()
         alignCat['X_IMAGE'] = np.array(x_image)
         alignCat['Y_IMAGE'] = np.array(y_image)
-        del(ds9)
         
     else:
         ## alignment image
@@ -552,6 +590,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
         if verbose:
             for line in status1:
                 print line
+        
                 
         #### Compute shifts with iraf.geomap
         iraf.flpr()
