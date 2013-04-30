@@ -487,13 +487,19 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
             query = {}
             query["-source"] = VIZIER_CAT
             #query["-out"] = ["_r", "CFHTLS", "rmag"]
-            query["-out"] = ["_RAJ2000", "_DEJ2000"]
+            query["-out"] = ["_RAJ2000", "_DEJ2000"]  ### Just RA/Dec.
+            
+            #### Center position and query radius
             r0, d0 = wcs.wcs_pix2sky([[wcs.naxis1/2., wcs.naxis2/2.]], 1)[0]
             rll, dll = wcs.wcs_pix2sky([[0, 0]], 1)[0]
             corner_radius = np.sqrt((r0-rll)**2*np.cos(d0/360.*2*np.pi)**2+(d0-dll)**2)*60.
             h = query["-c"] = "%.6f %.6f" %(r0, d0)
             query["-c.rm"] = "%.3f" %(corner_radius)  ### xxx check image size
+            
+            #### Run the query
             vt = vizier.vizquery(query)
+            
+            #### Make a region file
             ra_list, dec_list = vt['_RAJ2000'], vt['_DEJ2000']
             print 'Vizier, found %d objects.' %(len(ra_list))
             fp = open('%s.vizier.reg' %(ROOT_DIRECT),'w')
