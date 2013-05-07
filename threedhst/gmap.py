@@ -1235,6 +1235,16 @@ def makeMapHTML(FITS_IMAGES, mapParams, output='./HTML/index.html', title=None, 
             //plotXmlObjects();
         }
         //initialize_SED_column();
+        //// Check for position in URL name
+        var url_split = document.URL.split('#');
+        if (url_split.length > 1) {
+            var rd = url_split[1].split(',');
+            if (rd.length == 2) {
+                document.getElementById('raInput').value = rd[0];
+                document.getElementById('decInput').value = rd[1];
+                centerOnInput();
+            }
+        }
     }
     
     </script>
@@ -1415,7 +1425,7 @@ make_Javascript(path="../HTML/scripts")
                      parseFloat($("#map").css("height"))/2.-
                      parseFloat(c.css("height"))/2.-0);
 
-    	clearRows();
+    	//clearRows();
 
     }
 
