@@ -20,6 +20,7 @@ import threedhst
 
 RUN_MODE = 'waiterror'
 USE_CONVFILE = 'default.conv'
+USE_CONVFILE = 'gauss_4.0_7x7.conv'
 
 class SExtractor(object):
     """
@@ -1063,6 +1064,7 @@ class SWarp(object):
         wcs = pywcs.WCS(head)
         # coord = wcs.all_pix2sky([[head['NAXIS1']/2.,head['NAXIS1']/2.]],0)
         coord = wcs.all_pix2sky([[head['CRPIX1'], head['CRPIX2']]],1)
+        coord = wcs.all_pix2sky([[head['NAXIS1']/2., head['NAXIS2']/2.]],1)
         
         # print coord
         ra0 = self.decimalToDMS(coord[0][0],hours=True)
