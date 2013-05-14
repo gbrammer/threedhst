@@ -2186,11 +2186,12 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_
         MSG = ''
         if apply_BPM:
             my_bpm = pyfits.open('%s/flat_BPM_v0.1.fits' %(os.environ['iref']))[0].data
-            im[3].data |= (my_bpm > 0)*100
-            im[1].data += my_bpm*1000000
-            im[3].data[im[1].data > 1000000] += 4096
+            im[3].data[my_bpm > 0] |= (100+4096)
+            im[1].data += my_bpm*1000000 ## make new bad pixels obviously bad
+            ##im[3].data[im[1].data > 1000000] |= 4096
             
             MSG = 'extra BPM: flat_BPM_v0.1.fits\n'
+            # print 'BP flag 1', im[3].data[im[1].data > 1.e4].min()
             
         MSG += 'PFLAT, %s: Used= %s, Best= %s' %(file, USED_PFL, BEST_PFL)
         
@@ -2207,6 +2208,7 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_
             
             im[1].data *= (used[1].data/best[1].data)[5:-5,5:-5]
             im[0].header.update('PFLTFILE', 'iref$'+BEST_PFL)
+            #print 'BP flag 2', im[3].data[im[1].data > 1.e4].min()
             im.flush()
                     
         if verbose:

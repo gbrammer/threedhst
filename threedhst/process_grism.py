@@ -1094,6 +1094,7 @@ def fresh_flt_files(asn_filename, from_path="../RAW", preserve_dq = False):
                 old = pyfits.open('./'+exp+'_flt.fits')
                 dq = old[3]
             
+        fi[3] = dq
         fi.writeto('./'+exp+'_flt.fits', clobber=True)
         threedhst.prep_flt_files.apply_best_flat(exp+'_flt.fits', verbose=True)
         
@@ -1104,9 +1105,11 @@ def fresh_flt_files(asn_filename, from_path="../RAW", preserve_dq = False):
             if (head['INSTRUME'].strip() == 'WFC3') & (head['DETECTOR'].strip() == 'IR'):
                 #print 'IDCTAB %s -> iref$uab1537ci_idc.fits' %(head['IDCTAB'])
                 #head.update('IDCTAB','iref$uab1537ci_idc.fits')
-                flt[0].header.update('IDCTAB','iref$v5r1512fi_idc.fits')
+                #flt[0].header.update('IDCTAB','iref$v5r1512fi_idc.fits')
+                ### Force use latest IDC tab
+                flt[0].header.update('IDCTAB','iref$w3m18525i_idc.fits')
         
-        flt[3] = dq
+        #flt[3] = dq
         flt.flush()
         
         #### Apply DQ mask (.mask.reg), if it exists
