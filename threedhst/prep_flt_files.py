@@ -2168,29 +2168,29 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_
         USED_PFL = im[0].header['PFLTFILE'].split('$')[1]
         BEST_PFL = find_best_flat(file, verbose=False)
         
-        if (use_cosmos_flat) & (im[0].header['DATE'] > '2010-08-01') & (im[0].header['FILTER'] == 'F140W'):
-            #### Updated F140W flat from COSMOS
-            #BEST_PFL = 'cosmos_f140w_flat.fits'
-            ### Time dependent flats
-            BEST_PFL = 'flat_3DHST_F140W_t1_v0.1.fits'
-            
-            if im[0].header['EXPSTART'] > 55793.:
-                BEST_PFL = 'flat_3DHST_F140W_t1_v0.1.fits'
-            
-            if im[0].header['EXPSTART'] > 55911.:
-                BEST_PFL = 'flat_UDF_F140W_v0.fits'
-            
-        if (use_candels_flat) & (im[0].header['FILTER'] == 'F125W'):
-            #BEST_PFL = 'flat.F125W.fits'
-            BEST_PFL = 'flat_F125W_t1_v0.1.fits'
-            if im[0].header['EXPSTART'] > 55780.:
-                BEST_PFL = 'flat_F125W_t2_v0.1.fits'
-                
-        if (use_candels_flat) & (im[0].header['FILTER'] == 'F160W'):
-            #BEST_PFL = 'flat.F160W.fits'
-            BEST_PFL = 'flat_F160W_t1_v0.1.fits'
-            if im[0].header['EXPSTART'] > 55780.:
-                BEST_PFL = 'flat_F160W_t2_v0.1.fits'
+        # if (use_cosmos_flat) & (im[0].header['DATE'] > '2010-08-01') & (im[0].header['FILTER'] == 'F140W'):
+        #     #### Updated F140W flat from COSMOS
+        #     #BEST_PFL = 'cosmos_f140w_flat.fits'
+        #     ### Time dependent flats
+        #     BEST_PFL = 'flat_3DHST_F140W_t1_v0.1.fits'
+        #     
+        #     if im[0].header['EXPSTART'] > 55793.:
+        #         BEST_PFL = 'flat_3DHST_F140W_t1_v0.1.fits'
+        #     
+        #     if im[0].header['EXPSTART'] > 55911.:
+        #         BEST_PFL = 'flat_UDF_F140W_v0.fits'
+        #     
+        # if (use_candels_flat) & (im[0].header['FILTER'] == 'F125W'):
+        #     #BEST_PFL = 'flat.F125W.fits'
+        #     BEST_PFL = 'flat_F125W_t1_v0.1.fits'
+        #     if im[0].header['EXPSTART'] > 55780.:
+        #         BEST_PFL = 'flat_F125W_t2_v0.1.fits'
+        #         
+        # if (use_candels_flat) & (im[0].header['FILTER'] == 'F160W'):
+        #     #BEST_PFL = 'flat.F160W.fits'
+        #     BEST_PFL = 'flat_F160W_t1_v0.1.fits'
+        #     if im[0].header['EXPSTART'] > 55780.:
+        #         BEST_PFL = 'flat_F160W_t2_v0.1.fits'
            
         IREF = os.environ["iref"]+"/"
         
