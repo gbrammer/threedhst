@@ -19,7 +19,7 @@ DETECT_THRESH    1.5            # <sigmas> or <threshold>,<ZP> in mag.arcsec-2
 ANALYSIS_THRESH  1.5            # <sigmas> or <threshold>,<ZP> in mag.arcsec-2
  
 FILTER           Y              # apply filter for detection (Y or N)?
-FILTER_NAME      default.conv   # name of the file containing the filter
+FILTER_NAME      gauss_4.0_7x7.conv   # name of the file containing the filter
 FILTER_THRESH                   # Threshold[s] for retina filtering
  
 DEBLEND_NTHRESH  32             # Number of deblending sub-thresholds
@@ -36,7 +36,7 @@ MASK_TYPE        CORRECT        # type of detection MASKing: can be one of
 WEIGHT_TYPE      NONE           # type of WEIGHTing: NONE, BACKGROUND,
                                 # MAP_RMS, MAP_VAR or MAP_WEIGHT
 WEIGHT_IMAGE     weight.fits    # weight-map filename
-WEIGHT_GAIN      Y              # modulate gain (E/ADU) with weights? (Y/N)
+WEIGHT_GAIN      N              # modulate gain (E/ADU) with weights? (Y/N)
 WEIGHT_THRESH                   # weight threshold[s] for bad pixels
 
 #-------------------------------- FLAGging -----------------------------------
