@@ -158,6 +158,7 @@ fit_image(self, root, A=None, overwrite=False, show=True)
         """
         import os
         import glob
+        import scipy.ndimage as nd
         
         if A is None:
             A = self.A
@@ -184,11 +185,14 @@ fit_image(self, root, A=None, overwrite=False, show=True)
             fis = pyfits.open(segfile[0])
             seg = fis[0].data
         
+        seg_grow = nd.maximum_filter(seg, size=3)
+        
         #### Apply segmentation mask, also mask out extreme IMG values 
         #### and any pixel with DQ flag > self.DQMAX
         
-        q = np.where((seg == 0) & (IMG > -1) & (IMG < 4) & (DQ < self.DQMAX)) 
-        qb = np.where((seg > 0) | (IMG < -1) | (IMG > 4) | (DQ >= self.DQMAX))
+        
+        q = np.where((seg_grow == 0) & (IMG > -1) & (IMG < 4) & (DQ < self.DQMAX)) 
+        qb = np.where((seg_grow > 0) | (IMG < -1) | (IMG > 4) | (DQ >= self.DQMAX))
         IMGb = IMG*1.
         IMGb[qb] = np.nan
         
@@ -742,7 +746,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
             #### 2-D background, fit
             fit.fit_image(exp, A=fit.A, show=False, overwrite=True, 
                           save_fit=save_fit)
-            
+            #
             #### 1-D background, measured
             if oned_background:
                 print '\n Extract 1D background \n'
@@ -1992,7 +1996,13 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
                 shft_un='input', shft_fr='input', in_un='cps', out_un='cps', 
                 interpol='poly5', sinscl='1.0', expout=exptime, 
                 expkey='EXPTIME',fillval=0.0)
-        
+            #
+            im = pyfits.open(self.flt[ii]+'.BLOT.WHT.fits', mode='update')
+            bad = im[0].data <= 0
+            im[0].data = 1./np.sqrt(im[0].data) #/im[0].header['EXPTIME']
+            im[0].data[bad] = 1.e7
+            im.flush()
+            
         #iraf.delete('drz_*.fits')
         
 class DRZFile(MultidrizzleRun):
@@ -2080,7 +2090,7 @@ jitter_info()
 #     for file in files:
 #         make_segmap(root=file.split('.BLOT')[0])
         
-def make_segmap(root='ib3701ryq_flt', sigma=0.5, IS_GRISM=None):
+def make_segmap(root='ib3701ryq_flt', sigma=1.1, IS_GRISM=None):
     """
 make_segmap(root='ib3701ryq_flt', sigma=1)
     
@@ -2108,15 +2118,16 @@ make_segmap(root='ib3701ryq_flt', sigma=1)
     se.options['CATALOG_NAME']    = root+'.BLOT.SCI.cat'
     se.options['CHECKIMAGE_NAME'] = root+'.seg.fits, bg.fits'
     se.options['CHECKIMAGE_TYPE'] = 'SEGMENTATION, BACKGROUND'
-    se.options['WEIGHT_TYPE']     = 'MAP_WEIGHT'
+    se.options['WEIGHT_TYPE']     = 'MAP_RMS'
     if IS_GRISM:
         se.options['WEIGHT_TYPE'] = 'NONE'
         
     se.options['WEIGHT_IMAGE']    = root+'.BLOT.WHT.fits'
     se.options['FILTER']    = 'Y'
 
-    se.options['BACK_TYPE']     = 'AUTO'
-    se.options['BACK_FILTERSIZE']     = '2'
+    #se.options['BACK_TYPE']     = 'MANUAL'
+    #se.options['BACK_TYPE']     = 'AUTO'
+    #se.options['BACK_FILTERSIZE']     = '2'
     
     if IS_GRISM:
         se.options['FILTER_NAME'] = 'grism.conv'
