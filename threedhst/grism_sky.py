@@ -62,7 +62,8 @@ def set_grism_flat(grism='G141', verbose=True):
     
     if grism == 'G141':
         #flat_f140 = pyfits.open(IREF+'/uc721143i_pfl.fits')
-        flat_f140 = pyfits.open(IREF+'cosmos_f140w_flat.fits')
+        #flat_f140 = pyfits.open(IREF+'cosmos_f140w_flat.fits')
+        flat_f140 = pyfits.open(IREF+'/flat_3DHST_F140W_t1_v0.1.fits')
         flat_g141 = pyfits.open(IREF+'/u4m1335mi_pfl.fits')
         flat = flat_g141[1].data[5:1019,5:1019] / flat_f140[1].data[5:1019, 5:1019]
         flat[flat <= 0] = 5

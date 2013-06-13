@@ -2180,7 +2180,7 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_
             BEST_PFL = 'flat_3DHST_F140W_t1_v0.1.fits'
             
             if im[0].header['EXPSTART'] > 55793.:
-                BEST_PFL = 'flat_3DHST_F140W_t1_v0.1.fits'
+                BEST_PFL = 'flat_3DHST_F140W_t2_v0.1.fits'
             
             if im[0].header['EXPSTART'] > 55911.:
                 BEST_PFL = 'flat_UDF_F140W_v0.fits'
