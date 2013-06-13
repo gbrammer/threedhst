@@ -191,7 +191,7 @@ defaultOptions()
     options['WEB_IMAGE_FORMAT'] = 'png'
     
     #### Path to WFC3-IR Persistence files
-    options['FLT_PERSISTENCE_PATH'] = '/3DHST/Spectra/Work/PERSISTENCE'
+    options['FLT_PERSISTENCE_PATH'] = '/3DHST/Spectra/Work/PERSISTENCE/All'
 
 #############################################
 #### Set the default options    
