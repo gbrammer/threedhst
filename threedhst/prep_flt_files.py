@@ -1967,7 +1967,7 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
             s_list.writeto('drz_sci.fits', clobber=True)
             
             wht = im_drz[2].data
-            w_hdu = pyfits.PrimaryHDU(wht)
+            w_hdu = pyfits.PrimaryHDU(1./wht)
             w_list = pyfits.HDUList([w_hdu])
             copy_keys = ['CTYPE1','CTYPE2','CRVAL1','CRVAL2','CRPIX1','CRPIX2','CD1_1','CD1_2','CD2_1','CD2_2','LTM1_1','LTM2_2']
             w_list[0].header.update('EXPTIME',im_drz[0].header.get('EXPTIME'))
@@ -1999,7 +1999,7 @@ blot_back(self, ii=0, SCI=True, WHT=True, copy_new=True)
             #
             im = pyfits.open(self.flt[ii]+'.BLOT.WHT.fits', mode='update')
             bad = im[0].data <= 0
-            im[0].data = 1./np.sqrt(im[0].data) #/im[0].header['EXPTIME']
+            im[0].data = np.sqrt(im[0].data) #/im[0].header['EXPTIME']
             im[0].data[bad] = 1.e7
             im.flush()
             
@@ -2090,7 +2090,7 @@ jitter_info()
 #     for file in files:
 #         make_segmap(root=file.split('.BLOT')[0])
         
-def make_segmap(root='ib3701ryq_flt', sigma=1.1, IS_GRISM=None):
+def make_segmap(root='ib3701ryq_flt', sigma=1.1, IS_GRISM=None, grow_size=5):
     """
 make_segmap(root='ib3701ryq_flt', sigma=1)
     
@@ -2100,6 +2100,7 @@ make_segmap(root='ib3701ryq_flt', sigma=1)
     DETECT_THRESH = ANALYSIS_THRESH = sigma
     """
     import threedhst
+    import scipy.ndimage as nd
     
     ## Find if image is for grism or direct image
     if IS_GRISM is None:
@@ -2140,6 +2141,10 @@ make_segmap(root='ib3701ryq_flt', sigma=1)
     se.options['MAG_ZEROPOINT'] = '26.46'
     status = se.sextractImage(root+'.BLOT.SCI.fits')
     
+    seg = pyfits.open(root+'.seg.fits', mode='update')
+    seg[0].data = nd.maximum_filter(seg[0].data, size=grow_size)
+    seg.flush()
+    
     if os.path.exists(root+'.seg.fits.mask.reg'):
         threedhst.regions.apply_dq_mask(root+'.seg.fits', extension=0,
            addval=100)
@@ -2168,29 +2173,29 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_
         USED_PFL = im[0].header['PFLTFILE'].split('$')[1]
         BEST_PFL = find_best_flat(file, verbose=False)
         
-        # if (use_cosmos_flat) & (im[0].header['DATE'] > '2010-08-01') & (im[0].header['FILTER'] == 'F140W'):
-        #     #### Updated F140W flat from COSMOS
-        #     #BEST_PFL = 'cosmos_f140w_flat.fits'
-        #     ### Time dependent flats
-        #     BEST_PFL = 'flat_3DHST_F140W_t1_v0.1.fits'
-        #     
-        #     if im[0].header['EXPSTART'] > 55793.:
-        #         BEST_PFL = 'flat_3DHST_F140W_t1_v0.1.fits'
-        #     
-        #     if im[0].header['EXPSTART'] > 55911.:
-        #         BEST_PFL = 'flat_UDF_F140W_v0.fits'
-        #     
-        # if (use_candels_flat) & (im[0].header['FILTER'] == 'F125W'):
-        #     #BEST_PFL = 'flat.F125W.fits'
-        #     BEST_PFL = 'flat_F125W_t1_v0.1.fits'
-        #     if im[0].header['EXPSTART'] > 55780.:
-        #         BEST_PFL = 'flat_F125W_t2_v0.1.fits'
-        #         
-        # if (use_candels_flat) & (im[0].header['FILTER'] == 'F160W'):
-        #     #BEST_PFL = 'flat.F160W.fits'
-        #     BEST_PFL = 'flat_F160W_t1_v0.1.fits'
-        #     if im[0].header['EXPSTART'] > 55780.:
-        #         BEST_PFL = 'flat_F160W_t2_v0.1.fits'
+        if (use_cosmos_flat) & (im[0].header['DATE'] > '2010-08-01') & (im[0].header['FILTER'] == 'F140W'):
+            #### Updated F140W flat from COSMOS
+            #BEST_PFL = 'cosmos_f140w_flat.fits'
+            ### Time dependent flats
+            BEST_PFL = 'flat_3DHST_F140W_t1_v0.1.fits'
+            
+            if im[0].header['EXPSTART'] > 55793.:
+                BEST_PFL = 'flat_3DHST_F140W_t1_v0.1.fits'
+            
+            if im[0].header['EXPSTART'] > 55911.:
+                BEST_PFL = 'flat_UDF_F140W_v0.fits'
+            
+        if (use_candels_flat) & (im[0].header['FILTER'] == 'F125W'):
+            #BEST_PFL = 'flat.F125W.fits'
+            BEST_PFL = 'flat_F125W_t1_v0.3.fits'
+            if im[0].header['EXPSTART'] > 55780.:
+                BEST_PFL = 'flat_F125W_t2_v0.3.fits'
+                
+        if (use_candels_flat) & (im[0].header['FILTER'] == 'F160W'):
+            #BEST_PFL = 'flat.F160W.fits'
+            BEST_PFL = 'flat_F160W_t1_v0.3.fits'
+            if im[0].header['EXPSTART'] > 55780.:
+                BEST_PFL = 'flat_F160W_t2_v0.3.fits'
            
         IREF = os.environ["iref"]+"/"
         
@@ -2224,7 +2229,36 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_
                     
         if verbose:
             print MSG
-            
+
+def apply_persistence_mask(flt_file, limit_sigma=0.6, filter_size=3, persistence_path='/3DHST/Spectra/Work/PERSISTENCE', verbose=False):
+    """
+    Mask WFC3-IR persistence mask if a "persist" file exists for the 
+    specified FLT file.
+    """
+    import scipy.ndimage as nd
+    persist_file = os.path.join(persistence_path, flt_file.replace('flt','persist'))
+    
+    if not os.path.exists(persist_file):
+        if verbose:
+            print '%s not found, ignoring persistence.' %(persist_file)
+        #
+        return 
+    else:
+        if verbose:
+            print 'Persistence mask: %s, S/N > %.1f' %(persist_file, limit_sigma)
+        
+    flt = pyfits.open(flt_file, mode='update')
+    persist = pyfits.open(persist_file)
+    
+    mask = (persist[1].data > (limit_sigma*flt['ERR'].data))*1
+    
+    #### Unflagged cosmic rays
+    cr = (nd.convolve(mask, np.ones((3,3))) == 1) & mask & ((flt['DQ'].data & 4096) == 0)
+    mask[cr > 0] = 0
+    mask_grow = nd.maximum_filter(mask, filter_size)
+    flt['DQ'].data[mask_grow > 0] |= (100+4096)
+    flt.flush()
+    
 def find_best_flat(flt_fits, verbose=True): #, IREF='/research/HST/GRISM/IREF/'):
     """
     Find the most recent PFL file in $IREF for the filter used for the 

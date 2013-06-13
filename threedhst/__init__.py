@@ -189,6 +189,9 @@ defaultOptions()
     options['MAKE_WEBPAGE'] = True
     ## Image format for webpage
     options['WEB_IMAGE_FORMAT'] = 'png'
+    
+    #### Path to WFC3-IR Persistence files
+    options['FLT_PERSISTENCE_PATH'] = '/3DHST/Spectra/Work/PERSISTENCE'
 
 #############################################
 #### Set the default options    
