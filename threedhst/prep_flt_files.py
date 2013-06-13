@@ -2243,9 +2243,6 @@ def apply_persistence_mask(flt_file, limit_sigma=0.6, filter_size=3, persistence
             print '%s not found, ignoring persistence.' %(persist_file)
         #
         return 
-    else:
-        if verbose:
-            print 'Persistence mask: %s, S/N > %.1f' %(persist_file, limit_sigma)
         
     flt = pyfits.open(flt_file, mode='update')
     persist = pyfits.open(persist_file)
@@ -2258,6 +2255,9 @@ def apply_persistence_mask(flt_file, limit_sigma=0.6, filter_size=3, persistence
     mask_grow = nd.maximum_filter(mask, filter_size)
     flt['DQ'].data[mask_grow > 0] |= (100+4096)
     flt.flush()
+    
+    if verbose:
+        print 'Persistence mask: %s, S/N > %.1f [%d masked pixels]' %(persist_file, limit_sigma, mask_grow.sum())
     
 def find_best_flat(flt_fits, verbose=True): #, IREF='/research/HST/GRISM/IREF/'):
     """
