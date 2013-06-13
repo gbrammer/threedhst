@@ -2230,7 +2230,7 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_
         if verbose:
             print MSG
 
-def apply_persistence_mask(flt_file, limit_sigma=0.6, filter_size=3, persistence_path='/3DHST/Spectra/Work/PERSISTENCE', verbose=False):
+def apply_persistence_mask(flt_file, limit_sigma=0.6, filter_size=3, persistence_path='/3DHST/Spectra/Work/PERSISTENCE/All', verbose=False):
     """
     Mask WFC3-IR persistence mask if a "persist" file exists for the 
     specified FLT file.
