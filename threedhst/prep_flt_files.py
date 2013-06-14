@@ -589,7 +589,8 @@ def prep_flt(asn_file=None, get_shift=True, bg_only=False, bg_skip=False,
                 align_geometry='shift', clean=True,
                 initial_order=-1, save_fit=False,
                 TWEAKSHIFTS_ONLY=False,
-                oned_background=True, make_persistence_mask=False):
+                oned_background=True, make_persistence_mask=False,
+                redo_segmentation=True):
     """
 prep_flt(asn_file=None, get_shift=True, bg_only=False,
             redo_background=True)
@@ -723,11 +724,14 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
     
     if flt[0].header['DETECTOR'] == 'UVIS':
         skip=2
-        
+    
     if redo_background:
+        copy_new = True
         for i,exp in enumerate(asn.exposures):
-            run.blot_back(ii=i*skip, copy_new=(i is 0))
-            make_segmap(run.flt[i])
+            if (not os.path.exists(run.flt[i]+'.seg.fits')) | redo_segmentation:
+                run.blot_back(ii=i*skip, copy_new=copy_new)
+                make_segmap(run.flt[i])
+                copy_new=False
         
         ### Flag bright stars in segmentation map
         asn_mask = asn_file+'.mask.reg'
