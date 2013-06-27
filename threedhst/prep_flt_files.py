@@ -211,6 +211,15 @@ fit_image(self, root, A=None, overwrite=False, show=True)
             IMGout += A[i,:,:]*p[i]
         print 'Done'
         
+        if 'SKY0' in fi[0].header.keys():
+            BG_LEVEL = fi[0].header['SKY0']
+        else:
+            BG_LEVEL = 0
+            
+        BG_LEVEL += IMGout[NY/2, NY/2]*fi[0].header['EXPTIME']
+        
+        fi[0].header.update('SKY0', BG_LEVEL)
+        
         #### Save fit parameters to an ASCII file
         fp = open(root+'_flt.polybg','w')
         for pi in p:
@@ -708,7 +717,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
         if (final_scale != 0.128254) | (pixfrac != 1.0) | (not first_run):
             startMultidrizzle(asn_file, use_shiftfile=True, 
                 skysub=bg_skip, final_scale=final_scale, pixfrac=pixfrac,
-                driz_cr=False, median=False, updatewcs=False)
+                driz_cr=False, median=False, updatewcs=False, skyuser='SKY0')
      
     #### Blot combined images back to reference frame and make a 
     #### segmentation mask
@@ -755,10 +764,10 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
             if oned_background:
                 print '\n Extract 1D background \n'
                 test = oned_grism_background_subtract(exp, nbin=26, savefig=True, verbose=False)
-            
-        startMultidrizzle(asn_file, use_shiftfile=True, skysub=False,
+        
+        startMultidrizzle(asn_file, use_shiftfile=True, skysub=True,
             final_scale=final_scale, pixfrac=pixfrac, driz_cr=False,
-            updatewcs=False, median=False, clean=clean)
+            updatewcs=False, median=False, clean=clean, skyuser='SKY0')
     
     if clean:
         files=glob.glob('*BLOT*')
@@ -1563,7 +1572,7 @@ def startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
     skysub=True, updatewcs=True, driz_cr=True, median=True, final_driz=True, 
     final_scale=0.06, pixfrac=0.8, clean=True,
     final_outnx='', final_outny='', final_rot=0., ra='', dec='', 
-    refimage='', unlearn=True, use_mdz_defaults=True, ivar_weights=True, rms_weights=False, build_drz=True, generate_run=False):
+    refimage='', unlearn=True, use_mdz_defaults=True, ivar_weights=True, rms_weights=False, build_drz=True, generate_run=False, skyuser=''):
     """
 startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
                   skysub=True, final_scale=0.06, updatewcs=True, driz_cr=True,
@@ -1806,7 +1815,8 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
        blot=median, driz_separate=median, static=median, driz_combine=driz_combine,
        driz_sep_outnx = final_outnx, driz_sep_outny = final_outny, 
        final_outnx=final_outnx, final_outny=final_outny, 
-       final_rot=final_rot, ra=ra, dec=dec, refimage=refimage, build=build)
+       final_rot=final_rot, ra=ra, dec=dec, refimage=refimage, build=build, 
+       skyuser=skyuser)
     
     #### Delete created files    
     if clean is True:
