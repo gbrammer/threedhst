@@ -4,6 +4,7 @@
 Check DQ (satellite trails, scattered light)
 of direct/grism exposures.
 
+
 """
 
 __version__ = "$Rev$"
