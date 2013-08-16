@@ -245,7 +245,58 @@ class EazyParam():
     
     def __setitem__(self, param_name, value):
         self.params[param_name] = value
+
+class TranslateFile():
+    def __init__(self, file='zphot.translate'):
+        self.file=file
+        self.ordered_keys = []
+        lines = open(file).readlines()
+        self.trans = {}
+        self.error = {}
+        for line in lines:
+            spl = line.split()
+            key = spl[0]
+            self.ordered_keys.append(key)
+            self.trans[key] = spl[1]
+            if len(spl) == 3:
+                self.error[key] = float(spl[2])
+            else:
+                self.error[key] = 1.
+            #
+            
+    def change_error(self, filter=88, value=1.e4):
+        if filter.replace('f_','e_') in self.ordered_keys:
+            self.error[filter.replace('f_','e_')] = value
+            return True
         
+        for key in self.trans.keys():
+            if self.trans[key] == 'E%0d' %(filter):
+                self.error[key] = value
+                return True
+        
+        print 'Filter %s not found in list.' %(str(filter))
+    
+    def write(self, file=None, show_ones=False):
+
+        lines = []
+        for key in self.ordered_keys:
+            line = '%s  %s' %(key, self.trans[key])
+            if self.trans[key].startswith('E') & ((self.error[key] != 1.0) | show_ones):
+                line += '  %.1f' %(self.error[key])
+
+            lines.append(line+'\n')
+
+        if file is None:
+            file = self.file
+        
+        if file:
+            fp = open(file,'w')
+            fp.writelines(lines)
+            fp.close()
+        else:
+            for line in lines:
+                print line[:-1]
+                
 def readEazyBinary(MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same'):
     """
 tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
@@ -823,11 +874,16 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         PATH += '/'
     
     ##### Read the param file
-    param = EazyParam('%s%s.param' %(PATH, root))
+    param = eazy.EazyParam('%s%s.param' %(PATH, root))
     
     ##### Read template fluxes and coefficients
     tempfilt, coeffs, temp_seds, pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE=root, OUTPUT_DIRECTORY=PATH,CACHE_FILE = 'Same')
     
+    if coeffs['izbest'].max() == 0:
+        STAR_FIT = True
+    else:
+        STAR_FIT = False
+        
     param = eazy.EazyParam(PARAM_FILE=PATH+'/'+root+'.param')
     fnumbers = np.zeros(len(param.filters), dtype=np.int)
     for i in range(len(fnumbers)):
@@ -854,31 +910,58 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     
     zi = tempfilt['zgrid'][coeffs['izbest']]
     lc = tempfilt['lc']
+    offsets = lc*0.
     
     resid = (obs_sed-tempfilt['fnu']) / obs_sed + 1
-    signoise = tempfilt['fnu']/tempfilt['efnu']
+    signoise = tempfilt['fnu']/np.sqrt(tempfilt['efnu']**2+(0.01*tempfilt['fnu'])**2)
     
     #### Plot colors
     colors = range(tempfilt['NFILT'])
     for ci, i in enumerate(np.argsort(lc)):
         colors[i] = threedhst.utils.color_table((ci+1.)/tempfilt['NFILT']*250, table='rainbow.rgb')
     
-    fig = plt.figure(figsize=(10,4))
+    fig = plt.figure(figsize=(12,4.8))
     fig.subplots_adjust(wspace=0.0, hspace=0.0, left=0.09, bottom=0.10, right=0.98, top=0.98)
     
     ax = fig.add_axes((0.06, 0.12, 0.6, 0.86))
     
     #### Plot the residuals
     xx, yy, ss = [], [], []
+    stats = range(len(lc))
+    
+    keep = np.isfinite(signoise[0,:])
     for i in np.argsort(lc):
-        keep = signoise[i,:] > 0
-        sc = ax.plot(lc[i]/(1+zi[keep]), resid[i,keep], marker='.', alpha=0.03, linestyle='None', color=colors[i])
+        keep &= tempfilt['efnu'][i,:] > 0
+        if signoise[i,:].max() > 3:
+            keep & (signoise[i,:] > 3)
+        #keep &= (signoise[i,:] > 3) #| (signoise[i,:] < 0.0001)#& (np.abs(resid[i,:]-1)/tempfilt['efnu'][i,:] < 5)
+    
+    for i in np.argsort(lc):
+        #keep = signoise[i,:] > 3
+        if np.std(zi[keep]) == 0:
+            rnd = np.random.normal(size=keep.sum())*0.01*lc[i]
+        else:
+            rnd = 0.
+        #
+        sc = ax.plot(lc[i]/(1+zi[keep])+rnd, resid[i,keep], marker='.', alpha=0.05, linestyle='None', color=colors[i])
         #xm, ym, ys, nn = threedhst.utils.runmed(lc[i]/(1+zi[keep]), resid[i,keep], NBIN=int(len(keep)/1000.))
-        xm, ym, ys, nn = threedhst.utils.runmed(lc[i]/(1+zi[keep]), resid[i,keep], NBIN=np.maximum(int(keep.sum()/1000.), 5))
+        xm, ym, ys, nn = threedhst.utils.runmed(lc[i]/(1+zi[keep]), resid[i,keep], NBIN=np.maximum(int(keep.sum()/1000.), 8))
         xx.append(xm)
         yy.append(ym)
         ss.append(ys)
-    
+        val = np.sum(resid[i,keep]*signoise[i,keep]**2)/np.sum(signoise[i,keep]**2)
+        stats[i] = {'mean':np.mean(resid[i,keep]),
+                      'median':np.median(resid[i,keep]),
+                      'std':np.std(resid[i,keep]),
+                      'stdmean':np.std(resid[i,keep])/np.sqrt(keep.sum()),
+                      'p':np.percentile(resid[i,keep], [2.5,16,50,84,97.5]),
+                      'pstd':(np.percentile(resid[i,keep], 84)-np.percentile(resid[i,keep], 16))/2/np.sqrt(keep.sum()),
+                      'val':val}
+        #
+        # offsets[i] = stats[i]['median']
+        # #
+        # print '%s %.3f %.3f %.3f %.3f %d %.3f' %(param.filters[i].name, stats[i]['median'], stats[i]['pstd'], stats[i]['p'][1], stats[i]['p'][-2], keep.sum(), val)
+        
     for ci, i in enumerate(np.argsort(lc)):
         ax.plot(xx[ci], yy[ci], alpha=0.2, color='black', linewidth=4)
         ax.plot(xx[ci], yy[ci], alpha=0.8, color=colors[i], linewidth=2)
@@ -887,14 +970,56 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     lcfull = []
     residfull = []
     for i in np.argsort(lc):
-        keep = signoise[i,:] > 3
-        keep = signoise[i,:] > 0
+        #keep = signoise[i,:] > 3
+        #keep = signoise[i,:] > 0
         lcfull.extend(lc[i]/(1+zi[keep]))
         residfull.extend(resid[i,keep])
         
-    xmfull, ymfull, ysfull, nnfull = threedhst.utils.runmed(np.array(lcfull), np.array(residfull), NBIN=np.maximum(int(len(residfull)/5000.), 10))
-    ax.plot(xmfull, ymfull, color='black', alpha=0.3, linewidth=2)
+    xmfull, ymfull, ysfull, nnfull = threedhst.utils.runmed(np.array(lcfull), np.array(residfull), NBIN=np.maximum(int(len(residfull)/2000.), 10))
+    ymfull[xmfull > 2.e4] = 1.
+    ymfull[xmfull < 1600] = 1.
     
+    ax.plot(xmfull, ymfull, color='black', alpha=0.75, linewidth=2)
+    
+    if os.path.exists('tweak/tweak.dat'):
+        tx, ty = np.loadtxt('tweak/tweak.dat', unpack=True)
+        ty_int = np.interp(xmfull, tx, ty, left=1, right=1)
+    else:
+        ty_int = xmfull*0.+1
+    
+    ax.plot(xmfull, ymfull*ty_int, color='black', alpha=0.3, linewidth=2)
+    np.savetxt('tweak/tweak.dat', np.array([xmfull, ymfull*ty_int]).T, fmt='%.5e')
+    
+    NT = len(param.templates)
+    fp = open('tweak/spectra.param','w')
+    for i in range(NT):
+        wt, ft = np.loadtxt(param.templates[i], unpack=True)
+        ft /= np.interp(wt, xmfull, ymfull, left=1, right=1)
+        np.savetxt('tweak/%s' %(os.path.basename(param.templates[i])), np.array([wt, ft]).T, fmt='%.5e')
+        fp.write('%d tweak/%s 1.0 0 1.0\n' %(i+1, os.path.basename(param.templates[i])))
+    #
+    fp.close()
+    
+         
+    ### account for overall wiggles
+    for i in np.argsort(lc):
+        lcz = lc[i]/(1+zi)
+        yint = np.interp(lcz, xmfull, ymfull, left=-99, right=-99)
+        ok = keep & (yint > 0)
+        rfix = resid[i,:]/yint
+        val = np.sum(rfix[ok]*signoise[i,ok]**2)/np.sum(signoise[i,ok]**2)
+        stats[i] = {'mean':np.mean(rfix[ok]),
+                      'median':np.median(rfix[ok]),
+                      'std':np.std(rfix[ok]),
+                      'stdmean':np.std(rfix[ok])/np.sqrt(ok.sum()),
+                      'p':np.percentile(rfix[ok], [2.5,16,50,84,97.5]),
+                      'pstd':(np.percentile(rfix[ok], 84)-np.percentile(rfix[ok], 16))/2/np.sqrt(ok.sum()),
+                      'val':val}
+        #
+        offsets[i] = stats[i]['median']
+        #
+        print '%s %.3f %.3f %.3f %.3f %d %.3f' %(param.filters[i].name, stats[i]['median'], stats[i]['pstd'], stats[i]['p'][1], stats[i]['p'][-2], keep.sum(), val)
+        
     if not os.path.exists(adjust_zeropoints):
         fp = open(adjust_zeropoints,'w')
         for filt in param.filters:
@@ -905,21 +1030,28 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     zpfilt, zpval = np.loadtxt(adjust_zeropoints, dtype=np.str, unpack=True)
     zpval = np.cast[float](zpval)
     
-    offsets = lc*0.
-    for ci, i in enumerate(np.argsort(lc)):
-        yint = np.interp(xx[ci], xmfull, ymfull)
-        offsets[i] = 1./(np.sum(yy[ci]*yint/ss[ci]**2)/np.sum(yy[ci]**2/ss[ci]**2))
-        
-    ## Normalize to F140W
+    # for ci, i in enumerate(np.argsort(lc)):
+    #     if not STAR_FIT:
+    #         keep_i = keep & (signoise[i,:] > 3) & (resid[i,:] > 0.2) & (np.abs(resid[i,:]-1)/tempfilt['efnu'][i,:] < 3)
+    #         lcz = lc[i]/(1+zi[keep_i])
+    #         yint = np.interp(lcz, xmfull, ymfull)
+    #         err = np.sqrt(tempfilt['efnu'][i,keep_i]**2+(0.02*tempfilt['fnu'][i,keep_i])**2)
+    #         offsets[i] = 1./(np.sum(resid[i,keep_i]*yint/err**2)/np.sum(resid[i,keep_i]**2/err**2))
+    #         print i, keep_i.sum(), offsets[i]
+            
+    ## Normalize to first filter
     offsets /= offsets[0]
     
     ref_offset = 1.
-    if fix_filter is not None:
+    if isinstance(fix_filter, dict):
         for ci, i in enumerate(np.argsort(lc)):
-            if param.filters[i].fnumber == fix_filter:
-                ref_offset = offsets[i]
-                print 'Filt %d: %f' %(param.filters[i].fnumber, offsets[i])
-                
+            if param.filters[i].fnumber in fix_filter.keys():
+                offsets[i] = fix_filter[param.filters[i].fnumber]
+                fstr = 'F%0d' %(param.filters[i].fnumber)
+                if fstr in zpfilt:
+                    zpval[zpfilt == fstr] = 1.
+                # print 'Filt %d: %f' %(param.filters[i].fnumber, offsets[i])
+    
     ## Write a new zphot.translate file
     for ci, i in enumerate(np.argsort(lc)):
         mat = zpfilt == 'F%0d' %(param.filters[i].fnumber)
@@ -942,9 +1074,10 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     ytick = ax.set_xticks([1000,5000,1.e4,5e4])
     
     #### Add labels for filters
+    NF = len(lc)
     for ci, i in enumerate(np.argsort(lc)):
-        ax.text(0.98, 0.92-0.05*ci, '%s %.2f' %(os.path.basename(param.filters[i].name).replace('_','\_'), offsets[i]/ref_offset), transform = ax.transAxes, color='0.5', horizontalalignment='right', fontsize=9)
-        ax.text(0.98, 0.92-0.05*ci, '%s %.2f' %(os.path.basename(param.filters[i].name).replace('_','\_'), offsets[i]/ref_offset), transform = ax.transAxes, color=colors[i], alpha=0.8, horizontalalignment='right', fontsize=9)
+        ax.text(0.99, 0.99-0.04*ci*28./NF, '%s %.3f' %(os.path.basename(param.filters[i].name).replace('_','_'), offsets[i]/ref_offset), transform = ax.transAxes, color='0.5', horizontalalignment='right', va='top', fontsize=9*28./NF)
+        ax.text(0.99, 0.99-0.04*ci*28./NF, '%s %.3f' %(os.path.basename(param.filters[i].name).replace('_','_'), offsets[i]/ref_offset), transform = ax.transAxes, color=colors[i], alpha=0.8, horizontalalignment='right', va='top', fontsize=9*28./NF)
 
     #### Add zphot zspec plot
     ax = fig.add_axes((0.67, 0.12, 0.32, 0.86))
@@ -961,6 +1094,12 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     ax.set_yticklabels([])
     ytick = ax.set_yticks(np.log10(1+np.array([0,1,2,3,4])))
     
+    ### histograms
+    yh, xh = np.histogram(np.log10(1+zout.z_peak), range=[np.log10(1), np.log10(5)], bins=100)
+    ax.fill_between(xh[1:], xh[1:]*0., (np.log10((yh+1.)/yh.max())/2.+1)*np.log10(2), color='black', alpha=0.1, zorder=-100)
+    yh, xh = np.histogram(np.log10(1+zout.z_spec), range=[np.log10(1), np.log10(5)], bins=100)
+    ax.fill_between(xh[1:], xh[1:]*0., (np.log10((yh+1.)/yh.max())/2.+1)*np.log10(2), color='blue', alpha=0.1, zorder=-100)
+    
     ax.text(0.5, 0.9, r'$\sigma_\mathrm{nmad}=%.3f$' %(sigma), transform = ax.transAxes, color='black', horizontalalignment='center', fontsize=10)
     
     ax.set_xlim(0,np.log10(1+4))
@@ -970,7 +1109,9 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     if savefig is not None:
         fig.savefig(savefig)
         plt.close()
-
+    
+    return fnumbers, lc, offsets
+    
 def init_nmf(obj, iz, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', verbose=True):
     import threedhst.eazyPy as eazy
     
