@@ -483,21 +483,40 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
             #### CFHTLS-Deep: 'Vizier.II/317'
             VIZIER_CAT = REFERENCE_CATALOG.split('Vizier.')[1]
             print 'Align to Vizier catalog: http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=%s' %(VIZIER_CAT)
-            from astroquery import vizier
-            query = {}
-            query["-source"] = VIZIER_CAT
-            #query["-out"] = ["_r", "CFHTLS", "rmag"]
-            query["-out"] = ["_RAJ2000", "_DEJ2000"]  ### Just RA/Dec.
             
-            #### Center position and query radius
-            r0, d0 = wcs.wcs_pix2sky([[wcs.naxis1/2., wcs.naxis2/2.]], 1)[0]
-            rll, dll = wcs.wcs_pix2sky([[0, 0]], 1)[0]
-            corner_radius = np.sqrt((r0-rll)**2*np.cos(d0/360.*2*np.pi)**2+(d0-dll)**2)*60.
-            h = query["-c"] = "%.6f %.6f" %(r0, d0)
-            query["-c.rm"] = "%.3f" %(corner_radius)  ### xxx check image size
-            
-            #### Run the query
-            vt = vizier.vizquery(query)
+            import astroquery
+            if astroquery.__version__ < '0.0.dev1078':
+                from astroquery import vizier
+
+                query = {}
+                query["-source"] = VIZIER_CAT
+                #query["-out"] = ["_r", "CFHTLS", "rmag"]
+                query["-out"] = ["_RAJ2000", "_DEJ2000"]  ### Just RA/Dec.
+
+                #### Center position and query radius
+                r0, d0 = wcs.wcs_pix2sky([[wcs.naxis1/2., wcs.naxis2/2.]], 1)[0]
+                rll, dll = wcs.wcs_pix2sky([[0, 0]], 1)[0]
+                corner_radius = np.sqrt((r0-rll)**2*np.cos(d0/360.*2*np.pi)**2+(d0-dll)**2)*60.
+                h = query["-c"] = "%.6f %.6f" %(r0, d0)
+                query["-c.rm"] = "%.3f" %(corner_radius)  ### xxx check image size
+
+                #### Run the query
+                vt = vizier.vizquery(query)
+            else:
+                #### Newer astroquery
+                from astroquery.vizier import Vizier
+                import astropy.coords as coord
+                import astropy.units as u
+                
+                r0, d0 = wcs.wcs_pix2sky([[wcs.naxis1/2., wcs.naxis2/2.]], 1)[0]
+                rll, dll = wcs.wcs_pix2sky([[0, 0]], 1)[0]
+                corner_radius = np.sqrt((r0-rll)**2*np.cos(d0/360.*2*np.pi)**2+(d0-dll)**2)*60.
+                
+                #
+                c = coord.ICRSCoordinates(ra=ra, dec=de, unit=(u.deg, u.deg))
+                #### something with astropy.coordinates
+                c.icrs.ra.degree = c.icrs.ra.degrees
+                c.icrs.dec.degree = c.icrs.dec.degrees
             
             #### Make a region file
             ra_list, dec_list = vt['_RAJ2000'], vt['_DEJ2000']

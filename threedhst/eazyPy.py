@@ -264,15 +264,23 @@ class TranslateFile():
                 self.error[key] = 1.
             #
             
-    def change_error(self, filter=88, value=1.e4):
-        if filter.replace('f_','e_') in self.ordered_keys:
-            self.error[filter.replace('f_','e_')] = value
-            return True
+    def change_error(self, filter=88, value=1.e8):
         
-        for key in self.trans.keys():
-            if self.trans[key] == 'E%0d' %(filter):
-                self.error[key] = value
+        if isinstance(filter, str):
+            if 'f_' in filter:
+                err_filt = filter.replace('f_','e_')
+            else:
+                err_filt = 'e'+filter
+
+            if err_filt in self.ordered_keys:
+                self.error[err_filt] = value
                 return True
+        
+        if isinstance(filter, int):
+            for key in self.trans.keys():
+                if self.trans[key] == 'E%0d' %(filter):
+                    self.error[key] = value
+                    return True
         
         print 'Filter %s not found in list.' %(str(filter))
     
@@ -863,7 +871,7 @@ zPhot_zSpec(zoutfile="./OUTPUT/photz.zout', zmax=4)
     
     #fig.savefig('/tmp/test.pdf',dpi=100)
     
-def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, adjust_zeropoints='zphot.zeropoint', fix_filter=None):
+def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, adjust_zeropoints='zphot.zeropoint', fix_filter=None, ref_filter=None):
     """
     Plot the EAZY fit residuals to evaluate zeropoint updates
     """
@@ -973,11 +981,11 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         #keep = signoise[i,:] > 3
         #keep = signoise[i,:] > 0
         lcfull.extend(lc[i]/(1+zi[keep]))
-        residfull.extend(resid[i,keep])
+        residfull.extend(resid[i,keep]/stats[i]['median'])
         
     xmfull, ymfull, ysfull, nnfull = threedhst.utils.runmed(np.array(lcfull), np.array(residfull), NBIN=np.maximum(int(len(residfull)/2000.), 10))
-    ymfull[xmfull > 2.e4] = 1.
-    ymfull[xmfull < 1600] = 1.
+    #ymfull[xmfull > 3.e4] = 1.
+    #ymfull[xmfull < 1200] = 1.
     
     ax.plot(xmfull, ymfull, color='black', alpha=0.75, linewidth=2)
     
@@ -1000,7 +1008,6 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     #
     fp.close()
     
-         
     ### account for overall wiggles
     for i in np.argsort(lc):
         lcz = lc[i]/(1+zi)
@@ -1040,8 +1047,14 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     #         print i, keep_i.sum(), offsets[i]
             
     ## Normalize to first filter
-    offsets /= offsets[0]
-    
+    #offsets /= offsets[0]
+    if ref_filter is not None:
+        for ci, i in enumerate(np.argsort(lc)):
+            if param.filters[i].fnumber == ref_filter:
+                offsets /= offsets[i]
+                print 'Norm to %s.' %(param.filters[i].name)
+                break
+            
     ref_offset = 1.
     if isinstance(fix_filter, dict):
         for ci, i in enumerate(np.argsort(lc)):
@@ -1075,16 +1088,22 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     
     #### Add labels for filters
     NF = len(lc)
+    font = np.minimum(9*28./NF, 14)
+    
     for ci, i in enumerate(np.argsort(lc)):
-        ax.text(0.99, 0.99-0.04*ci*28./NF, '%s %.3f' %(os.path.basename(param.filters[i].name).replace('_','_'), offsets[i]/ref_offset), transform = ax.transAxes, color='0.5', horizontalalignment='right', va='top', fontsize=9*28./NF)
-        ax.text(0.99, 0.99-0.04*ci*28./NF, '%s %.3f' %(os.path.basename(param.filters[i].name).replace('_','_'), offsets[i]/ref_offset), transform = ax.transAxes, color=colors[i], alpha=0.8, horizontalalignment='right', va='top', fontsize=9*28./NF)
+        ax.text(0.99, 0.99-0.04*ci*28./NF, '%s %.3f' %(os.path.basename(param.filters[i].name).replace('_','_'), offsets[i]/ref_offset), transform = ax.transAxes, color='0.5', horizontalalignment='right', va='top', fontsize=font)
+        ax.text(0.99, 0.99-0.04*ci*28./NF, '%s %.3f' %(os.path.basename(param.filters[i].name).replace('_','_'), offsets[i]/ref_offset), transform = ax.transAxes, color=colors[i], alpha=0.8, horizontalalignment='right', va='top', fontsize=font)
 
     #### Add zphot zspec plot
     ax = fig.add_axes((0.67, 0.12, 0.32, 0.86))
     zout = catIO.Readfile('%s/%s.zout' %(PATH, root))
+    if 'z_peak' not in zout.columns:
+        zout.z_peak = zout.z_spec
+    
     dz = (zout.z_peak-zout.z_spec)/(1+zout.z_spec)
     keep = (zout.z_spec > 0)
     sigma = threedhst.utils.nmad(dz[keep])
+    outlier = np.abs(dz[keep]) > 0.15
     
     ax.plot(np.log10(1+zout.z_spec), np.log10(1+zout.z_peak), marker='.', alpha=0.1, linestyle='None')
     ax.plot([0,10],[0,10], color='white', alpha=0.4, linewidth=3)
@@ -1100,7 +1119,7 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     yh, xh = np.histogram(np.log10(1+zout.z_spec), range=[np.log10(1), np.log10(5)], bins=100)
     ax.fill_between(xh[1:], xh[1:]*0., (np.log10((yh+1.)/yh.max())/2.+1)*np.log10(2), color='blue', alpha=0.1, zorder=-100)
     
-    ax.text(0.5, 0.9, r'$\sigma_\mathrm{nmad}=%.3f$' %(sigma), transform = ax.transAxes, color='black', horizontalalignment='center', fontsize=10)
+    ax.text(0.5, 0.9, r'$\sigma_\mathrm{nmad}=%.3f$, $f_\mathrm{>0.15}=%.3f$' %(sigma, outlier.sum()*1./keep.sum()), transform = ax.transAxes, color='black', horizontalalignment='center', fontsize=10)
     
     ax.set_xlim(0,np.log10(1+4))
     ax.set_ylim(0,np.log10(1+4))

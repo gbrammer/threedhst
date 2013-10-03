@@ -652,8 +652,11 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
             num = numbers.pop(idx)
             ll = self.linelist.pop(idx+self.ncols)
             if verbose:
-                print lineOut
-        
+                if verbose > 1:
+                    print lineOut
+                else:
+                    print number
+                    
         allheads    = self.makeheads(self.headerlines)
         self.ncols  = len(allheads)
         self.nrows  = self.makecols(allheads, self.rowlines)
