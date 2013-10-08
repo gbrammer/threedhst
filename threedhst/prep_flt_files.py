@@ -1425,9 +1425,9 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                        ALIGN_EXTENSION=0,
                        align_geometry='shift',
                        PATH_TO_RAW='../RAW',
-                       IMAGES = ['../CONF/G141_sky_cleaned.fits',
-                                 '../CONF/G141wLO_fixed_sky.fits', 
-                                 '../CONF/G141wHI_fixed_sky.fits'],
+                       IMAGES = [os.getenv('THREEDHST')+'/CONF/G141_sky_cleaned.fits',
+                                 os.getenv('THREEDHST')+'/CONF/G141wLO_fixed_sky.fits', 
+                                 os.getenv('THREEDHST')+'/CONF/G141wHI_fixed_sky.fits'],
                        SKIP_GRISM=False,
                        SKIP_DIRECT=False,
                        GET_SHIFT=True,
@@ -1546,7 +1546,7 @@ Sky images: %s""" %(threedhst.grism_sky.flat_direct.replace('//','/'), skies)
         ## Run the sky background division             
         asn_grism = threedhst.utils.ASNFile(asn_grism_file)
         for exp in asn_grism.exposures:
-            threedhst.grism_sky.remove_grism_sky(flt=exp+'_flt.fits', list=sky_images, path_to_sky='../CONF/', verbose=True, second_pass=second_pass, overall=overall)
+            threedhst.grism_sky.remove_grism_sky(flt=exp+'_flt.fits', list=sky_images, path_to_sky=os.getenv('THREEDHST')+'/CONF/', verbose=True, second_pass=second_pass, overall=overall)
         
         ## Run Multidrizzle twice, the first time to flag CRs + hot pixels
         startMultidrizzle(asn_grism_file, use_shiftfile=True, skysub=False,
