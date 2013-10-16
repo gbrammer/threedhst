@@ -769,6 +769,18 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
             final_scale=final_scale, pixfrac=pixfrac, driz_cr=False,
             updatewcs=False, median=False, clean=clean, skyuser='SKY0')
     
+    #### Take out huge bad pixels from the FLT images
+    if flt[0].header['DETECTOR'] == 'IR':
+        for exp in asn.exposures:
+            flt = pyfits.open('%s_flt.fits' %(exp), mode='update')
+            bad = (flt['SCI'].data > 1.e5) | ((flt['DQ'].data & 4096) > 0)
+            if bad.sum() > 0:
+                flt['SCI'].data[bad] = 0
+                flt['ERR'].data[bad] = 1.e6
+                flt.flush()
+            
+            flt.close()
+            
     if clean:
         files=glob.glob('*BLOT*')
         files.extend(glob.glob('drz_???.fits'))
@@ -1567,7 +1579,19 @@ Sky images: %s""" %(threedhst.grism_sky.flat_direct.replace('//','/'), skies)
     
     threedhst.showMessage("""FLT prep done.  Run gzip *flt.fits to save disk space.""")
     
-
+def startAstrodrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
+        skysub=True, updatewcs=True, driz_cr=True, median=True, final_driz=True, 
+        final_scale=0.06, pixfrac=0.8, clean=True,
+        final_outnx='', final_outny='', final_rot=0., ra='', dec='', 
+        refimage='', unlearn=True, use_mdz_defaults=True, ivar_weights=True, rms_weights=False, build_drz=True, generate_run=False, skyuser=''):
+    """
+    Use astrodrizzle instead, test....
+    """
+    import drizzlepac
+    from drizzlepac import astrodrizzle
+    pass
+    
+    
 def startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
     skysub=True, updatewcs=True, driz_cr=True, median=True, final_driz=True, 
     final_scale=0.06, pixfrac=0.8, clean=True,
