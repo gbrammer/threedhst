@@ -56,7 +56,39 @@ class FilterDefinition:
             return 2.5*np.log10(delta)
         else:
             return 1./delta
+    
+    def ABVega(self):
+        """
+        Compute AB-Vega conversion
+        """
+        try:
+            import pysynphot as S
+        except:
+            print 'Failed to import "pysynphot"'
+            return False
+        
+        vega=S.FileSpectrum(S.locations.VegaFile)
+        abmag=S.FlatSpectrum(0,fluxunits='abmag')
+        #xy, yy = np.loadtxt('hawki_y_ETC.dat', unpack=True)
+        bp = S.ArrayBandpass(wave=self.wavelength, throughput=self.transmission, name='')
+        ovega = S.Observation(vega, bp)
+        oab = S.Observation(abmag, bp)
+        return -2.5*np.log10(ovega.integrate()/oab.integrate())
+    
+    def pivot(self):
+        """
+        PySynphot pivot wavelength
+        """
+        try:
+            import pysynphot as S
+        except:
+            print 'Failed to import "pysynphot"'
+            return False
             
+        self.bp = S.ArrayBandpass(wave=self.wavelength, throughput=self.transmission, name='')
+        return self.bp.pivot()
+        
+        
 class FilterFile:
     def __init__(self, file='FILTER.RES.v8.R300'):
         """
@@ -94,13 +126,17 @@ class FilterFile:
         self.filters = filters
         self.NFILT = len(filters)
     
-    def names(self):
+    def names(self, verbose=True):
         """
         Print the filter names.
         """
-        for i in range(len(self.filters)):
-            print '%5d %s' %(i+1, self.filters[i].name)
-    
+        if verbose:
+            for i in range(len(self.filters)):
+                print '%5d %s' %(i+1, self.filters[i].name)            
+        else:
+            string_list = ['%5d %s\n' %(i+1, self.filters[i].name) for i in range(len(self.filters))]
+            return string_list
+            
     def write(self, file='xxx.res', verbose=True):
         """
         Dump the filter information to a filter file.
@@ -112,8 +148,14 @@ class FilterFile:
                 fp.write('%-6d %.5e %.5e\n' %(i+1, filter.wavelength[i], filter.transmission[i]))
         
         fp.close()
+        
+        string_list = self.names(verbose=False)
+        fp = open(file+'.info', 'w')
+        fp.writelines(string_list)
+        fp.close()
+        
         if verbose:
-            print 'Wrote <%s>.' %(file)
+            print 'Wrote <%s[.info]>' %(file)
             
     def search(self, search_string, case=True, verbose=True):
         """ 
@@ -1324,4 +1366,113 @@ def igm_factor(wavelength, z):
     if lim3.sum() > 0: factor[lim3] *= 1.-da
     
     return factor
+#
+def add_filters():
+    """
+    Script to add new filters, including calculating AB-Vega offsets and central wavelengths
+    """
+    import pysynphot as S
+
+    from threedhst import eazyPy as eazy
+    from threedhst import catIO
+    import unicorn.utils_c
+
+    os.chdir('/usr/local/share/eazy-filters')
+    
+    files, scale, apply_atm = np.loadtxt('add.list', unpack=True, skiprows=2, dtype=str)
+    res = eazy.FilterFile('FILTER.RES.latest.mod')
+    atm = catIO.Readfile('mktrans_zm_10_10.dat')
+    sp_atm = S.ArraySpectrum(wave=atm.wave*1.e4, flux=atm.transmission)
+    
+    N = len(files)
+    for i in range(N):
+        #### Already in filter file?
+        s = res.search(files[i], verbose=False)
+        if len(s) > 0:
+            continue
+        #
+        filt = eazy.FilterDefinition()
+        filter_name = files[i]
+        #
+        wf, tf = np.loadtxt(files[i], unpack=True)
+        wf *= float(scale[i])
+        bp = S.ArrayBandpass(wave=wf, throughput=tf)
+        R = 500.
+        dl_R = bp.pivot()/R
+        x_resamp = np.arange(wf.min()-2.*dl_R, wf.max()+3.1*dl_R, dl_R)
+        bp_resamp = unicorn.utils_c.interp_conserve_c(x_resamp, bp.wave, bp.throughput)
+        if int(apply_atm[i]):
+            filter_name += ' +atm '
+            sp_atm_resamp = unicorn.utils_c.interp_conserve_c(x_resamp, sp_atm.wave, sp_atm.flux)
+            bp_resamp *= sp_atm_resamp
+        #
+        bp_resamp[x_resamp <= wf.min()] = 0.
+        bp_resamp[x_resamp >= wf.max()] = 0.
+        filt.wavelength = x_resamp*1
+        filt.transmission = bp_resamp*1
+        filt.name = '%s lambda_c= %.4e AB-Vega=%.3f' %(filter_name, filt.pivot(), filt.ABVega())
+        print filt.name
+        res.filters.append(filt)
+        res.NFILT += 1
+    #
+    res.write('FILTER.RES.latest.mod')
+
+def quadri_pairs(zoutfile='OUTPUT/cdfs.zout', catfile=''):
+    pass
+    c = catIO.Readfile('../Cat2.2/uds.v0.0.15.a.cat.bright', force_lowercase=False)    
+    z = catIO.Readfile('OUTPUT/uds.zout')
+
+    c = catIO.Readfile('Catalog/cosmos.v0.10.7.a.cat.bright', force_lowercase=False)    
+    z = catIO.Readfile('OUTPUT/cosmos.zout')
+
+    c = catIO.Readfile('Catalog/cdfs.v0.4.8.a.cat.bright', force_lowercase=False)    
+    z = catIO.Readfile('OUTPUT/cdfs.zout')
+    kmag = 25-2.5*np.log10(c.Kstot)
+    
+    c = catIO.Readfile('../Catalogs/goodss_3dhst.v4.0.nzpcat.fixconv.bright', force_lowercase=False)    
+    z = catIO.Readfile('OUTPUT/goodss.zout')
+
+    c = catIO.Readfile('../Catalogs/uds_3dhst.v4.0.nzpcat.HAWKI.bright', force_lowercase=False)    
+    z = catIO.Readfile('OUTPUT/uds.zout')
+
+    kmag = 25-2.5*np.log10(c.f_F160W)
+    
+    m = catIO.CoordinateMatcher(c)
+    ## find pairs
+    first, next, drs = [], [], []
+    for i in range(c.N):
+        print unicorn.noNewLine+'%d/%d' %(i,c.N)
+        dr, idx = m.find_nearest(c.ra[i], c.dec[i], N=60, distance_upper_bound=30./3600.)
+        ok = (dr > 0) & (dr < 30.)
+        first.extend([i]*ok.sum())
+        next.extend(list(idx[ok]))
+        drs.extend(list(dr[ok]))
+        
+    first = np.array(first)
+    next = np.array(next)
+    drs = np.array(drs)
+    
+    mlim = (18,24)
+    zlim = (0.2,10)
+    ok = (drs < 25) & (kmag[first] > mlim[0]) & (kmag[next] > mlim[0]) & (kmag[first] < mlim[1]) & (kmag[next] < mlim[1]) & (z.z_peak[first] > zlim[0]) & (z.z_peak[next] > zlim[0]) & (z.z_peak[first] < zlim[1]) & (z.z_peak[next] < zlim[1])
+    
+    dz = (z.z_peak[first]-z.z_peak[next])/(1+z.z_peak[first])
+
+    #plt.scatter(drs, dz, alpha=0.03)
+
+    yh, xh = np.histogram(dz[ok], bins=200, range=(-0.3,0.3))
+    
+    NEXTRA = 20
+    z_rnd1 = z.z_peak[first][ok][np.cast[int](np.random.rand(ok.sum()*NEXTRA)*ok.sum())]
+    z_rnd2 = z.z_peak[first][ok][np.cast[int](np.random.rand(ok.sum()*NEXTRA)*ok.sum())]
+    #next_rnd = np.cast[int](np.random.rand(len(next))*z.N)
+    dz_rnd = (z_rnd1-z_rnd2)/(1+z_rnd1)
+    yhr, xhr = np.histogram(dz_rnd, bins=200, range=(-0.3,0.3))
+    
+    #plt.plot(xh[:-1], yh, linestyle='steps-mid', alpha=0.5)
+    #plt.plot(xhr[:-1], yhr*1./NEXTRA, linestyle='steps-mid', alpha=0.5)
+    plt.plot(xhr[1:], yh-yhr*1./NEXTRA, alpha=0.5, color='blue') # , linestyle='steps')
+    err = np.sqrt(yhr)
+    plt.fill_between(xhr[1:], yh-yhr*1./NEXTRA+err, yh-yhr*1./NEXTRA-err, color='blue', alpha=0.1)
+    
     
