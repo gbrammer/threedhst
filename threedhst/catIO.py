@@ -296,6 +296,7 @@ class Readfile():
                 except:
                     pass
             #int
+            #print 'x '+item+' x'
             if item.isdigit():
                 try:
                     dict[col] = np.cast[int](dict[col])
@@ -383,12 +384,20 @@ class Readfile():
             dtype = str(data[-1].dtype)
             if (column == 'ra') | (column == 'dec'):
                 formats.append('%.6f')
+            elif 'S' in dtype:
+                formats.append('%s')
             else:
                 formats.append(format_codes[dtype])
-        
+            #
+            #print 'Column: %s %s %s' %(column, dtype, formats[-1])
+            
         fp = open(filename,'w')
         fp.write(header+'\n')
-        np.savetxt(fp, np.array(data).T, fmt=tuple(formats))
+        if '%s' in formats:
+            np.savetxt(fp, np.array(data).T, fmt='%s')
+        else:
+            np.savetxt(fp, np.array(data).T, fmt=tuple(formats))
+        
         fp.close()
         
     def write_fits(self):
@@ -569,7 +578,7 @@ class CoordinateMatcher():
         self.xy = np.array([cosd, self.cat[self.dec_column]]).T
         self.tree = scipy.spatial.cKDTree(self.xy, 10)
     
-    def find_nearest(self, ra, dec, N=1):
+    def find_nearest(self, ra, dec, N=1, distance_upper_bound=np.inf):
         """
         Find N nearest neighbors to (ra, dec) in the zSpec catalogs.  
         
@@ -584,7 +593,7 @@ class CoordinateMatcher():
             self.init_tree()
             
         xy_test = [ra*np.cos(dec/360.*2*np.pi), dec]
-        dist, ids = self.tree.query(xy_test, k=N)
+        dist, ids = self.tree.query(xy_test, k=N, distance_upper_bound=distance_upper_bound)
         return dist*3600, ids
     
     def match_list(self, ra=[], dec=[], N=1, MATCH_SELF=False, verbose=True):

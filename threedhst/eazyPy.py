@@ -454,7 +454,7 @@ tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
     return tempfilt, coeffs, temp_sed, pz
 
         
-def getEazySED(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', scale_flambda=True, verbose=False):
+def getEazySED(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', scale_flambda=True, verbose=False, individual_templates=False):
     """
 lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
      getEazySED(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same')
@@ -521,6 +521,9 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
     ###### Full template SED, observed frame
     lambdaz = temp_seds['templam']*(1+zi)
     temp_sed = np.dot(temp_seds['temp_seds'],coeffs['coeffs'][:,idx])
+    if individual_templates:
+        temp_sed = temp_seds['temp_seds']*coeffs['coeffs'][:,idx]
+    
     temp_sed /= (1+zi)**2
     
     temp_sed *= (1/5500.)**2*flam_factor
@@ -722,7 +725,7 @@ def convert_chi_to_pdf(tempfilt, pz):
             
     return tempfilt['zgrid']*1., pdf
     
-def plotExampleSED(idx=20, writePNG=True, MAIN_OUTPUT_FILE = 'photz', OUTPUT_DIRECTORY = 'OUTPUT', CACHE_FILE = 'Same', lrange=[3000,8.e4], axes=None):
+def plotExampleSED(idx=20, writePNG=True, MAIN_OUTPUT_FILE = 'photz', OUTPUT_DIRECTORY = 'OUTPUT', CACHE_FILE = 'Same', lrange=[3000,8.e4], axes=None, individual_templates=False):
     """
 PlotSEDExample(idx=20)
 
@@ -738,7 +741,7 @@ PlotSEDExample(idx=20)
     lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
         getEazySED(qz[idx], MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, \
                           OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, \
-                          CACHE_FILE = CACHE_FILE)
+                          CACHE_FILE = CACHE_FILE, individual_templates=individual_templates)
     
     zgrid, pz = getEazyPz(qz[idx], MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, \
                                    OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, \
@@ -769,7 +772,11 @@ PlotSEDExample(idx=20)
     else:
         ax = axes[0]
         
-    ax.plot(lambdaz, temp_sed, linewidth=1.0, color='blue',alpha=alph)
+    if individual_templates:
+        ax.plot(lambdaz, temp_sed, linewidth=1.0, color='blue',alpha=0.4)
+        ax.plot(lambdaz, temp_sed.sum(axis=1), linewidth=1.0, color='blue',alpha=alph)
+    else:
+        ax.plot(lambdaz, temp_sed, linewidth=1.0, color='blue',alpha=alph)
     
     #### template fluxes integrated through the filters
     ax.scatter(lci,obs_sed,
@@ -782,7 +789,7 @@ PlotSEDExample(idx=20)
     #### Set axis range and titles
     ax.semilogx()
     ax.set_xlim(lrange[0],lrange[1])
-    ax.set_ylim(-0.05*max(obs_sed),1.1*max(obs_sed))
+    ax.set_ylim(-0.05*max(obs_sed),1.1*max(fobs))
     ax.set_xlabel(r'$\lambda$ [$\AA$]')
     ax.set_ylabel(r'$f_\lambda$')
     

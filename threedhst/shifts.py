@@ -391,7 +391,7 @@ def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=True, ALIGN_EXTENS
        
 def align_to_reference(ROOT_DIRECT, ALIGN_IMAGE, fitgeometry="shift",
     clean=True, verbose=False, ALIGN_EXTENSION=0, toler=3, skip_swarp=False,
-    align_sdss_ds9=False):
+    align_sdss_ds9=False, catalog=None):
     """
 xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     """        
@@ -404,6 +404,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     from iraf import stsdas,dither
     
     import threedhst
+    from threedhst import catIO
     
     no = iraf.no
     yes = iraf.yes
@@ -419,7 +420,10 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
             os.remove(file)
         except:
             pass
-                
+    
+    if catalog is not None: 
+        align_sdss_ds9 = True
+                    
     #### Get only images that overlap from the ALIGN_IMAGE list    
     if not align_sdss_ds9:
         align_img_list = find_align_images_that_overlap(ROOT_DIRECT+'_drz.fits', ALIGN_IMAGE, ALIGN_EXTENSION=ALIGN_EXTENSION)
