@@ -37,7 +37,7 @@ import threedhst.grism_sky
 class fit_2D_background():
     
     def __init__(self, ORDER=-1, x0=None, y0=None, DQMAX=10,
-        IMAGES=['/research/HST/GRISM/CONF/G141_sky_cleaned.fits']):
+        IMAGES=['/research/HST/GRISM/CONF/G141_sky_cleaned.fits'], NX=1014, NY=1014):
         """
 __init__(self, ORDER=-1, x0=None, y0=None, DQMAX=10,
          IMAGES=['/research/HST/GRISM/CONF/G141_sky_cleaned.fits'])
@@ -56,6 +56,8 @@ __init__(self, ORDER=-1, x0=None, y0=None, DQMAX=10,
         self.ORDER = ORDER
         self.x0 = x0
         self.y0 = y0
+        self.NX = NX
+        self.NY = NY
         self.DQMAX = DQMAX
         self.IMAGES = IMAGES
         self.setup_matrices()
@@ -66,11 +68,11 @@ setup_matrices()
     
     Setup self.A matrix for polynomial fit.
         """
-        NX = 1014
-        NY = 1014
+        NX = self.NX #1014
+        NY = self.NY #1014
         
         #### Image matrix indices
-        xi,yi = np.indices((NX,NY))
+        yi,xi = np.indices((NY,NX))
         
         #### Default reference position is image center
         if self.x0 is None:
@@ -85,7 +87,7 @@ setup_matrices()
         NPARAM += len(self.IMAGES)
         self.NPARAM = NPARAM
         
-        self.A = np.zeros((NPARAM,NX,NY))
+        self.A = np.zeros((NPARAM,NY,NX))
         
         #### Read images to add to the "model"
         count=0
@@ -139,7 +141,7 @@ setup_matrices()
         # self.NPARAM = NPARAM
     
     def fit_image(self, root, A=None, overwrite=False, show=True,
-                  save_fit=False):
+                  save_fit=False, root_filename=True):
         """
 fit_image(self, root, A=None, overwrite=False, show=True)
     
@@ -165,10 +167,14 @@ fit_image(self, root, A=None, overwrite=False, show=True)
         
         #### Read the FLT file and get dimensions 
         #### (should always be 1014x1014 for WFC3)
-        fi = pyfits.open(root+'_flt.fits',mode='update')
+        if root_filename:
+            fi = pyfits.open(root+'_flt.fits',mode='update')
+        else:
+            fi = pyfits.open(root, mode='update')
+            
         IMG = fi[1].data
         DQ = fi[3].data
-        NX,NY = IMG.shape
+        NX, NY = IMG.shape
         
         #### array indices for each pixel position
         xi,yi = np.indices((NX,NY))
