@@ -601,6 +601,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
             os.remove('align.match')
         except:
             pass
+            
         status1 = iraf.xyxymatch(input="direct.xy", reference="align.xy",
                        output="align.match",
                        tolerance=2**pow, separation=0, verbose=yes, Stdout=1)
@@ -668,6 +669,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     im = pyfits.open('SCI.fits')
         
     shutil.copy('align.map',ROOT_DIRECT+'_align.map')
+    shutil.copy('align.match',ROOT_DIRECT+'_align.match')
     
     #### Cleanup
     if clean:
@@ -683,6 +685,31 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
                 pass
         
     return xshift, yshift, rot, scale, xrms, yrms
+
+def match_diagnostic_plot(root='JKCS041-2r-168-F160W'):
+    """
+    Make delta_x delta_y scatter plot and vector diagram for outputs from the 
+    alignment script. 
+    """
+    import pyfits
+    import pywcs
+    drz = pyfits.getheader(root+'_drz.fits', 'SCI')
+    wcs = pywcs.WCS(drz)
+     
+    x_ref, y_ref, x_in, y_in, i_ref, i_in = np.loadtxt(root+'_align.match', unpack=True)
+    
+    dx = x_in - x_ref
+    dy = y_in - y_ref
+    
+    plt.scatter(dx, dy, alpha=0.1)
+    plt.xlim(-3,3); plt.ylim(-3,3)
+    
+    s = 200
+    
+    plt.quiver(x_in, y_in, dx*s, dy*s, scale=1, units='xy', alpha=0.5)
+    plt.quiver(0.05*x_in.max(), 0.05*y_in.max(), s, 0, scale=1, units='xy', alpha=0.8, label='1 pix', color='red')
+    plt.legend()
+    
     
 def matchImagePixels(input=None,matchImage=None,output=None,
                      input_extension=0, match_extension=0):

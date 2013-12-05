@@ -610,7 +610,7 @@ class TemplateInterpolator():
         if zout is not None:
             param = eazy.EazyParam(PARAM_FILE=zout.filename.replace('.zout','.param'))
             self.band_names = [f.name for f in param.filters]
-            self.bands = np.array([f.fnumber-1 for f in param.filters])
+            #self.bands = np.array([f.fnumber-1 for f in param.filters])
                         
         self.NFILT = len(self.bands)
         self.NTEMP = tempfilt['NTEMP']
@@ -699,7 +699,38 @@ class TemplateInterpolator():
         
         if not silent:
             return self.igm_lambda, self.igm_factor
-             
+#
+def interpolate_tempfilt_loop(tempfilt, zgrid, zi, output):
+    """    
+    Linear interpolate an Eazy "tempfilt" grid at z=zi.  
+    
+    `tempfilt` is [NFILT, NTEMP, NZ] integrated flux matrix
+    `zgrid` is [NZ] redshift grid
+    `output` is empty [NFILT, NTEMP] grid to speed up execution
+    """
+    sh = tempfilt.shape
+    NF, NT, NZ = sh[0], sh[1], sh[2]
+    #output = np.zeros((NF, NT))
+    for iz in range(NZ-1):
+        dz = zgrid[iz+1]-zgrid[iz]
+        fint = 1 - (zi-zgrid[iz])/dz
+        if (fint > 0) & (fint <= 1):
+            fint2 = 1 - (zgrid[iz+1]-zi)/dz
+            # print iz, zgrid[iz], fint, fint2
+            for ifilt in range(NF):
+                for itemp in range(NT):
+                    #print ifilt, itemp
+                    output[ifilt, itemp] = tempfilt[ifilt, itemp, iz]*fint + tempfilt[ifilt, itemp, iz+1]*fint2
+            break              
+    
+    return output
+
+try:
+    from numba import double, jit
+    faster_interpolate_tempfilt = jit(double[:,:](double[:,:,:], double[:], double, double[:,:]))(interpolate_tempfilt_loop)
+except:
+    pass
+    
 def convert_chi_to_pdf(tempfilt, pz):
     """
     Convert the `chi2fit` array in the `pz` structure to probability densities.
@@ -763,8 +794,8 @@ PlotSEDExample(idx=20)
         fig.subplots_adjust(wspace=0.18, hspace=0.0,left=0.09,bottom=0.15,right=0.98,top=0.98)
     
     #### Plot parameters
-    plotsize=20
-    alph=0.7
+    plotsize=35
+    alph=0.9
     
     #### Full best-fit template
     if axes is None:
@@ -776,15 +807,18 @@ PlotSEDExample(idx=20)
         ax.plot(lambdaz, temp_sed, linewidth=1.0, color='blue',alpha=0.4)
         ax.plot(lambdaz, temp_sed.sum(axis=1), linewidth=1.0, color='blue',alpha=alph)
     else:
-        ax.plot(lambdaz, temp_sed, linewidth=1.0, color='blue',alpha=alph)
+        ax.plot(lambdaz, temp_sed, linewidth=1.5, color='blue',alpha=alph*0.8, zorder=-3)
     
     #### template fluxes integrated through the filters
     ax.scatter(lci,obs_sed,
-               c='red',marker='o',s=plotsize,alpha=alph)
+               c='red',marker='o',s=plotsize,alpha=alph, zorder=-1)
 
     #### Observed fluxes w/ errors
-    ax.errorbar(lci,fobs,yerr=efobs,ecolor=None,
-               color='black',fmt='o',alpha=alph)
+    #ax.errorbar(lci,fobs,yerr=efobs,ecolor=None,
+    #           color='black',fmt='o',alpha=alph)
+    #
+    ax.errorbar(lci,fobs,yerr=efobs,ecolor='black',
+               color='black',fmt='o',alpha=alph, markeredgecolor='black', markerfacecolor='None', markeredgewidth=1.5, ms=8, zorder=1)
     
     #### Set axis range and titles
     ax.semilogx()
@@ -1179,7 +1213,41 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         plt.close()
     
     return fnumbers, lc, offsets
+
+def compute_eazy_mass(root='photz', PATH='OUTPUT', rf_file='153-155', V_filter='155', MLv_templates = [4.301, 0.059, 0.292, 0.918, 2.787, 0.940, 4.302]):
+    """
+    Estimate stellar masses simply from the estimate M/Lv of the templates.  
+    Requires a rest-frame color file that samples the v-band (e.g., #155).
     
+    The default MLv_templates is determined for the eazy v1.1_lines template set fit with
+    Conroy & Gunn (2009) templates.
+    
+    returns:
+        Lv = V-band luminosity in solar units
+        M/Lv = Mass-to-light in V-band (solar units)
+        Mass = Stellar mass
+        
+    """
+    from threedhst import eazyPy as eazy
+    from threedhst import catIO
+    
+    tempfilt, coeffs, temp_sed, pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE=root, OUTPUT_DIRECTORY=PATH, CACHE_FILE='Same')
+    
+    rf = catIO.Readfile('%s/%s.%s.rf' %(PATH, root, rf_file))
+    mv = 25-2.5*np.log10(rf['l%s' %(V_filter)])
+    Mv = mv-rf.dm
+    fnu = 10**(-0.4*(Mv+48.6))            # erg / s / cm2 / Hz, D=10pc
+    Lnu = fnu*4*np.pi*(10*3.09e18)**2     # erg / s / Hz
+    nuLnu = (3.e8/5500.e-10)*Lnu/3.839e33 # Lsun
+    
+    MLv_template = np.array(MLv_templates) #[4.301, 0.059, 0.292, 0.918, 2.787, 0.940, 4.302])
+    scl = np.mean(coeffs['tnorm'][0:5])
+    MLv = np.dot(MLv_template.reshape(1,-1), coeffs['coeffs']/scl)/np.sum(coeffs['coeffs'], axis=0)
+    MLv = MLv[0,:]
+    eazyMass = (MLv * nuLnu)
+    
+    return nuLnu, MLv, eazyMass
+
 def init_nmf(obj, iz, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', verbose=True):
     import threedhst.eazyPy as eazy
     

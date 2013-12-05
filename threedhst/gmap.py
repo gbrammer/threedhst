@@ -19,7 +19,8 @@ MAP_KEY = 'ABQIAAAA1XbMiDxx_BTCY2_FkPh06RR20YmIEbERyaW5EQEiVNF0mpNGfBSRb' \
     '_rzgcy5bqzSaTV8cyi2Bgsx3g'
 
 def makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1,
-                  zmin=-0.1, zmax=1, rgb_params=(5, 3, -0.05), verbose=False):
+                  zmin=-0.1, zmax=1, rgb_params=(5, 3, -0.05), verbose=False, 
+                  rgb_clip=True):
     """
 makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1,
               zmin=-0.1, zmax=1)
@@ -213,8 +214,11 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1,
                 subim = data2image(sub, zmin=zmin, zmax=zmax)
                 subim.save(outfile)
             else:
-                luptonRGB(subs[0]*zmax[0], subs[1]*zmax[1], subs[2]*zmax[2], Q=rgb_params[0], alpha=rgb_params[1], m0=rgb_params[2], m1=1, shape=None, filename=outfile, ds9=None, verbose=False, rgb_clip=True)
-                
+                if rgb_params is not None:
+                    luptonRGB(subs[0]*zmax[0], subs[1]*zmax[1], subs[2]*zmax[2], Q=rgb_params[0], alpha=rgb_params[1], m0=rgb_params[2], m1=1, shape=None, filename=outfile, ds9=None, verbose=False, rgb_clip=rgb_clip)
+                else:
+                    linearRGB(subs[0], subs[1], subs[2], shape=None, filename=outfile)
+                    
             if verbose: 
                 print 'threedhst.gmap: %s' %(outfile)
             #print outfile
@@ -240,6 +244,7 @@ makeOtherTiles
     
     #### Swarp the `other_image` to the `reference_image` pixels
     sw = threedhst.sex.SWarp()
+    sw._aXeDefaults()
     sw.swarpMatchImage(reference_image, extension=reference_ext)
     sw.swarpImage(reference_image+'[%d]' %(reference_ext),mode='wait')    
     ## Refine center position from SWarp's own output
@@ -315,6 +320,7 @@ multiple times for each zoom level and image combination.
     m = threedhst.gmap.MercatorProjection()
     aperpix = 1./np.array(m.pixels_per_lon_degree)*3600
     sw = threedhst.sex.SWarp()
+    sw._aXeDefaults()
     # sw.swarpMatchImage(ROOT_GRISM.lower()+'_drz.fits')
     sw.swarpMatchImage(threedhst.options['DIRECT_MOSAIC'])
     
@@ -485,6 +491,24 @@ data2image(data,zmin=-0.1,zmax=0.5)
     image = Image.frombuffer("L", (xsize, ysize), scaled_data, "raw", "L", 0, 0)
     return image
 
+def linearRGB(R, G, B, filename='junk.png', shape=None):
+    """
+    Use linear scaling rather than more complicated lupton scaling.  
+    Input images are assumed to already be scaled 0..1
+    """
+    import Image
+    
+    R = np.clip(R, 0, 1)
+    G = np.clip(G, 0, 1)
+    B = np.clip(B, 0, 1)
+    
+    im = Image.merge('RGB', (Image.fromarray((R[::-1,:]*255).astype('int8'), mode='L'), Image.fromarray((G[::-1,:]*255).astype('int8'), mode='L'), Image.fromarray((B[::-1,:]*255).astype('int8'), mode='L')))
+    
+    if shape is not None:
+        im = im.resize(shape)
+    
+    im.save(filename)
+    
 def luptonRGB(imr, img, imb, Q=5, alpha=3, m0=-0.05, m1=1, shape=None, filename='junk.png', ds9=None, verbose=False, rgb_clip=True):
     """
     Make a 3 color image scaled with the color clipping and 
@@ -894,7 +918,7 @@ def parseImageString(IMAGE_STRING="test.fits[1]*1.", default_extension=1):
 def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
                  path=os.getenv('HOME')+'/Sites/FITS/', tileroot='tile',
                  aper_list=[15], polyregions=None, rgb_params=(5, 3, -0.05),
-                 invert=False):
+                 invert=False, rgb_clip=True):
     """
     Make a google map viewer for a FITS image.
     
@@ -941,6 +965,7 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
     m = threedhst.gmap.MercatorProjection()
     aperpix = 1./np.array(m.pixels_per_lon_degree)*3600
     sw = threedhst.sex.SWarp()
+    sw._aXeDefaults()
     
     im0, ext0, scale0 = parseImageString(FITS_IMAGES[0], default_extension=extension)
     sw.swarpMatchImage(im0[0], extension=ext0[0], verbose=verbose)
@@ -980,8 +1005,9 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
                     sw.swarpImage(imi[ch]+'[%0d]' %(exti[ch]), mode='wait')
                 
                     im = pyfits.open('coadd.fits')
-                    if aper <= 14:
-                        im[0].data /= 4
+                    #if aper <= 15:
+                    im[0].data /= 4.**(16-aper)
+                    print 'Scale: %f' %(4.**(16-aper))
                     
                     im.writeto('ch_%s.fits' %(channels[ch]), clobber=True)
                 
@@ -1011,7 +1037,7 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
                                                      tileroot=tileroot[i],
                                                      extension=0,
                                                      zmin=zmi, zmax=zma,
-                                                     rgb_params=rgb_params,
+                                                     rgb_params=rgb_params, rgb_clip=rgb_clip,
                                                      verbose=verbose)
         
         #### Get map parameters from high-resolution image
