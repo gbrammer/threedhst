@@ -509,7 +509,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
             else:
                 #### Newer astroquery
                 from astroquery.vizier import Vizier
-                import astropy.coords as coord
+                import astropy.coordinates as coord
                 import astropy.units as u
                 
                 r0, d0 = wcs.wcs_pix2sky([[wcs.naxis1/2., wcs.naxis2/2.]], 1)[0]
