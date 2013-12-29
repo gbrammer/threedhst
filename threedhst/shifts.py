@@ -512,6 +512,8 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
                 import astropy.coordinates as coord
                 import astropy.units as u
                 
+                Vizier.ROW_LIMIT = -1
+                
                 r0, d0 = wcs.wcs_pix2sky([[wcs.naxis1/2., wcs.naxis2/2.]], 1)[0]
                 rll, dll = wcs.wcs_pix2sky([[0, 0]], 1)[0]
                 corner_radius = np.sqrt((r0-rll)**2*np.cos(d0/360.*2*np.pi)**2+(d0-dll)**2)*60.
