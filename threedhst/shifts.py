@@ -515,15 +515,16 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
                 r0, d0 = wcs.wcs_pix2sky([[wcs.naxis1/2., wcs.naxis2/2.]], 1)[0]
                 rll, dll = wcs.wcs_pix2sky([[0, 0]], 1)[0]
                 corner_radius = np.sqrt((r0-rll)**2*np.cos(d0/360.*2*np.pi)**2+(d0-dll)**2)*60.
-                
                 #
-                c = coord.ICRSCoordinates(ra=ra, dec=de, unit=(u.deg, u.deg))
+                c = coord.ICRSCoordinates(ra=r0, dec=d0, unit=(u.deg, u.deg))
                 #### something with astropy.coordinates
-                c.icrs.ra.degree = c.icrs.ra.degrees
-                c.icrs.dec.degree = c.icrs.dec.degrees
-            
+                # c.icrs.ra.degree = c.icrs.ra.degrees
+                # c.icrs.dec.degree = c.icrs.dec.degrees
+                #
+                vt = Vizier.query_region(c, width=u.Quantity(corner_radius, u.arcminute), catalog=[VIZIER_CAT])[0]
+                
             #### Make a region file
-            ra_list, dec_list = vt['_RAJ2000'], vt['_DEJ2000']
+            ra_list, dec_list = vt['RAJ2000'], vt['DEJ2000']
             print 'Vizier, found %d objects.' %(len(ra_list))
             fp = open('%s.vizier.reg' %(ROOT_DIRECT),'w')
             fp.write('fk5\n')
