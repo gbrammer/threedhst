@@ -346,7 +346,23 @@ class TranslateFile():
         else:
             for line in lines:
                 print line[:-1]
-                
+
+def readRFBinary(file='OUTPUT/test.153-155.coeff'):
+    """
+    Read Rest-frame coefficients file
+    """
+    f = open(file, 'rb')
+    NOBJ, NFILT, NTEMP = np.fromfile(file=f,dtype=np.int32, count=3)
+    rftempfilt = np.fromfile(file=f,dtype=np.double,count=NFILT*NTEMP).reshape((NTEMP,NFILT)).transpose()
+    rfcoeff = np.fromfile(file=f,dtype=np.double,count=NOBJ*NTEMP).reshape((NOBJ, NTEMP)).transpose()
+    if NFILT == 1: 
+        rftempfilt = rftempfilt.flatten()
+    
+    f.close()
+    
+    d = {'NOBJ':NOBJ, 'NFILT':NFILT, 'NTEMP':NTEMP, 'tempfilt':rftempfilt, 'coeffs':rfcoeff}
+    return d
+    
 def readEazyBinary(MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same'):
     """
 tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
@@ -540,19 +556,25 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
     ###### Done
     return lambdaz, temp_sed, lci, obs_sed, fobs, efobs
     
-def getEazyPz(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same'):
+def getEazyPz(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', binaries=None):
     """
 zgrid, pz = getEazyPz(idx, \
                       MAIN_OUTPUT_FILE='photz', \
                       OUTPUT_DIRECTORY='./OUTPUT', \
-                      CACHE_FILE='Same')
+                      CACHE_FILE='Same', binaries=None)
                       
     Get Eazy p(z) for object #idx.
+    
+    To avoid re-reading the binary files, supply binaries = (tempfilt, pz)
+    
     """
-    tempfilt, coeffs, temp_seds, pz = readEazyBinary(MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, \
+    if binaries is None:
+        tempfilt, coeffs, temp_seds, pz = readEazyBinary(MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, \
                                                     OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, \
                                                     CACHE_FILE = CACHE_FILE)
-    
+    else:
+        tempfilt, pz = binaries
+        
     if pz is None:
         return None, None
     
@@ -565,12 +587,13 @@ zgrid, pz = getEazyPz(idx, \
         prior = np.ones(pz['NZ'])
         
     ###### Convert Chi2 to p(z)
-    pzi = np.exp(-0.5*(pz['chi2fit'][:,idx]-min(pz['chi2fit'][:,idx])))*prior
+    pzi = np.exp(-0.5*(pz['chi2fit'][:,idx]-min(pz['chi2fit'][:,idx])))*prior*(1+tempfilt['zgrid'])
+    
     if np.sum(pzi) > 0:
         pzi/=np.trapz(pzi, tempfilt['zgrid'])
     
     ###### Done
-    return tempfilt['zgrid'],pzi
+    return tempfilt['zgrid'], pzi
     
 class TemplateError():
     """
@@ -587,6 +610,30 @@ class TemplateError():
         these sample the *rest* wavelength of the template error function at lam/(1+z)
         """
         return self._spline(filter_wavelength/(1+z))
+        
+class Template():
+    def __init__(self, file=None):
+        self.wavelength = None
+        self.flux = None
+        self.flux_fnu = None
+        
+        if file is not None:
+            self.wavelength, self.flux = np.loadtxt(file, unpack=True)
+            self.set_fnu()
+    
+    def set_fnu(self):
+        self.flux_fnu = self.flux * (self.wavelength/5500.)**2
+        
+    def integrate_filter(self, filter, z=0):
+        """
+        Integrate the template through a `FilterDefinition` filter object.
+        """
+        import unicorn
+        temp_filter = unicorn.utils_c.interp_conserve_c(filter.wavelength, 
+                       self.wavelength*(1+z), self.flux_fnu)
+        
+        temp_int = np.trapz(filter.transmission*temp_filter, 1./filter.wavelength) / np.trapz(filter.transmission, 1./filter.wavelength)
+        return temp_int
         
 class TemplateInterpolator():
     """
@@ -610,7 +657,7 @@ class TemplateInterpolator():
         if zout is not None:
             param = eazy.EazyParam(PARAM_FILE=zout.filename.replace('.zout','.param'))
             self.band_names = [f.name for f in param.filters]
-            #self.bands = np.array([f.fnumber-1 for f in param.filters])
+            self.bands = np.array([f.fnumber-1 for f in param.filters])
                         
         self.NFILT = len(self.bands)
         self.NTEMP = tempfilt['NTEMP']
@@ -848,6 +895,10 @@ PlotSEDExample(idx=20)
         
     if writePNG & (axes is None):
         fig.savefig('/tmp/test.pdf',dpi=100)
+
+    if axes is None:
+        return [ax, axp]
+    
 
 def nMAD(arr):
     """
@@ -1246,7 +1297,7 @@ def compute_eazy_mass(root='photz', PATH='OUTPUT', rf_file='153-155', V_filter='
     MLv = MLv[0,:]
     eazyMass = (MLv * nuLnu)
     
-    return nuLnu, MLv, eazyMass
+    return nuLnu, MLv, np.log10(eazyMass)
 
 def init_nmf(obj, iz, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', verbose=True):
     import threedhst.eazyPy as eazy
