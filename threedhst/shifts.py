@@ -500,7 +500,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
                 #### Center position and query radius
                 r0, d0 = wcs.wcs_pix2sky([[wcs.naxis1/2., wcs.naxis2/2.]], 1)[0]
                 rll, dll = wcs.wcs_pix2sky([[0, 0]], 1)[0]
-                corner_radius = np.sqrt((r0-rll)**2*np.cos(d0/360.*2*np.pi)**2+(d0-dll)**2)*60.
+                corner_radius = np.sqrt((r0-rll)**2*np.cos(d0/360.*2*np.pi)**2+(d0-dll)**2)*60.*1.5
                 h = query["-c"] = "%.6f %.6f" %(r0, d0)
                 query["-c.rm"] = "%.3f" %(corner_radius)  ### xxx check image size
 
@@ -516,7 +516,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
                 
                 r0, d0 = wcs.wcs_pix2sky([[wcs.naxis1/2., wcs.naxis2/2.]], 1)[0]
                 rll, dll = wcs.wcs_pix2sky([[0, 0]], 1)[0]
-                corner_radius = np.sqrt((r0-rll)**2*np.cos(d0/360.*2*np.pi)**2+(d0-dll)**2)*60.
+                corner_radius = np.sqrt((r0-rll)**2*np.cos(d0/360.*2*np.pi)**2+(d0-dll)**2)*60.*1.5
                 #
                 c = coord.ICRSCoordinates(ra=r0, dec=d0, unit=(u.deg, u.deg))
                 #### something with astropy.coordinates
@@ -529,7 +529,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
             ra_list, dec_list = vt['RAJ2000'], vt['DEJ2000']
             print 'Vizier, found %d objects.' %(len(ra_list))
             fp = open('%s.vizier.reg' %(ROOT_DIRECT),'w')
-            fp.write('fk5\n')
+            fp.write('# %s, r=%.1f\'\nfk5\n' %(VIZIER_CAT, corner_radius))
             for ra, dec in zip(ra_list, dec_list):
                 fp.write('circle(%.6f, %.6f, 0.5")\n' %(ra, dec))
             #

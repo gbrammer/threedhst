@@ -54,6 +54,7 @@ __version__ = "$Rev$"
 
 import os
 import pyfits
+import numpy as np
 
 import threedhst
    
@@ -1110,6 +1111,13 @@ def fresh_flt_files(asn_filename, from_path="../RAW", preserve_dq = False):
                 ### Force use latest IDC tab
                 flt[0].header.update('IDCTAB','iref$w3m18525i_idc.fits')
         
+        #### Add crosstalk to the pixel uncertainties
+        var = flt['ERR'].data**2 
+        xtalk = (flt['SCI'].data[::-1,:]/2000.)**2
+        xtalk_mask = (flt['SCI'].data*flt['TIME'].data)[::-1,:] > 2.e4
+        var[xtalk_mask] += xtalk[xtalk_mask]
+        flt['ERR'].data = np.sqrt(var)
+
         #flt[3] = dq
         flt.flush()
         

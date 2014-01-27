@@ -344,10 +344,15 @@ the_file = find_fits_gz(fits_file, hard_break = True)
     
     """
     import os
+    
+    ### Prefer the non gzipped version
     if os.path.exists(fits_file):
         return fits_file
+    
+    ### unzipped not found.  gzipped?
     if os.path.exists(fits_file+'.gz'):
         return fits_file+'.gz'
+        
     #### File not found.  Either raise an error or return None
     if hard_break:
         raise IOError('File %s[.gz] not found in %s' 
@@ -917,7 +922,7 @@ def color_table(value, table='hsv.rgb', normalized=False, show=False):
     
     return (ri, gi, bi)
     
-def which_3dhst_pointing(ra, dec, regions_file=None):
+def which_3dhst_pointing(ra, dec, regions_file=None, ancillary=False):
     """
     Compute in which 3D-HST pointing(s) a given object lies
     
@@ -1028,44 +1033,44 @@ polygon(189.252367, 62.140893,189.289215, 62.170260,189.217440, 62.189404,189.18
 polygon(189.296421, 62.162711,189.337518, 62.190829,189.268675, 62.212225,189.229320, 62.183564) # color=magenta width=2 text={GOODS-N-44}
 polygon(189.336107, 62.184499,189.385510, 62.209552,189.323980, 62.235365,189.276114, 62.209659) # color=magenta width=2 text={GOODS-N-45}
 polygon(189.395565, 62.207588,189.432496, 62.236954,189.360561, 62.256099,189.325460, 62.226247) # color=magenta width=2 text={GOODS-N-46}
-polygon(53.253844,-27.661061,53.227953,-27.686237,53.260483,-27.711953,53.285567,-27.686147) # color=magenta width=2  text={GOODS-SOUTH-1}
-polygon(53.146446,-27.865471,53.132847,-27.833614,53.092140,-27.847604,53.106741,-27.879111) # color=magenta width=2  text={GOODS-SOUTH-10}
-polygon(53.172026,-27.691544,53.133730,-27.688386,53.130113,-27.726866,53.168491,-27.729074) # color=magenta width=2  text={GOODS-SOUTH-11}
-polygon(53.092665,-27.715852,53.054361,-27.712694,53.050743,-27.751174,53.089130,-27.753383) # color=magenta width=2  text={GOODS-SOUTH-12}
-polygon(53.160758,-27.896771,53.147155,-27.864914,53.106437,-27.878904,53.121042,-27.910411) # color=magenta width=2  text={GOODS-SOUTH-13}
-polygon(53.215197,-27.914693,53.201591,-27.882836,53.160866,-27.896827,53.175474,-27.928333) # color=magenta width=2  text={GOODS-SOUTH-14}
-polygon(53.135409,-27.942252,53.121800,-27.910395,53.081065,-27.924385,53.095676,-27.955891) # color=magenta width=2  text={GOODS-SOUTH-15}
-polygon(53.175364,-27.928388,53.161756,-27.896531,53.121026,-27.910521,53.135636,-27.942027) # color=magenta width=2  text={GOODS-SOUTH-16}
-polygon(53.128527,-27.742861,53.090213,-27.739702,53.086594,-27.778182,53.124990,-27.780391) # color=magenta width=2  text={GOODS-SOUTH-17}
-polygon(53.165707,-27.750025,53.168176,-27.784006,53.211694,-27.781149,53.208153,-27.747245) # color=magenta width=2  text={GOODS-SOUTH-18}
-polygon(53.043416,-27.824225,53.045885,-27.858206,53.089434,-27.855349,53.085890,-27.821445) # color=magenta width=2  text={GOODS-SOUTH-19}
-polygon(53.040408,-27.790345,53.042877,-27.824325,53.086412,-27.821469,53.082869,-27.787565) # color=magenta width=2  text={GOODS-SOUTH-2}
-polygon(53.085097,-27.812309,53.087566,-27.846289,53.131110,-27.843433,53.127566,-27.809529) # color=magenta width=2  text={GOODS-SOUTH-20}
-polygon(53.200584,-27.883018,53.186983,-27.851161,53.146270,-27.865152,53.160873,-27.896658) # color=magenta width=2  text={GOODS-SOUTH-21}
-polygon(53.254855,-27.901207,53.241251,-27.869350,53.200531,-27.883340,53.215137,-27.914847) # color=magenta width=2  text={GOODS-SOUTH-22}
-polygon(53.016930,-27.744426,53.054140,-27.735798,53.042672,-27.698543,53.005752,-27.708089) # color=magenta width=2  text={GOODS-SOUTH-23}
-polygon(53.028220,-27.783186,53.062602,-27.767899,53.042628,-27.733569,53.008745,-27.749701) # color=magenta width=2  text={GOODS-SOUTH-24}
-polygon(53.049980,-27.768050,53.015004,-27.782267,53.033618,-27.817193,53.068129,-27.802117) # color=magenta width=2  text={GOODS-SOUTH-25}
-polygon(53.066424,-27.890689,53.104925,-27.889692,53.103216,-27.851108,53.064764,-27.853057) # color=magenta width=2  text={GOODS-SOUTH-26}
-polygon(53.224984,-27.840796,53.215228,-27.807857,53.173101,-27.818009,53.183895,-27.850692) # color=magenta width=2  text={GOODS-SOUTH-27}
-polygon(53.303424,-27.849997,53.271617,-27.830798,53.247348,-27.862901,53.279749,-27.881305) # color=magenta width=2  text={GOODS-SOUTH-28}
-polygon(53.208351,-27.715639,53.170046,-27.712480,53.166428,-27.750960,53.204815,-27.753169) # color=magenta width=2  text={GOODS-SOUTH-29}
-polygon(53.127254,-27.669806,53.129720,-27.703786,53.173207,-27.700930,53.169668,-27.667026) # color=magenta width=2  text={GOODS-SOUTH-3}
-polygon(53.132156,-27.705400,53.093855,-27.702241,53.090237,-27.740721,53.128620,-27.742930) # color=magenta width=2  text={GOODS-SOUTH-30}
-polygon(53.082352,-27.778275,53.084821,-27.812256,53.128351,-27.809399,53.124809,-27.775495) # color=magenta width=2  text={GOODS-SOUTH-31}
-polygon(53.123970,-27.763973,53.126438,-27.797953,53.169962,-27.795096,53.166420,-27.761193) # color=magenta width=2  text={GOODS-SOUTH-32}
-polygon(53.168537,-27.729019,53.130228,-27.725861,53.126609,-27.764341,53.165001,-27.766549) # color=magenta width=2  text={GOODS-SOUTH-33}
-polygon(53.130655,-27.786407,53.160428,-27.807984,53.187750,-27.777874,53.157308,-27.757043) # color=magenta width=2  text={GOODS-SOUTH-34}
-polygon(53.085677,-27.683592,53.088144,-27.717572,53.131636,-27.714716,53.128097,-27.680812) # color=magenta width=2  text={GOODS-SOUTH-35}
-polygon(53.133767,-27.785174,53.163540,-27.806751,53.190862,-27.776640,53.160421,-27.755810) # color=magenta width=2  text={GOODS-SOUTH-36}
-polygon(53.129712,-27.788174,53.159486,-27.809751,53.186809,-27.779640,53.156366,-27.758810) # color=magenta width=2  text={GOODS-SOUTH-37}
-polygon(53.132938,-27.787807,53.162711,-27.809384,53.190034,-27.779274,53.159591,-27.758443) # color=magenta width=2  text={GOODS-SOUTH-38}
-polygon(53.186508,-27.851630,53.172910,-27.819772,53.132209,-27.833763,53.146808,-27.865269) # color=magenta width=2  text={GOODS-SOUTH-4}
-polygon(53.117080,-27.914693,53.103474,-27.882836,53.062750,-27.896827,53.077357,-27.928333) # color=magenta width=2  text={GOODS-SOUTH-5}
-polygon(53.240651,-27.869538,53.227051,-27.837681,53.186343,-27.851671,53.200945,-27.883177) # color=magenta width=2  text={GOODS-SOUTH-6}
-polygon(53.124592,-27.795573,53.127061,-27.829553,53.170598,-27.826696,53.167055,-27.792793) # color=magenta width=2  text={GOODS-SOUTH-7}
-polygon(53.167125,-27.784323,53.169594,-27.818303,53.213126,-27.815446,53.209584,-27.781543) # color=magenta width=2  text={GOODS-SOUTH-8}
-polygon(53.089071,-27.753161,53.050753,-27.750002,53.047134,-27.788482,53.085534,-27.790691) # color=magenta width=2  text={GOODS-SOUTH-9}
+polygon(53.253844,-27.661061,53.227953,-27.686237,53.260483,-27.711953,53.285567,-27.686147) # color=magenta width=2  text={GOODS-S-1}
+polygon(53.146446,-27.865471,53.132847,-27.833614,53.092140,-27.847604,53.106741,-27.879111) # color=magenta width=2  text={GOODS-S-10}
+polygon(53.172026,-27.691544,53.133730,-27.688386,53.130113,-27.726866,53.168491,-27.729074) # color=magenta width=2  text={GOODS-S-11}
+polygon(53.092665,-27.715852,53.054361,-27.712694,53.050743,-27.751174,53.089130,-27.753383) # color=magenta width=2  text={GOODS-S-12}
+polygon(53.160758,-27.896771,53.147155,-27.864914,53.106437,-27.878904,53.121042,-27.910411) # color=magenta width=2  text={GOODS-S-13}
+polygon(53.215197,-27.914693,53.201591,-27.882836,53.160866,-27.896827,53.175474,-27.928333) # color=magenta width=2  text={GOODS-S-14}
+polygon(53.135409,-27.942252,53.121800,-27.910395,53.081065,-27.924385,53.095676,-27.955891) # color=magenta width=2  text={GOODS-S-15}
+polygon(53.175364,-27.928388,53.161756,-27.896531,53.121026,-27.910521,53.135636,-27.942027) # color=magenta width=2  text={GOODS-S-16}
+polygon(53.128527,-27.742861,53.090213,-27.739702,53.086594,-27.778182,53.124990,-27.780391) # color=magenta width=2  text={GOODS-S-17}
+polygon(53.165707,-27.750025,53.168176,-27.784006,53.211694,-27.781149,53.208153,-27.747245) # color=magenta width=2  text={GOODS-S-18}
+polygon(53.043416,-27.824225,53.045885,-27.858206,53.089434,-27.855349,53.085890,-27.821445) # color=magenta width=2  text={GOODS-S-19}
+polygon(53.040408,-27.790345,53.042877,-27.824325,53.086412,-27.821469,53.082869,-27.787565) # color=magenta width=2  text={GOODS-S-2}
+polygon(53.085097,-27.812309,53.087566,-27.846289,53.131110,-27.843433,53.127566,-27.809529) # color=magenta width=2  text={GOODS-S-20}
+polygon(53.200584,-27.883018,53.186983,-27.851161,53.146270,-27.865152,53.160873,-27.896658) # color=magenta width=2  text={GOODS-S-21}
+polygon(53.254855,-27.901207,53.241251,-27.869350,53.200531,-27.883340,53.215137,-27.914847) # color=magenta width=2  text={GOODS-S-22}
+polygon(53.016930,-27.744426,53.054140,-27.735798,53.042672,-27.698543,53.005752,-27.708089) # color=magenta width=2  text={GOODS-S-23}
+polygon(53.028220,-27.783186,53.062602,-27.767899,53.042628,-27.733569,53.008745,-27.749701) # color=magenta width=2  text={GOODS-S-24}
+polygon(53.049980,-27.768050,53.015004,-27.782267,53.033618,-27.817193,53.068129,-27.802117) # color=magenta width=2  text={GOODS-S-25}
+polygon(53.066424,-27.890689,53.104925,-27.889692,53.103216,-27.851108,53.064764,-27.853057) # color=magenta width=2  text={GOODS-S-26}
+polygon(53.224984,-27.840796,53.215228,-27.807857,53.173101,-27.818009,53.183895,-27.850692) # color=magenta width=2  text={GOODS-S-27}
+polygon(53.303424,-27.849997,53.271617,-27.830798,53.247348,-27.862901,53.279749,-27.881305) # color=magenta width=2  text={GOODS-S-28}
+polygon(53.208351,-27.715639,53.170046,-27.712480,53.166428,-27.750960,53.204815,-27.753169) # color=magenta width=2  text={GOODS-S-29}
+polygon(53.127254,-27.669806,53.129720,-27.703786,53.173207,-27.700930,53.169668,-27.667026) # color=magenta width=2  text={GOODS-S-3}
+polygon(53.132156,-27.705400,53.093855,-27.702241,53.090237,-27.740721,53.128620,-27.742930) # color=magenta width=2  text={GOODS-S-30}
+polygon(53.082352,-27.778275,53.084821,-27.812256,53.128351,-27.809399,53.124809,-27.775495) # color=magenta width=2  text={GOODS-S-31}
+polygon(53.123970,-27.763973,53.126438,-27.797953,53.169962,-27.795096,53.166420,-27.761193) # color=magenta width=2  text={GOODS-S-32}
+polygon(53.168537,-27.729019,53.130228,-27.725861,53.126609,-27.764341,53.165001,-27.766549) # color=magenta width=2  text={GOODS-S-33}
+polygon(53.130655,-27.786407,53.160428,-27.807984,53.187750,-27.777874,53.157308,-27.757043) # color=magenta width=2  text={GOODS-S-34}
+polygon(53.085677,-27.683592,53.088144,-27.717572,53.131636,-27.714716,53.128097,-27.680812) # color=magenta width=2  text={GOODS-S-35}
+polygon(53.133767,-27.785174,53.163540,-27.806751,53.190862,-27.776640,53.160421,-27.755810) # color=magenta width=2  text={GOODS-S-36}
+polygon(53.129712,-27.788174,53.159486,-27.809751,53.186809,-27.779640,53.156366,-27.758810) # color=magenta width=2  text={GOODS-S-37}
+polygon(53.132938,-27.787807,53.162711,-27.809384,53.190034,-27.779274,53.159591,-27.758443) # color=magenta width=2  text={GOODS-S-38}
+polygon(53.186508,-27.851630,53.172910,-27.819772,53.132209,-27.833763,53.146808,-27.865269) # color=magenta width=2  text={GOODS-S-4}
+polygon(53.117080,-27.914693,53.103474,-27.882836,53.062750,-27.896827,53.077357,-27.928333) # color=magenta width=2  text={GOODS-S-5}
+polygon(53.240651,-27.869538,53.227051,-27.837681,53.186343,-27.851671,53.200945,-27.883177) # color=magenta width=2  text={GOODS-S-6}
+polygon(53.124592,-27.795573,53.127061,-27.829553,53.170598,-27.826696,53.167055,-27.792793) # color=magenta width=2  text={GOODS-S-7}
+polygon(53.167125,-27.784323,53.169594,-27.818303,53.213126,-27.815446,53.209584,-27.781543) # color=magenta width=2  text={GOODS-S-8}
+polygon(53.089071,-27.753161,53.050753,-27.750002,53.047134,-27.788482,53.085534,-27.790691) # color=magenta width=2  text={GOODS-S-9}
 polygon( 53.111766,-27.843283, 53.093896,-27.813137, 53.055472,-27.831405, 53.074280,-27.861099) # color=magenta text={SN-GEORGE}
 polygon( 34.455240, -5.243509, 34.421062, -5.243304, 34.421240, -5.281884, 34.455410, -5.281136) # color=magenta text={SN-MARSHALL-0}
 polygon( 34.460418, -5.250832, 34.428370, -5.238999, 34.415286, -5.275313, 34.447653, -5.286248) # color=magenta text={SN-MARSHALL-1}
@@ -1097,11 +1102,11 @@ polygon(34.347388,-5.155249,34.378291,-5.169813,34.394527,-5.134749,34.363229,-5
 polygon(34.361166,-5.203999,34.392072,-5.218563,34.408309,-5.183499,34.377008,-5.169803) # color=magenta width=2  text={UDS-6}
 polygon(34.396167,-5.214486,34.366652,-5.197295,34.347407,-5.230817,34.377392,-5.247178) # color=magenta width=2  text={UDS-7}
 polygon(34.367695,-5.201449,34.339798,-5.181761,34.317693,-5.213485,34.346131,-5.232386) # color=magenta width=2  text={UDS-8}
-polygon(34.346372,-5.232274,34.318473,-5.212586,34.296367,-5.244310,34.324806,-5.263211) # color=magenta width=2  text={UDS-9}
-"""
+polygon(34.346372,-5.232274,34.318473,-5.212586,34.296367,-5.244310,34.324806,-5.263211) # color=magenta width=2  text={UDS-9}"""
     
     #### CANDELS SN and COOPER EGS pointings
-    pointings += """polygon( 53.047381,-27.696185, 53.088765,-27.685558, 53.099610,-27.718251, 53.058226,-27.728878) # color=cyan width=2 text={ERS}
+    if ancillary:
+        pointings += """\npolygon( 53.047381,-27.696185, 53.088765,-27.685558, 53.099610,-27.718251, 53.058226,-27.728878) # color=cyan width=2 text={ERS}
 polygon( 53.138492,-27.758488, 53.136643,-27.792488, 53.180229,-27.793926, 53.180988,-27.759895) # color=cyan text={SN-PRIMO}
 polygon( 53.111766,-27.843283, 53.093896,-27.813137, 53.055472,-27.831405, 53.074280,-27.861099) # color=cyan text={SN-GEORGE}
 polygon( 34.455240, -5.243509, 34.421062, -5.243304, 34.421240, -5.281884, 34.455410, -5.281136) # color=cyan text={SN-MARSHALL}
@@ -1427,4 +1432,46 @@ def survey_area(ra_in, dec_in):
     # 
     # m = MultiPolygon(polygons)
     # geom = cascaded_union(m)
+    
+def gethead(image, ext=0, keys=['EXPTIME'], parse_dtype=True, make_dict=False):
+    """
+    Shell wrapper around wcstools "gethead" to extract header keywords much
+    faster than `pyfits.getheader`.
+    
+    `ext`: image extension
+    `keys`: list of header keywords to extract
+    `make_dict`: return a dictionary with the keywords as keys
+    `parse_dtype`: parse keyword value strings to float/int if possible
+    """
+
+    from subprocess import Popen,PIPE
+    stdout, stderr = Popen('gethead -a -x %d %s %s' %(ext, image, ' '.join(keys)), shell=True, stdout=PIPE).communicate()
+    result = []
+    if not parse_dtype:
+        return stdout.split()[1:]
+        
+    for key in stdout.split()[1:]:
+        try:
+            val = float(key)
+            if val.is_integer():
+                result.append(int(val))
+            else:
+                result.append(val)
+        except:
+            result.append(key)
+    
+    if make_dict:
+        d = {}
+        for i in range(len(keys)):
+            d[keys[i]] = result[i]
+        
+        return d
+    else:
+        return result
+        
+def roll2(array, dx, dy):
+    """
+    `numpy.roll` on both x & y axes
+    """
+    return np.roll(np.roll(array, dx, axis=1), dy, axis=0)
     
