@@ -1265,7 +1265,7 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     
     return fnumbers, lc, offsets
 
-def compute_eazy_mass(root='photz', PATH='OUTPUT', rf_file='153-155', V_filter='155', MLv_templates = [4.301, 0.059, 0.292, 0.918, 2.787, 0.940, 4.302]):
+def compute_eazy_mass(root='photz', PATH='OUTPUT', rf_file='153-155', V_filter='155', ABZP=25, MLv_templates = [4.301, 0.059, 0.292, 0.918, 2.787, 0.940, 4.302], line_correction_V=[ 0.997,  0.976,  0.983,  0.999,  0.999,  0.951]):
     """
     Estimate stellar masses simply from the estimate M/Lv of the templates.  
     Requires a rest-frame color file that samples the v-band (e.g., #155).
@@ -1273,31 +1273,137 @@ def compute_eazy_mass(root='photz', PATH='OUTPUT', rf_file='153-155', V_filter='
     The default MLv_templates is determined for the eazy v1.1_lines template set fit with
     Conroy & Gunn (2009) templates.
     
+    Includes a correction for emission line fluxes computed for the 
+    EAZY v1.1 line set in `line_correction_V`, which is the ratio of rest
+    V flux with and without the template emission lines.
+    
     returns:
         Lv = V-band luminosity in solar units
         M/Lv = Mass-to-light in V-band (solar units)
         Mass = Stellar mass
         
     """
+    import threedhst
     from threedhst import eazyPy as eazy
     from threedhst import catIO
     
     tempfilt, coeffs, temp_sed, pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE=root, OUTPUT_DIRECTORY=PATH, CACHE_FILE='Same')
     
     rf = catIO.Readfile('%s/%s.%s.rf' %(PATH, root, rf_file))
-    mv = 25-2.5*np.log10(rf['l%s' %(V_filter)])
+    mv = ABZP - 2.5*np.log10(rf['l%s' %(V_filter)])
     Mv = mv-rf.dm
     fnu = 10**(-0.4*(Mv+48.6))            # erg / s / cm2 / Hz, D=10pc
     Lnu = fnu*4*np.pi*(10*3.09e18)**2     # erg / s / Hz
     nuLnu = (3.e8/5500.e-10)*Lnu/3.839e33 # Lsun
     
     MLv_template = np.array(MLv_templates) #[4.301, 0.059, 0.292, 0.918, 2.787, 0.940, 4.302])
+    
+    ### Check that have enough parameters in the line correction array.  
+    ### Fill with ones otherwise
+    if len(MLv_templates) != len(line_correction_V):
+        threedhst.showMessage(' '*57+'\nlen(MLv_templates) [%d] != len(line_correction_V) [%d]     ' %(len(MLv_templates), len(line_correction_V)), warn=True)
+        line_correction_V = np.append(np.array(line_correction_V), np.ones(len(MLv_templates) - len(line_correction_V)))
+    
+    MLv_template *= np.array(line_correction_V)
+    
     scl = np.mean(coeffs['tnorm'][0:5])
     MLv = np.dot(MLv_template.reshape(1,-1), coeffs['coeffs']/scl)/np.sum(coeffs['coeffs'], axis=0)
     MLv = MLv[0,:]
     eazyMass = (MLv * nuLnu)
     
     return nuLnu, MLv, np.log10(eazyMass)
+    
+def compute_eazy_lineflux(root='photz', PATH='OUTPUT', rf_file='153-155', V_filter='155', ABZP=25):
+    """
+    Estimate emission line fluxes from hard-coded line / rest V flux 
+    ratios
+    """
+    from threedhst import eazyPy as eazy
+    
+    tempfilt, coeffs, temp_sed, pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE=root, OUTPUT_DIRECTORY=PATH, CACHE_FILE='Same')
+    
+    rf = catIO.Readfile('%s/%s.%s.rf' %(PATH, root, rf_file))
+    mv = ABZP - 2.5*np.log10(rf['l%s' %(V_filter)])
+    fnu_V = 10**(-0.4*(mv+48.6)) # erg / s / cm2 / Hz
+    flam_V = fnu_V * 3.e18 / 5479.35**2 # erg / s / cm2 / A
+    
+    ### EAZY v1.1 templates.  
+    ### Integrated line flux divided by rest-frame V (#155) flux
+    corr = {'Ha':np.array([17.3, 122.1,108.8,2.444,0.8685,346.2]),
+            'O3':np.array([2.474, 31.74,  20.9, 0.6329, 0.2167, 62.05]), 
+            'O2':np.array([2.386,  60.86,  26.98, 1.419, 0.4854, 70.04])}
+    
+    line_flux = {}
+    
+    for key in corr.keys():
+        line_ratio = corr[key]
+        ### fill with zeros for missing templates
+        if len(line_ratio) != tempfilt['NTEMP']:
+            line_ratio = np.append(line_ratio, np.zeros(tempfilt['NTEMP']-len(line_ratio)))
+        #
+        scl = np.mean(coeffs['tnorm'][0:5])
+        line_flux[key] = np.dot(line_ratio.reshape(1,-1), coeffs['coeffs']/scl)/np.sum(coeffs['coeffs'], axis=0)*flam_V
+    
+    return line_flux
+        
+        
+def compute_template_line_fluxes():
+    """
+    Compute two parameters for emission line fluxes in the EAZY templates:
+    
+        1) Contribution of lines to the rest-frame V flux for fitting masses
+        
+        2) Coefficients for predicting [OII], [OIII], Halpha line fluxes
+           from the templates:  line_i / f_V  (scale to flam with APZP)
+    """
+    
+    import threedhst.eazyPy as eazy
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import research.v4 as cat2
+    
+    #os.chdir("/Users/brammer/3DHST/Spectra/Release/v4.0/Eazy/EazyRerun")
+    
+    res = eazy.FilterFile('FILTER.RES.latest')
+    
+    files = glob.glob('templates/EAZY_v1.0_lines/e*nolines.dat')
+    no_lines = []
+    for file in files:
+        no_lines.append(eazy.Template(file))
+    #
+    files = glob.glob('templates/EAZY_v1.0_lines/e*sed?.dat')
+    files = glob.glob('templates/EAZY_v1.1_lines/e*sed?.dat')
+
+    with_lines = []
+    for file in files:
+        with_lines.append(eazy.Template(file))
+    
+    # files = glob.glob('templates/EAZY_v1.1_lines/e*sed?.dat')
+    # v11_lines = []
+    # for file in files:
+    #     v11_lines.append(eazy.Template(file))
+    # for i in range(6):
+    #     with_V = with_lines[i].integrate_filter(res.filters[161-1])
+    #     plt.plot(with_lines[i].wavelength, with_lines[i].flux/with_V)
+    #     plt.plot(v11_lines[i].wavelength, v11_lines[i].flux/with_V)
+        
+    print '# file UmV  lineV  HaV O3V O2V'
+    for i in range(6):
+        no_V = no_lines[i].integrate_filter(res.filters[155-1])
+        with_V = with_lines[i].integrate_filter(res.filters[155-1])
+        with_U = with_lines[i].integrate_filter(res.filters[153-1])
+        #
+        #print '%s %.3f  %.3f' %(files[i], -2.5*np.log10(with_U/with_V), no_V / with_V)
+        ### Integrate H-alpha flux
+        line_only = with_lines[i].flux - np.interp(with_lines[i].wavelength, no_lines[i].wavelength, no_lines[i].flux)
+        limits = {'Ha':[6530,6590], 'O3':[4900, 5040], 'O2':[3690, 3760]}
+        line_flux_ratio = {}
+        for key in limits.keys():
+            wrange = (with_lines[i].wavelength >= limits[key][0]) & (with_lines[i].wavelength < limits[key][1])
+            line_flux = np.trapz(line_only[wrange], with_lines[i].wavelength[wrange])
+            line_flux_ratio[key] =  line_flux / with_V
+        #
+        print '%s %.4f  %.3f  %.3e %.3e %.3e' %(files[i], -2.5*np.log10(with_U/with_V), no_V / with_V, line_flux_ratio['Ha'], line_flux_ratio['O3'], line_flux_ratio['O2'])
 
 def init_nmf(obj, iz, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', verbose=True):
     import threedhst.eazyPy as eazy
