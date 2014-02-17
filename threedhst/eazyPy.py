@@ -8,6 +8,7 @@ eazyPy: routines for reading and plotting Eazy output
     plotExampleSED
     nMAD
     zPhot_zSpec
+    
 """
 
 import os
@@ -627,11 +628,19 @@ class Template():
     def integrate_filter(self, filter, z=0):
         """
         Integrate the template through a `FilterDefinition` filter object.
-        """
-        import unicorn
-        temp_filter = unicorn.utils_c.interp_conserve_c(filter.wavelength, 
-                       self.wavelength*(1+z), self.flux_fnu)
         
+        "unicorn" is part of a yet non-public module.  np.interp can 
+        stand in for the meantime.
+        """
+        try:
+            import unicorn
+            temp_filter = unicorn.utils_c.interp_conserve_c(filter.wavelength, 
+                                     self.wavelength*(1+z), self.flux_fnu)
+        
+        except ImportError:
+            temp_filter = np.interp(filter.wavelength, self.wavelength*(1+z),
+                                    self.flux_fnu)
+            
         temp_int = np.trapz(filter.transmission*temp_filter, 1./filter.wavelength) / np.trapz(filter.transmission, 1./filter.wavelength)
         return temp_int
         
@@ -776,7 +785,8 @@ try:
     from numba import double, jit
     faster_interpolate_tempfilt = jit(double[:,:](double[:,:,:], double[:], double, double[:,:]))(interpolate_tempfilt_loop)
 except:
-    pass
+    faster_interpolate_tempfilt = interpolate_tempfilt_loop
+    #pass
     
 def convert_chi_to_pdf(tempfilt, pz):
     """
@@ -819,7 +829,7 @@ PlotSEDExample(idx=20)
     lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
         getEazySED(qz[idx], MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, \
                           OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, \
-                          CACHE_FILE = CACHE_FILE, individual_templates=individual_templates)
+                          CACHE_FILE = CACHE_FILE, individual_templates=individual_templates, scale_flambda=True)
     
     zgrid, pz = getEazyPz(qz[idx], MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, \
                                    OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, \
@@ -847,8 +857,10 @@ PlotSEDExample(idx=20)
     #### Full best-fit template
     if axes is None:
         ax = fig.add_subplot(121)
+        axp = fig.add_subplot(122)
     else:
         ax = axes[0]
+        axp = axes[1]
         
     if individual_templates:
         ax.plot(lambdaz, temp_sed, linewidth=1.0, color='blue',alpha=0.4)
@@ -867,6 +879,9 @@ PlotSEDExample(idx=20)
     ax.errorbar(lci,fobs,yerr=efobs,ecolor='black',
                color='black',fmt='o',alpha=alph, markeredgecolor='black', markerfacecolor='None', markeredgewidth=1.5, ms=8, zorder=1)
     
+    for i in range(len(lci)):
+        print '%f %e %e %e' %(lci[i], obs_sed[i], fobs[i], efobs[i])
+        
     #### Set axis range and titles
     ax.semilogx()
     ax.set_xlim(lrange[0],lrange[1])
@@ -875,12 +890,7 @@ PlotSEDExample(idx=20)
     ax.set_ylabel(r'$f_\lambda$')
     
     ##### P(z)
-    if pz is not None:
-        if axes is None:
-            axp = fig.add_subplot(122)
-        else:
-            axp = axes[1]
-            
+    if pz is not None:            
         axp.plot(zgrid, pz, linewidth=1.0, color='orange',alpha=alph)
         axp.fill_between(zgrid,pz,np.zeros(zgrid.size),color='yellow')
 
@@ -1073,36 +1083,40 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     
     keep = np.isfinite(signoise[0,:])
     for i in np.argsort(lc):
-        keep &= tempfilt['efnu'][i,:] > 0
-        if signoise[i,:].max() > 3:
-            keep & (signoise[i,:] > 3)
+        keep &= (tempfilt['efnu'][i,:] > 0) #& (tempfilt['fnu'][i,:] > 0)
+        # if signoise[i,:].max() > 3:
+        #     keep & (signoise[i,:] > 3)
         #keep &= (signoise[i,:] > 3) #| (signoise[i,:] < 0.0001)#& (np.abs(resid[i,:]-1)/tempfilt['efnu'][i,:] < 5)
+    
+    nfilt = ((tempfilt['efnu'] > 0) & ((tempfilt['fnu']/zpfactors) > -90)).sum(axis=0)
+    keep = nfilt > (nfilt.max()-5)
     
     for i in np.argsort(lc):
         #keep = signoise[i,:] > 3
+        ok = keep & (resid[i,:] > 0) & (tempfilt['fnu'][i,:] > 0) #& (signoise[i,:] > 3)
         if np.std(zi[keep]) == 0:
             rnd = np.random.normal(size=keep.sum())*0.01*lc[i]
         else:
             rnd = 0.
         #
-        sc = ax.plot(lc[i]/(1+zi[keep])+rnd, resid[i,keep], marker='.', alpha=0.05, linestyle='None', color=colors[i])
+        sc = ax.plot(lc[i]/(1+zi[ok])+rnd, resid[i,ok], marker='.', alpha=0.05, linestyle='None', color=colors[i])
         #xm, ym, ys, nn = threedhst.utils.runmed(lc[i]/(1+zi[keep]), resid[i,keep], NBIN=int(len(keep)/1000.))
-        xm, ym, ys, nn = threedhst.utils.runmed(lc[i]/(1+zi[keep]), resid[i,keep], NBIN=np.maximum(int(keep.sum()/1000.), 8))
+        xm, ym, ys, nn = threedhst.utils.runmed(lc[i]/(1+zi[ok]), resid[i,ok], NBIN=np.maximum(int(ok.sum()/1000.), 8))
         xx.append(xm)
         yy.append(ym)
         ss.append(ys)
-        val = np.sum(resid[i,keep]*signoise[i,keep]**2)/np.sum(signoise[i,keep]**2)
-        stats[i] = {'mean':np.mean(resid[i,keep]),
-                      'median':np.median(resid[i,keep]),
-                      'std':np.std(resid[i,keep]),
-                      'stdmean':np.std(resid[i,keep])/np.sqrt(keep.sum()),
-                      'p':np.percentile(resid[i,keep], [2.5,16,50,84,97.5]),
-                      'pstd':(np.percentile(resid[i,keep], 84)-np.percentile(resid[i,keep], 16))/2/np.sqrt(keep.sum()),
+        val = np.sum(resid[i,ok]*signoise[i,ok]**2)/np.sum(signoise[i,ok]**2)
+        stats[i] = {'mean':np.mean(resid[i,ok]),
+                      'median':np.median(resid[i,ok]),
+                      'std':np.std(resid[i,ok]),
+                      'stdmean':np.std(resid[i,ok])/np.sqrt(ok.sum()),
+                      'p':np.percentile(resid[i,ok], [2.5,16,50,84,97.5]),
+                      'pstd':(np.percentile(resid[i,ok], 84)-np.percentile(resid[i,ok], 16))/2/np.sqrt(ok.sum()),
                       'val':val}
         #
         # offsets[i] = stats[i]['median']
         # #
-        # print '%s %.3f %.3f %.3f %.3f %d %.3f' %(param.filters[i].name, stats[i]['median'], stats[i]['pstd'], stats[i]['p'][1], stats[i]['p'][-2], keep.sum(), val)
+        # print '%s %.3f %.3f %.3f %.3f %d %.3f' %(param.filters[i].name, stats[i]['median'], stats[i]['pstd'], stats[i]['p'][1], stats[i]['p'][-2], ok.sum(), val)
         
     for ci, i in enumerate(np.argsort(lc)):
         ax.plot(xx[ci], yy[ci], alpha=0.2, color='black', linewidth=4)
@@ -1112,14 +1126,13 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     lcfull = []
     residfull = []
     for i in np.argsort(lc):
-        #keep = signoise[i,:] > 3
-        #keep = signoise[i,:] > 0
+        ok = keep & (resid[i,:] > 0) & (tempfilt['fnu'][i,:] > 0) & (signoise[i,:] > 3)
         lcfull.extend(lc[i]/(1+zi[keep]))
         residfull.extend(resid[i,keep]/stats[i]['median'])
         
     xmfull, ymfull, ysfull, nnfull = threedhst.utils.runmed(np.array(lcfull), np.array(residfull), NBIN=np.maximum(int(len(residfull)/2000.), 10))
-    #ymfull[xmfull > 3.e4] = 1.
-    #ymfull[xmfull < 1200] = 1.
+    ymfull[xmfull > 3.e4] = 1.
+    ymfull[xmfull < 1200] = 1.
     
     ax.plot(xmfull, ymfull, color='black', alpha=0.75, linewidth=2)
     
@@ -1146,7 +1159,7 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     for i in np.argsort(lc):
         lcz = lc[i]/(1+zi)
         yint = np.interp(lcz, xmfull, ymfull, left=-99, right=-99)
-        ok = keep & (yint > 0)
+        ok = keep & (yint > 0) & (resid[i,:] > 0) & (tempfilt['fnu'][i,:] > 0) #& (signoise[i,:] > 3)
         rfix = resid[i,:]/yint
         val = np.sum(rfix[ok]*signoise[i,ok]**2)/np.sum(signoise[i,ok]**2)
         stats[i] = {'mean':np.mean(rfix[ok]),
@@ -1159,7 +1172,7 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         #
         offsets[i] = stats[i]['median']
         #
-        print '%s %.3f %.3f %.3f %.3f %d %.3f' %(param.filters[i].name, stats[i]['median'], stats[i]['pstd'], stats[i]['p'][1], stats[i]['p'][-2], keep.sum(), val)
+        print '%s %d %.3f %.3f %.3f %.3f %d %.3f' %(param.filters[i].name, ok.sum(), stats[i]['median'], stats[i]['pstd'], stats[i]['p'][1], stats[i]['p'][-2], keep.sum(), val)
         
     if not os.path.exists(adjust_zeropoints):
         fp = open(adjust_zeropoints,'w')
@@ -1264,6 +1277,202 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         plt.close()
     
     return fnumbers, lc, offsets
+
+def loop_zeropoints(root='cosmos', tfile='zphot.translate.cosmos',  zfile='zphot.zeropoint.cosmos', fix_filter={}, ref_filter=None, init_filter={}, ignore_initial=[], ignore_all=[], toler=0.005, PATH='./OUTPUT/', fix_zspec=False, check_uvj=False, use_tweaked_templates=True, MAXITER=15):
+    """
+    Wrapper around `show_fit_residuals` to allow iterative fitting
+    of the zeropoint offsets.
+    
+    There is a bit of a black art in deciding which filters to ignore for the
+    first iteration, which should typically be those with the most discrepant
+    zeropoint offsets. By "ignoring" bands with `ignore_initial`, the function
+    sets a very large error for those bands by adding a very large scaling to
+    the error column in the translate file. That way a residual will still be
+    measured but the band won't influence the initial photo-z fit.
+    
+     `ref_filter` is A reference filter used to normalize the offets so that
+    the iteration doesn't go off and change the overall normalization too
+    much. This is typically the detection band used for the catalog, say Ks or
+    WFC3/F160W.
+    
+     The `init_filter` parameter contains offsets applied at the first step,
+    which otherwise defaults to unity (1) for all bands.
+    
+     `fix_filter` is a dictionary containing fixed offsets used at all
+    iterations.
+    
+     If `use_tweaked_templates` is set, after the second iteration the
+    "tweaked" template set will be used, which contains the
+    wavelength-dependent multiplicative term to all of the templates.
+    
+     If `fix_zspec` is used, the EAZY FIX_ZSPEC parameter will be set. Note
+    that this requires only objects with z_spec > 0 in the catalog, a "bug"
+    that may fix in the future.
+    
+     `toler` is the tolerance used to evaluate convergence of the iterations.
+    The default value of 0.005 means that the iterations will continue while
+    the offsets in any band change by more than 0.5% from one iteration to
+    another. Note that the offsets at wavelengths < 4500 A and > 2.5 microns
+    are not considered in the tolerance calculation, as those "wagging tail"
+    bands at the wavelength extremes are typically less well constrained.
+    
+    Example: 
+    ========
+    
+    #### Initial guess to get the very discrepant bands close
+    init_filter = {88:1.18, 81: 0.85, 82:1.2, 79:0.8, 190: 0.8, 192:0.7}
+    
+    #### Run once to generate the necessary files in OUTPUT/
+    os.system('eazy -p zphot.param.cosmos -t zphot.translate.cosmos')
+
+    #### Run the iteration
+    threedhst.eazyPy.loop_zeropoints(root='cosmos', tfile='zphot.translate.cosmos',  zfile='zphot.zeropoint.cosmos', ref_filter=205, fix_filter={205:1}, ignore_initial=['f_Zp', 'f_Ip', 'f_Rp'], toler=0.005, init_filter=init_filter) 
+    
+    """
+    import threedhst
+    import threedhst.eazyPy as eazy
+    import os
+    
+    try:
+        import unicorn.zp
+    except ImportError:
+        if check_uvj:
+            print "`unicorn` module not found.  Can't do check_uvj."
+            check_uvj = False
+        
+    if not PATH.endswith('/'):
+        PATH += '/'
+    
+    ##### Read the param file
+    param = eazy.EazyParam('%s.param' %(os.path.join(PATH, root)))
+    tf = eazy.TranslateFile(tfile)
+    
+    ##### Make an empty zeropoint file
+    fp = open(zfile,'w')
+    for filter in param.filters:
+        if filter.fnumber in fix_filter.keys():
+            fp.write('F%d  %s\n' %(filter.fnumber, fix_filter[filter.fnumber]))
+        else:
+            if filter.fnumber in init_filter.keys():
+                fp.write('F%d  %s\n' %(filter.fnumber, init_filter[filter.fnumber]))
+            else:
+                fp.write('F%d  1.0\n' %(filter.fnumber))
+    #
+    fp.close()
+    
+    clean_files = [os.path.join(PATH, root)+'.zeropoint', 'tweak/tweak.dat']
+    for file in clean_files:
+        if os.path.exists(file):
+            os.remove(file)
+    #
+    NT = len(param.templates)
+    fp = open('tweak/spectra.param','w')
+    for i in range(NT):
+        wt, ft = np.loadtxt(param.templates[i], unpack=True)
+        np.savetxt('tweak/%s' %(os.path.basename(param.templates[i])), np.array([wt, ft]).T, fmt='%.5e')
+        fp.write('%d tweak/%s 1.0 0 1.0\n' %(i+1, os.path.basename(param.templates[i])))
+    
+    fp.close()
+    
+    param.params['GET_ZP_OFFSETS'] = True
+    param.params['FIX_ZSPEC'] = fix_zspec
+    
+    param.write('zphot.param.iter')
+    
+    #### Scale huge errors for first step
+    for filter in ignore_initial:
+        tf.change_error(filter, 1.e6)
+    
+    tf.write('zphot.translate.iter')
+    
+    os.system('eazy -p zphot.param.iter -t zphot.translate.iter -z %s' %(zfile))
+    
+    fnumbers, lc_i, delta_i = eazy.show_fit_residuals(root=root, fix_filter=fix_filter, ref_filter=ref_filter, adjust_zeropoints=zfile, savefig='%s_iter_%03d.png' %(root, 0))
+    
+    #### Extract UVJ
+    if check_uvj:
+        for color in ['153,155', '155,161']:
+            param.params['REST_FILTERS'] = color
+            param.params['READ_ZBIN'] = 'y'
+            param.write('zphot.param.iter')
+            os.system('eazy -p zphot.param.iter -t zphot.translate.iter -z %s' %(zfile))
+        #
+        param.params['READ_ZBIN'] = 'n'
+        param.write('zphot.param.iter')
+        unicorn.zp.diagnostic_UVJ(root=root, ext='UVJ_%04d' %(0))
+        
+    fp = open('%s_iter.log' %(root),'w')
+    fp.write('\n\nIter #%d\n======\n' %(0))
+    eazy.log_offsets(fp, fnumbers, lc_i, delta_i, toler)
+    
+    ### Now loop
+    for filter in ignore_initial:
+        tf.change_error(filter, 1.)
+    #
+    for filter in ignore_all:
+        tf.change_error(filter, 1.e6)
+    
+    tf.write('zphot.translate.iter')
+    
+    param.params['GET_ZP_OFFSETS'] = True
+    param.write('zphot.param.iter')
+    
+    for i in range(MAXITER):
+        #### Use tweaked templates after two iterations
+        if i == 0:
+            try:
+                os.remove('tweak/tweak.dat')
+            except:
+                pass
+            #
+        
+        if (i == 1) & (use_tweaked_templates):
+            param.params['TEMPLATES_FILE'] = 'tweak/spectra.param'
+            param.write('zphot.param.iter')
+        
+        os.system('eazy -p zphot.param.iter -t zphot.translate.iter -z %s' %(zfile))
+        fnumbers, lc_i, delta_i = eazy.show_fit_residuals(root=root, fix_filter=fix_filter, ref_filter=ref_filter, adjust_zeropoints=zfile, savefig='%s_iter_%03d.png' %(root, i+1))
+        fp.write('\n\nIter #%d\n======\n' %(i))
+        eazy.log_offsets(fp, fnumbers, lc_i, delta_i, toler)
+        
+        #
+        # #### Extract UVJ
+        # if check_uvj:
+        #     for color in ['153,155', '155,161']:
+        #         param.params['REST_FILTERS'] = color
+        #         param.params['READ_ZBIN'] = 'y'
+        #         param.write('zphot.param.iter')
+        #         os.system('eazy -p zphot.param.iter -t zphot.translate.iter -z %s' %(zfile))
+        #     #
+        #     param.params['READ_ZBIN'] = 'n'
+        #     param.write('zphot.param.iter')
+        #     unicorn.zp.diagnostic_UVJ(root=root, ext='UVJ_%04d' %(i+1))
+        
+        fixed_bands = lc_i < 0
+        for fi in fix_filter.keys():
+            fixed_bands = fixed_bands | (fnumbers == fi)
+        
+        use_bands = (lc_i > 4500) & (lc_i < 2.5e4) & ~fixed_bands
+        
+        if (np.abs(delta_i[use_bands]-1).max() < toler) & (i >= 1):
+            break
+    
+    fp.close()
+    
+    pass
+
+#
+def log_offsets(fp, fnumbers, lc_i, delta_i, toler):
+    so = np.argsort(lc_i)
+    for j in so:
+        if np.abs(delta_i[j]-1) > toler:
+            log = '* F%d  %.4f' %(fnumbers[j], delta_i[j])
+        else:
+            log = '  F%d  %.4f' %(fnumbers[j], delta_i[j])
+        #
+        print log
+        fp.write(log+'\n')
+
 
 def compute_eazy_mass(root='photz', PATH='OUTPUT', rf_file='153-155', V_filter='155', ABZP=25, MLv_templates = [4.301, 0.059, 0.292, 0.918, 2.787, 0.940, 4.302], line_correction_V=[ 0.997,  0.976,  0.983,  0.999,  0.999,  0.951]):
     """
@@ -1386,12 +1595,18 @@ def compute_template_line_fluxes():
     #     with_V = with_lines[i].integrate_filter(res.filters[161-1])
     #     plt.plot(with_lines[i].wavelength, with_lines[i].flux/with_V)
     #     plt.plot(v11_lines[i].wavelength, v11_lines[i].flux/with_V)
-        
+    
+    x = eazy.readRFBinary(file='OUTPUT/aegis.dusty3.155.coeff')
+    tempfilt, coeffs, temp_sed, pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE='aegis.dusty3', OUTPUT_DIRECTORY='OUTPUT', CACHE_FILE='Same')
+    
+    xx = []
     print '# file UmV  lineV  HaV O3V O2V'
     for i in range(6):
         no_V = no_lines[i].integrate_filter(res.filters[155-1])
         with_V = with_lines[i].integrate_filter(res.filters[155-1])
         with_U = with_lines[i].integrate_filter(res.filters[153-1])
+        print '%s %.3f' %(files[i], with_V)
+        xx = np.append(xx, with_V)
         #
         #print '%s %.3f  %.3f' %(files[i], -2.5*np.log10(with_U/with_V), no_V / with_V)
         ### Integrate H-alpha flux
