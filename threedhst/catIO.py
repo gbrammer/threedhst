@@ -354,9 +354,9 @@ class Readfile():
         """
         return self.__getitem__(key)
         
-    def addColumn(self, name, value):
+    def add_column(self, name, value):
         """ 
-        addColumn(self, name, value)
+        add_column(self, name, value)
         """
         str = 'self.%s = value' %name
         self.columns.append(name)
