@@ -1064,6 +1064,12 @@ class SWarp(object):
         
         im = pyfits.open(matchImage)
         head = im[extension].header
+        
+        #### pywcs incompatible with astrodrizzle lookup table distortion?
+        if 'CPDIS1' in head.keys():
+            head['CPDIS1'] = 'SIP'
+            head['CPDIS2'] = 'SIP'
+            
         wcs = pywcs.WCS(head)
         # coord = wcs.all_pix2sky([[head['NAXIS1']/2.,head['NAXIS1']/2.]],0)
         coord = wcs.all_pix2sky([[head['CRPIX1'], head['CRPIX2']]],1)

@@ -556,7 +556,21 @@ def get_segmap():
             threedhst.prep_flt_files.make_segmap(run.flt[i])
         
         cleanup()
-        
+
+def make_G102_sky():
+    os.chdir(os.path.join(os.getenv('THREEDHST'), 'CONF'))
+    
+    axe_sky = pyfits.open('WFC3.IR.G102.sky.V1.0.fits')
+    IREF = os.getenv('iref')
+    
+    f105w_flat = pyfits.open(os.path.join(IREF, 'uc72113oi_pfl.fits'))
+    g102_flat = pyfits.open(os.path.join(IREF, 'u4m1335li_pfl.fits'))
+    
+    new_sky = axe_sky[0].data/f105w_flat[1].data[5:-5,5:-5]*g102_flat[1].data[5:-5,5:-5]
+    
+    old = pyfits.open('G102_master_flatcorr.fits')
+    pyfits.writeto('G102_master_flatcorr.v2.fits', data=new_sky, header=old[0].header, clobber=True)
+    
 def cleanup():
     import glob
     import os
