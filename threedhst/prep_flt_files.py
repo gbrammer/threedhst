@@ -1394,10 +1394,24 @@ def make_targname_asn(asn_file, newfile=True, use_filtname=True, path_to_flt='..
         type=filter
         
     target = im[0].header['TARGNAME']
-    target = target.replace('SOUTH','S')
-    target = target.replace('GNGRISM','GOODS-N-')
+    #target = target.replace('SOUTH','S')
+    #target = target.replace('GNGRISM','GOODS-N-')
     target = target.replace('GEORGE','GEORGE-')
     target = target.replace('ANY',field)
+    
+    #### 3D-HST translations
+    translate = {'AEGIS-':'aegis-', 'COSMOS-':'cosmos-', 'GNGRISM':'goodsn-', 'GOODS-SOUTH-':'goodss-', 'UDS-':'uds-'}
+    for key in translate.keys():
+        target = target.replace(key, translate[key])
+    
+    ## pad i < 10 with zero
+    for key in translate.keys():
+        if translate[key] in target:
+            spl = target.split('-')
+            if int(spl[-1]) < 10:
+                spl[-1] = '%02d' %(int(spl[-1]))
+                target = '-'.join(spl)
+                
     
     if target == 'MARSHALL':
         #### Add the pointing number, 1-6
