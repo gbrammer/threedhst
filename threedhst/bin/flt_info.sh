@@ -7,7 +7,8 @@ if [ "$1" == "acs" ]; then
 fi
 
 echo "# FILE  TARGNAME  DATE-OBS        TIME-OBS   ${filter}  EXPTIME         PA_V3 RA_TARG DEC_TARG POSTARG1 POSTARG2" > files.info
-files=`ls ../RAW/*flt.fits* |grep -v "\.reg"`
+files=`ls ../RAW/*fl[tc].fits* |grep -v "\.reg"`
+
 for file in $files; do 
 	echo $file;
 	gz=`echo $file | grep "\.gz"`

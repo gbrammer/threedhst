@@ -605,7 +605,8 @@ def prep_flt(asn_file=None, get_shift=True, bg_only=False, bg_skip=False,
                 initial_order=-1, save_fit=False,
                 TWEAKSHIFTS_ONLY=False,
                 oned_background=True, make_persistence_mask=False,
-                redo_segmentation=True):
+                redo_segmentation=True, 
+                clean_drz=False):
     """
 prep_flt(asn_file=None, get_shift=True, bg_only=False,
             redo_background=True)
@@ -742,6 +743,23 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
     
     if redo_background:
         copy_new = True
+        #### Clean DRZ image 
+        #asn_file='J000208-152314-F160W_asn.fits'
+        if clean_drz:
+            print 'Clean_DRZ: clean bad pixels from DRZ mosaic'
+            try:
+                import scipy.ndimage as nd
+                drz = pyfits.open(asn_file.replace('asn','drz'), mode='update')
+                med = nd.median_filter(drz[1].data+0.1, size=4)
+                ratio = (drz[1].data+0.1)/med
+                bad = ratio > 5
+                drz[1].data[bad] = 0.
+                drz[2].data[bad] = 0
+                drz.flush()
+            except:
+                print 'Clean_DRZ failed.'
+                pass
+        
         for i,exp in enumerate(asn.exposures):
             if (not os.path.exists(run.flt[i]+'.seg.fits')) | redo_segmentation:
                 run.blot_back(ii=i*skip, copy_new=copy_new)
@@ -1366,14 +1384,14 @@ def make_grism_subsets(root='GOODS-S', run_multidrizzle=True, single=None):
                  updatewcs=False, clean=True, median=False,
                  refimage=direct_ref)
                  
-def make_targname_asn(asn_file, newfile=True, use_filtname=True, path_to_flt='../RAW/',field='ANY'):
+def make_targname_asn(asn_file, newfile=True, use_filtname=True, path_to_flt='../RAW/',field='ANY', ext='flt'):
     """
     Take an ASN file like 'ibhm51030_asn.fits' and turn it into 
     'COSMOS-3-F140W_asn.fits'
     """
     asn = threedhst.utils.ASNFile(asn_file)
     
-    flt_file = threedhst.utils.find_fits_gz(path_to_flt+'/'+asn.exposures[0]+'_flt.fits')
+    flt_file = threedhst.utils.find_fits_gz(path_to_flt+'/'+asn.exposures[0]+'_%s.fits' %(ext))
     im = pyfits.open(flt_file)
     
     instrum = im[0].header['INSTRUME']
@@ -1468,7 +1486,8 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                        GRISM_HIGHER_ORDER=1,
                        save_fit=False, 
                        second_pass=True, overall=True,
-                       sky_images=['sky.G141.set001.fits', 'sky.G141.set002.fits','sky.G141.set003.fits','sky.G141.set004.fits','sky.G141.set005.fits','sky.G141.set025.fits','sky.G141.set120.fits']):
+                       sky_images=['sky.G141.set001.fits', 'sky.G141.set002.fits','sky.G141.set003.fits','sky.G141.set004.fits','sky.G141.set005.fits','sky.G141.set025.fits','sky.G141.set120.fits'],
+                       final_scale=0.06, clean_drz=False):
         
     #### Old sky_images=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits']
     import threedhst
@@ -1498,19 +1517,19 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
                         bg_only=False, bg_skip=False, redo_background=True,
                         ALIGN_IMAGE=ALIGN_IMAGE, 
                         ALIGN_EXT=ALIGN_EXTENSION,
-                        skip_drz=False, final_scale=0.06, pixfrac=0.8,
+                        skip_drz=False, final_scale=final_scale, pixfrac=0.8,
                         IMAGES=[],
                         align_geometry=align_geometry, clean=True,
                         initial_order=0, save_fit=save_fit,
-                        TWEAKSHIFTS_ONLY=TWEAKSHIFTS_ONLY, make_persistence_mask=True)
+                        TWEAKSHIFTS_ONLY=TWEAKSHIFTS_ONLY, make_persistence_mask=True, clean_drz=clean_drz)
         
         if DIRECT_HIGHER_ORDER > 0:
             threedhst.prep_flt_files.prep_flt(asn_file=asn_direct_file,
                         get_shift=False, first_run=False,
                         bg_only=False, bg_skip=False, redo_background=False,
-                        skip_drz=False, final_scale=0.06, pixfrac=0.8,
+                        skip_drz=False, final_scale=final_scale, pixfrac=0.8,
                         IMAGES=[], clean=True,
-                        initial_order=DIRECT_HIGHER_ORDER, save_fit=save_fit)
+                        initial_order=DIRECT_HIGHER_ORDER, save_fit=save_fit, clean_drz=clean_drz)
         
     #### Grism images
     if not SKIP_GRISM:
@@ -1556,9 +1575,9 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
             threedhst.prep_flt_files.prep_flt(asn_file=asn_grism_file,
                             get_shift=False, 
                             bg_only=False, bg_skip=False, redo_background=True,
-                            skip_drz=False, final_scale=0.06, pixfrac=0.8,
+                            skip_drz=False, final_scale=final_scale, pixfrac=0.8,
                             IMAGES=IMAGES, clean=True,
-                            initial_order=-1, save_fit=save_fit)
+                            initial_order=-1, save_fit=save_fit, clean_drz=clean_drz)
         
         #### Now that we have the segmentation masks for the grism, do the
         #### division by the flat + subtracting the sky image

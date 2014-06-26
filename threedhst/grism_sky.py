@@ -61,9 +61,9 @@ def set_grism_flat(grism='G141', verbose=True):
         print 'Set flat for grism: %s' %(grism)
     
     if grism == 'G141':
-        #flat_f140 = pyfits.open(IREF+'/uc721143i_pfl.fits')
+        flat_f140 = pyfits.open(IREF+'/uc721143i_pfl.fits')
         #flat_f140 = pyfits.open(IREF+'cosmos_f140w_flat.fits')
-        flat_f140 = pyfits.open(IREF+'/flat_3DHST_F140W_t1_v0.1.fits')
+        #flat_f140 = pyfits.open(IREF+'/flat_3DHST_F140W_t1_v0.1.fits')
         flat_g141 = pyfits.open(IREF+'/u4m1335mi_pfl.fits')
         flat = flat_g141[1].data[5:1019,5:1019] / flat_f140[1].data[5:1019, 5:1019]
         flat[flat <= 0] = 5
@@ -84,7 +84,7 @@ def set_grism_flat(grism='G141', verbose=True):
         
     return True
         
-def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits'],  path_to_sky = '../CONF/', out_path='./', verbose=False, plot=False, flat_correct=True, sky_subtract=True, second_pass=True, overall=True):
+def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits'],  path_to_sky = '../CONF/', out_path='./', verbose=False, plot=False, flat_correct=True, sky_subtract=True, second_pass=True, overall=True, combine_skies=False, sky_components=True):
     """ 
     Process a (G141) grism exposure by dividing by the F140W imaging flat-field
     and then subtracting by a master sky image.  
@@ -92,6 +92,8 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
     v1.6: list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits']
     
     testing: list=['sky.G141.set001.fits','sky.G141.set002.fits','sky.G141.set003.fits','sky.G141.set004.fits','sky.G141.set005.fits','sky.G141.set025.fits','sky.G141.set120.fits']
+    
+    list=['zodi_G102_clean.fits', 'excess_G102_clean.fits']
     """
     
     import threedhst.grism_sky as bg
@@ -99,7 +101,7 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
     
     # flt = '../../GOODS-N/RAW/ib3708ilq_flt.fits.gz'
     im = pyfits.open(flt)
-    bg.set_grism_flat(grism=im[0].header['FILTER'])
+    bg.set_grism_flat(grism=im[0].header['FILTER'], verbose=True)
     
     segfile = os.path.basename(flt.replace('.fits','.seg.fits')).replace('.gz','')
     if os.path.exists(segfile):
@@ -171,6 +173,32 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
     ### Instead, subtract the sky flat
     sky_stats = threedhst.utils.biweight((im[1].data*flat/sk[0].data)[mask], both=True)
     corr = im[1].data*flat-sky_stats[0]*sk[0].data
+    
+    #### Get least-sq coeffs of multiple sky components
+    if sky_components:
+        from scipy.linalg import lstsq
+        import scipy.ndimage as nd
+        
+        #grow_mask = nd.maximum_filter((~mask)*1., size=3) == 0
+        
+        ims = []
+        #skies = ['zodi_G141_clean.fits', 'excess_lo_G141_clean.fits', 'G141_scattered_light.fits']
+        skies = list
+        
+        for sky in skies:
+            ims.append(pyfits.open(path_to_sky + sky)[0].data.flatten())
+        
+        ims = np.array(ims)
+        data = (im[1].data*bg.flat)[mask].flatten()
+        xcoeff, resid, rank, ss = lstsq(ims[:, mask.flatten()].T, data)
+        model = np.dot(xcoeff, ims).reshape((1014,1014))
+        corr = im[1].data*flat-model
+        
+        print 'Simultaneous sky components:'
+        for i in range(len(skies)):
+            print '   %s %.3f' %(skies[i], xcoeff[i])
+            im[0].header.update('GSKY%02d' %(i+1), xcoeff[i], comment='Grism sky: %s' %(skies[i]))
+            
     # #### Show the result
     # if plot:
     #     ds9.frame(3)

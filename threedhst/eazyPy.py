@@ -89,6 +89,32 @@ class FilterDefinition:
         self.bp = S.ArrayBandpass(wave=self.wavelength, throughput=self.transmission, name='')
         return self.bp.pivot()
         
+    def rectwidth(self):
+        """
+        Synphot filter rectangular width
+        """
+        try:
+            import pysynphot as S
+        except:
+            print 'Failed to import "pysynphot"'
+            return False
+            
+        self.bp = S.ArrayBandpass(wave=self.wavelength, throughput=self.transmission, name='')
+        return self.bp.rectwidth()
+
+    #
+    def ctw95(self):
+        """
+        95% cumulative throughput width
+        http://www.stsci.edu/hst/acs/analysis/bandwidths/#keywords
+        
+        """
+        
+        dl = np.diff(self.wavelength)
+        filt = np.cumsum((self.wavelength*self.transmission)[1:]*dl)
+        ctw95 = np.interp([0.025, 0.975], filt/filt.max(), self.wavelength[1:])
+        return np.diff(ctw95)
+            
         
 class FilterFile:
     def __init__(self, file='FILTER.RES.v8.R300'):
@@ -1015,7 +1041,7 @@ zPhot_zSpec(zoutfile="./OUTPUT/photz.zout', zmax=4)
     
     #fig.savefig('/tmp/test.pdf',dpi=100)
     
-def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, adjust_zeropoints='zphot.zeropoint', fix_filter=None, ref_filter=None):
+def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, adjust_zeropoints='zphot.zeropoint', fix_filter=None, ref_filter=None, get_resid=False):
     """
     Plot the EAZY fit residuals to evaluate zeropoint updates
     """
@@ -1067,6 +1093,9 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     resid = (obs_sed-tempfilt['fnu']) / obs_sed + 1
     signoise = tempfilt['fnu']/np.sqrt(tempfilt['efnu']**2+(0.01*tempfilt['fnu'])**2)
     
+    if get_resid:
+        return obs_sed, tempfilt['fnu'], signoise
+        
     #### Plot colors
     colors = range(tempfilt['NFILT'])
     for ci, i in enumerate(np.argsort(lc)):
@@ -1261,7 +1290,12 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     ytick = ax.set_yticks(np.log10(1+np.array([0,1,2,3,4])))
     
     ### histograms
-    yh, xh = np.histogram(np.log10(1+zout.z_peak), range=[np.log10(1), np.log10(5)], bins=100)
+    if 'z_mc' in zout.columns:
+        zz = zout.z_mc
+    else:
+        zz = zout.z_a
+        
+    yh, xh = np.histogram(np.log10(1+zz), range=[np.log10(1), np.log10(5)], bins=100)
     ax.fill_between(xh[1:], xh[1:]*0., (np.log10((yh+1.)/yh.max())/2.+1)*np.log10(2), color='black', alpha=0.1, zorder=-100)
     yh, xh = np.histogram(np.log10(1+zout.z_spec), range=[np.log10(1), np.log10(5)], bins=100)
     ax.fill_between(xh[1:], xh[1:]*0., (np.log10((yh+1.)/yh.max())/2.+1)*np.log10(2), color='blue', alpha=0.1, zorder=-100)

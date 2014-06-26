@@ -1111,12 +1111,12 @@ def fresh_flt_files(asn_filename, from_path="../RAW", preserve_dq = False):
                 ### Force use latest IDC tab
                 flt[0].header.update('IDCTAB','iref$w3m18525i_idc.fits')
         
-        #### Add crosstalk to the pixel uncertainties
-        var = flt['ERR'].data**2 
-        xtalk = (flt['SCI'].data[::-1,:]/2000.)**2
-        xtalk_mask = (flt['SCI'].data*flt['TIME'].data)[::-1,:] > 2.e4
-        var[xtalk_mask] += xtalk[xtalk_mask]
-        flt['ERR'].data = np.sqrt(var)
+                #### Add crosstalk to the pixel uncertainties
+                var = flt['ERR'].data**2 
+                xtalk = (flt['SCI'].data[::-1,:]/2000.)**2
+                xtalk_mask = (flt['SCI'].data*flt['TIME'].data)[::-1,:] > 2.e4
+                var[xtalk_mask] += xtalk[xtalk_mask]
+                flt['ERR'].data = np.sqrt(var)
 
         #flt[3] = dq
         flt.flush()
@@ -1124,6 +1124,25 @@ def fresh_flt_files(asn_filename, from_path="../RAW", preserve_dq = False):
         #### Apply DQ mask (.mask.reg), if it exists
         threedhst.regions.apply_dq_mask(os.path.basename(fits_file.split('.gz')[0]),
                                         addval=2048)
+
+def mask_IR_blobs(flt='ibsyb6q7q_flt.fits'):
+    blobs = [[293.2,640],
+             [260.5,503.83333],
+             [232.16667,418.83333],
+             [470.5,375.5],
+             [431.83333,287.66667],
+             [408,85.8]]
+    
+    im = pyfits.open(flt, mode='update')
+    yc, xc = np.indices((1014,1014))
+    
+    for blob in blobs:
+        r = np.sqrt((xc-blob[0])**2+(yc-blob[1])**2)
+        mask = (r < 30) & ((im['DQ'].data & 512) > 0)
+        im['DQ'].data[mask] |= 4096
+    #
+    print 'Masked IR blobs: %s.' %(flt)
+    im.flush()
     
 def swarpOtherBands():
     """

@@ -1356,13 +1356,11 @@ make_Javascript(path="../HTML/scripts")
             vertical_layout();
             $("#switchbox").text("||");
             $("#switchbox").css("cursor","s-resize");  
-            map.checkResize();                    
         } else {
             layout = 0;
             horizontal_layout();
             $("#switchbox").text("=");
             $("#switchbox").css("cursor","e-resize");
-            map.checkResize();          
         }
     }
 
@@ -1574,9 +1572,12 @@ make_Javascript(path="../HTML/scripts")
             parseInt(dsplit[1])/60.+
             parseFloat(dsplit[2])/3600.;
 
-            if (parseFloat(dsplit[0]) < 0) {
+            // if (parseFloat(dsplit[0]) < 0) {
+            //     dec *= -1;
+            // }
+            if (dsplit[0][0] == "-") {
                 dec *= -1;
-            }
+            }            
         }
 
         recenter(ra,dec);
