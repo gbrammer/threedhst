@@ -84,7 +84,7 @@ def set_grism_flat(grism='G141', verbose=True):
         
     return True
         
-def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits'],  path_to_sky = '../CONF/', out_path='./', verbose=False, plot=False, flat_correct=True, sky_subtract=True, second_pass=True, overall=True, combine_skies=False, sky_components=True):
+def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits'],  path_to_sky = '../CONF/', out_path='./', verbose=False, plot=False, flat_correct=True, sky_subtract=True, second_pass=True, overall=True, combine_skies=False, sky_components=True, add_constant=True):
     """ 
     Process a (G141) grism exposure by dividing by the F140W imaging flat-field
     and then subtracting by a master sky image.  
@@ -177,23 +177,96 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
     #### Get least-sq coeffs of multiple sky components
     if sky_components:
         from scipy.linalg import lstsq
+        import scipy.optimize
         import scipy.ndimage as nd
+        import copy
         
         #grow_mask = nd.maximum_filter((~mask)*1., size=3) == 0
         
         ims = []
         #skies = ['zodi_G141_clean.fits', 'excess_lo_G141_clean.fits', 'G141_scattered_light.fits']
-        skies = list
+        skies = copy.deepcopy(list)
         
         for sky in skies:
             ims.append(pyfits.open(path_to_sky + sky)[0].data.flatten())
         
+        if add_constant:
+            ims.append(im[1].data.flatten()*0.+1)
+            skies.append('Constant')
+        
         ims = np.array(ims)
-        data = (im[1].data*bg.flat)[mask].flatten()
-        xcoeff, resid, rank, ss = lstsq(ims[:, mask.flatten()].T, data)
+                
+        seg_mask = nd.maximum_filter((seg > 0), size=18) == 0
+                
+        #### First iteration, non-weighted least-sq
+        mask_full = seg_mask & dq_ok & ((im[1].data*bg.flat) < np.percentile((im[1].data*bg.flat)[mask], 98)) & (im[2].data > 0) & ((im[1].data*bg.flat) > np.percentile((im[1].data*bg.flat)[mask], 1))
+        
+        data = (im[1].data*bg.flat)[mask_full].flatten()
+        xcoeff, resid, rank, ss = lstsq(ims[:, mask_full.flatten()].T, data)
+        model = np.dot(xcoeff, ims).reshape((1014,1014))
+        corr = im[1].data*flat-model
+
+        #### Second iteration: improved mask, weighted lstsq
+        mask_full = seg_mask & dq_ok & (corr < np.percentile(corr[mask], 98)) & (im[2].data > 0) & (corr > np.percentile(corr[mask], 1))
+        
+        data = (im[1].data*bg.flat)[mask_full].flatten()
+        wht = 1./(im[2].data)[mask_full].flatten()
+        p0 = np.ones(ims.shape[0])
+        popt = scipy.optimize.leastsq(bg.obj_lstsq, p0, args=(data, ims[:, mask_full.flatten()], wht), full_output=True, ftol=1.49e-8/1000., xtol=1.49e-8/1000.)
+        xcoeff = popt[0]
         model = np.dot(xcoeff, ims).reshape((1014,1014))
         corr = im[1].data*flat-model
         
+        #### Use the new mask
+        mask = mask_full
+        
+        #### 1D column averages
+        if True:            
+            yres = np.zeros(1014)
+            yfull = np.zeros(1014)
+            ydat = np.zeros(1014)
+            fcorr = (im[1].data*flat)
+            xfull = yfull*0.
+            for i in range(1014):
+                ymsk = mask_full[:,i] > 0
+                ydat[i] = np.median(fcorr[ymsk,i])
+                yfull[i] = np.median(model[ymsk,i])
+                yres[i] = np.median(corr[ymsk,i])
+                #
+                xmsk = mask_full[i,:] > 0
+                xfull[i] = np.median(model[i,xmsk])
+                
+                #print i
+                
+            yres_sm = threedhst.utils.medfilt(yres, 41)
+            
+            ### Make figure
+            from matplotlib.figure import Figure
+            from matplotlib.backends.backend_agg import FigureCanvasAgg
+            
+            fig = Figure(figsize=[8,4], dpi=100)
+
+            fig.subplots_adjust(wspace=0.25,hspace=0.02,left=0.1,
+                                bottom=0.08,right=0.99,top=0.92)
+
+            ax = fig.add_subplot(121)
+            ax.plot(ydat, color='black')
+            ax.plot(yfull, color='red')
+            ax.plot(xfull, color='green')
+
+            ax.set_xlim(0,1014)
+            ax.set_title(flt)
+            
+            ax = fig.add_subplot(122)
+            ax.plot(yres, color='black')
+            ax.plot(yres_sm, color='red', linewidth=2)
+            ax.set_xlim(0,1014)
+            
+            canvas = FigureCanvasAgg(fig)
+            canvas.print_figure(flt.split('.fits')[0] + '.multisky.png', dpi=100, transparent=False)
+            
+            
+        #### Update header keywords    
         print 'Simultaneous sky components:'
         for i in range(len(skies)):
             print '   %s %.3f' %(skies[i], xcoeff[i])
@@ -213,15 +286,22 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
         
     im = pyfits.open(out_path+os.path.basename(flt).replace('.gz',''), mode='update')
 
-    #### Subtract the residual difference between the observed and master sky
-    resid = np.dot(np.ones((1014,1)), threedhst.utils.medfilt(yin, 41).reshape(1,1014))
     if second_pass:
+        #### Subtract the residual difference between the observed and master sky
+        if sky_components:
+            ### Use column average found earlier
+            resid = np.dot(np.ones((1014,1)), yres_sm.reshape(1,1014))
+        else:
+            resid = np.dot(np.ones((1014,1)), threedhst.utils.medfilt(yin, 41).reshape(1,1014))
+
         im[1].data -= resid
     
     #### Subtract the overall biweight mean
     if overall:
-        im[1].data -= threedhst.utils.biweight(im[1].data[mask], mean=True)
-    
+        full_mean = threedhst.utils.biweight(im[1].data[mask], mean=True)
+        im[1].data -= full_mean
+        print 'overall: %.4f' %(full_mean)
+        
     #### Add a header keyword and write to the output image
     im[0].header.update('GRISMSKY',keep,comment='Image used for sky subtraction')
     im[0].header.update('SKYSCALE',sky_stats[0],comment='Scale factor of sky')
@@ -238,6 +318,12 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
         chk = pyfits.open(threedhst.utils.find_fits_gz(flt.replace('RAW','PREP_FLT').replace('.gz','')))
         ds9.frame(4)
         ds9.v(chk[1].data, vmin=-0.5,vmax=0.5)
+
+def obj_lstsq(x, b, A, wht):
+    """
+    Objective function for least squares
+    """
+    return (b-np.dot(x, A))*wht
     
 def profile(flt='ibhm46ioq_flt.fits', extension=1, flatcorr=True, biweight=False):
     """
