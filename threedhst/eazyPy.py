@@ -582,7 +582,23 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
         
     ###### Done
     return lambdaz, temp_sed, lci, obs_sed, fobs, efobs
+
+def getAllPz(MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same'):
+    """
+    Return a matrix with *all* normalized p(z) for a given catalog
+    """
+    import threedhst.eazyPy as eazy
     
+    tempfilt, coeffs, temp_seds, pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, CACHE_FILE = CACHE_FILE)
+    
+    full_pz = np.zeros((pz['NZ'], pz['NOBJ']))
+    for i in xrange(pz['NOBJ']):
+        #print i
+        zz, pzi = eazy.getEazyPz(i, MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, CACHE_FILE=CACHE_FILE, binaries=(tempfilt, pz))
+        full_pz[:,i] = pzi
+    
+    return zz, full_pz
+            
 def getEazyPz(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', binaries=None):
     """
 zgrid, pz = getEazyPz(idx, \
