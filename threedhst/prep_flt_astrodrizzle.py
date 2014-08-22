@@ -1,21 +1,13 @@
 """
-Align and background-subtract direct and grism FLT images using Drizzlepac/Astrodrizzle rather
-than Multidrizzle
+Align and background-subtract direct and grism FLT images using 
+Drizzlepac/Astrodrizzle rather than Multidrizzle
 
-Seems to be working:
-====================
-runAstroDrizzle    - wrapper around AstroDrizzle (irafx, 2013-09-12)
-ablot_segmentation - Use drizzlepac.ablot to blot a segmentation image to an output DRZ or FLT frame 
+xxx still need full "pair" wrapper to put it all together, including adding direct shifts to grism exposures
 
-Future ideas:
-=============
-Run tweakreg, astrodrizzle, tweakreg, tweakback, astrodrizzle for alignment
-Make grism segmentation mask from direct image using polygons or convolution kernel
-Make direct segmentation mask 
 """
 import os
 
-import pyfits
+import astropy.io.fits as pyfits
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage as nd
@@ -24,426 +16,631 @@ import stsci.convolve
 
 import threedhst
 
-try:
-    #### Own modified version
-    import mydrizzlepac
-    from mydrizzlepac import astrodrizzle, tweakreg, tweakback
-except:
+def clean_wcsname(flt='ibhj15wyq_flt.fits', wcsname='TWEAK', ACS=False):
+    """
+    Workaround for annoying TweakReg feature of not overwriting WCS solns
+    """
+    im = pyfits.open(flt, mode='update')
+    if ACS:
+        exts = [1,4]
+    else:
+        exts = [1]
+    
+    for ext in exts:
+        header = im[ext].header
+        for key in header:
+            if key.startswith('WCSNAME'):
+                if header[key] == wcsname:
+                    wcs_ext = key[-1]
+                    if key == 'WCSNAME':
+                        header[key] = wcsname+'X'
+                        #im.flush()
+        #
+        for key in ['WCSNAME', 'WCSAXES', 'CRPIX1', 'CRPIX2', 'CDELT1', 'CDELT2', 'CUNIT1', 'CUNIT2', 'CTYPE1', 'CTYPE2', 'CRVAL1', 'CRVAL2', 'LONPOLE', 'LATPOLE', 'CRDER1', 'CRDER2', 'CD1_1', 'CD1_2', 'CD2_1', 'CD2_2', 'FITNAME', 'NMATCH', 'RMS_RA', 'RMS_DEC']:
+            try:
+                header.remove(key+wcs_ext)
+            except:
+                #print key
+                pass
+    
+    im.flush()
+    
+def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_radec.dat', final_scale=0.06, ACS=False):
+    """
+    Wrapper around tweakreg, generating source catalogs separately from 
+    `findpars`.
+    """
+    import glob
+    
     import drizzlepac
+    from drizzlepac import tweakreg
+    from stwcs import updatewcs
+    
+    import threedhst.prep_flt_astrodrizzle
+    
+    asn = threedhst.utils.ASNFile(asn_file)
+    
+    if ACS:
+        NCHIP=2
+        sci_ext = [1,4]
+        wht_ext = [2,5]
+        ext = 'flc'
+        dext = 'crclean'
+    else:
+        NCHIP=1
+        sci_ext = [1]
+        wht_ext = [2]
+        ext = 'flt'
+        dext = 'flt'
+        
+    ### Generate CRCLEAN images
+    for exp in asn.exposures:
+        updatewcs.updatewcs('%s_%s.fits' %(exp, ext))
+    
+    drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=False, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_cr_corr=True, driz_combine=True)
+    #drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=False, context=False, preserve=False, skysub=True, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=True, driz_cr_corr=True, driz_combine=False)
+        
+    #### Make SExtractor source catalogs in *each* flt
+    for exp in asn.exposures:
+        #updatewcs.updatewcs('%s_%s.fits' %(exp, ext))
+        for i in range(NCHIP):
+            se = threedhst.sex.SExtractor()
+            se.options['WEIGHT_IMAGE'] = '%s_%s.fits[%d]' %(exp, dext, wht_ext[i]-1)
+            se.options['WEIGHT_TYPE'] = 'MAP_RMS'
+            #
+            se.params['X_IMAGE'] = True; se.params['Y_IMAGE'] = True
+            se.params['MAG_AUTO'] = True
+            #
+            se.options['CATALOG_NAME'] = '%s_%s_%d.cat' %(exp, ext, sci_ext[i])
+            se.options['FILTER'] = 'N'
+            se.options['DETECT_THRESH'] = '4'
+            se.options['ANALYSIS_THRESH'] = '4'
+            #
+            se.sextractImage('%s_%s.fits[%d]' %(exp, dext, sci_ext[i]-1))
+            threedhst.sex.sexcatRegions('%s_%s_%d.cat' %(exp, ext, sci_ext[i]), '%s_%s_%d.reg' %(exp, ext, sci_ext[i]), format=1)
+    
+    #### TweakReg catfile
+    asn_root = asn_file.split('_asn')[0]
+    catfile = '%s.catfile' %(asn_root)
+    fp = open(catfile,'w')
+    for exp in asn.exposures:
+        line = '%s_%s.fits' %(exp, ext)
+        for i in range(NCHIP):
+            line += ' %s_%s_%d.cat' %(exp, ext, sci_ext[i])
+        
+        fp.write(line + '\n')
+    
+    fp.close()
+    
+    #### First run AstroDrizzle mosaic
+    #drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, context=False, preserve=False, skysub=True, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_combine=True)
+    
+    #### Make room for TWEAK wcsname
+    for exp in asn.exposures:
+        threedhst.prep_flt_astrodrizzle.clean_wcsname(flt='%s_%s.fits' %(exp, ext), wcsname='TWEAK', ACS=ACS)
+    
+    #### Main run of TweakReg
+    if ACS:
+        refimage = '%s_drc_sci.fits' %(asn_root)
+    else:
+        refimage = '%s_drz_sci.fits' %(asn_root)
+        
+    tweakreg.TweakReg(asn_file, refimage=refimage, updatehdr=True, updatewcs=True, catfile=catfile, xcol=2, ycol=3, xyunits='pixels', refcat=master_catalog, refxcol=1, refycol=2, refxyunits='degrees', shiftfile=True, outshifts='%s_shifts.txt' %(asn_root), outwcs='%s_wcs.fits' %(asn_root), searchrad=5, tolerance=12, wcsname='TWEAK', interactive=False, residplot='No plot', see2dplot=False, clean=True, headerlet=True, clobber=True)
+    
+    #### Run AstroDrizzle again
+    if ACS:
+        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, preserve=False)
+    else:
+        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') # , final_wcs=True, final_rot=0)
+        
+    for exp in asn.exposures:
+        files=glob.glob('%s*coo' %(exp))
+        files.extend(glob.glob('%s*crclean.fits' %(exp)))
+        for file in files:
+            os.remove(file)
+    
+def align_drizzled(images=['MACS2129-35-F814W_drc_sci.fits', 'MACS2129-36-F814W_drc_sci.fits']):
+    
+    from astropy.table import Table as table
     from drizzlepac import astrodrizzle, tweakreg, tweakback
     
-def get_fine_alignment(asn='ibhm04030_asn.fits'):
-    """
-    Cross correlate shifts for fine alignment within a visit
-    """
-    #os.chdir('/Users/brammer/3DHST/Spectra/Work/UDS/PREP_Astrodrizzle')
-    #threedhst.process_grism.fresh_flt_files(asn)
-    
-    #tweakreg.TweakReg(asn, refimage=None, updatewcs=True, writecat=True, clean=False, verbose=True, updatehdr=False, shiftfile=True, outshifts=asn.replace('_asn.fits', '_shifts0.txt'), conv_width=3, threshold=10, peakmax=50)
-    
-    #### Generate drizzled images
-    threedhst.prep_flt_astrodrizzle.runAstroDrizzle(asn, clean=False, static=False, skysub=False, driz_separate=True, median=False, blot=False, driz_cr=False, driz_combine=False)
-    
-    #### Make SExtractor catalog and use segmentation image as cross-correlation taper mask
-    a = threedhst.utils.ASNFile(asn)
-    root = a.product.lower()
-    
-    se = threedhst.sex.SExtractor()
-    se.aXeParams()
-    se.copyConvFile()
-    se.overwrite = True
-    se.options['CATALOG_NAME']    = '%s_fine.cat' %(root)
-    se.options['CHECKIMAGE_NAME'] = '%s_seg.fits' %(root)
-    se.options['CHECKIMAGE_TYPE'] = 'SEGMENTATION'
-    se.options['WEIGHT_TYPE']     = 'MAP_WEIGHT'
-    se.options['WEIGHT_IMAGE']    = '%s_single_wht.fits' %(a.exposures[0])
-    se.options['FILTER']    = 'Y'
-    se.options['DETECT_MINAREA']    = '10'
-    se.options['DETECT_THRESH']    = '7.0'
-    se.options['ANALYSIS_THRESH']  = '7.0'
-    se.options['MAG_ZEROPOINT'] = '25'
-    se.options['DEBLEND_NTHRESH'] = '64'
-    se.options['DEBLEND_MINCONT'] = '0.00002'
-    se.options['PHOT_APERTURES'] = '1'
-    se.options['GAIN']  = '2.4'
-    
-    status = se.sextractImage('%s_single_sci.fits' %(a.exposures[0]))
-    threedhst.sex.sexcatRegions('%s_fine.cat' %(root), '%s_fine.reg' %(root), format=2)
-    
-    ### Taper mask
-    seg = pyfits.open('%s_seg.fits' %(root))[0].data
-    mask = nd.gaussian_filter((seg > 0)*1., 3)
-    
-    ref = pyfits.open(a.exposures[0]+'_single_sci.fits')[0].data*mask
-    sh = ref.shape
-    yi, xi = np.indices(sh)
-    r = np.sqrt((yi-sh[0]/2.)**2+(xi-sh[1]/2.)**2)
-    N = len(a.exposures)
-    xmax, ymax = np.zeros(N), np.zeros(N)
-    
-    for i in range(N):
-        print 'Cross corr.: %s' %(a.exposures[i])
-        im = pyfits.open(a.exposures[i]+'_single_sci.fits')[0].data*mask
-        # if i == 1:
-        #     im = nd.shift(pyfits.open(a.exposures[i]+'_single_sci.fits')[0].data, (0.65,0.32))*mask
-        # #
-        cross = stsci.convolve.correlate2d(ref, im, output=None, mode='nearest', cval=0.0, fft=1)
-        window = cross*(r < 4)
-        xmax[i] = (xi*window).sum()/window.sum()
-        ymax[i] = (yi*window).sum()/window.sum()
-        #### Make diagnostic figure
-        f = plt.figure(figsize=(4,4))
-        f.subplots_adjust(left=0.01, bottom=0.01, right=0.99, top=0.99)
-        ax = f.add_subplot(111)
-        ax.imshow(window, interpolation='Nearest')
-        ax.plot(xmax[i]*np.ones(2), [0,1000], color='white', alpha=0.6)
-        ax.plot([0,1000], ymax[i]*np.ones(2), color='white', alpha=0.6)
-        ax.set_xlim(sh[1]/2.-5, sh[1]/2.+5)
-        ax.set_ylim(sh[0]/2.-5, sh[0]/2.+5)
-        ax.set_xticklabels([]); ax.set_yticklabels([])
-        ax.text(0.5,0.95, a.exposures[i], ha='center', va='top', transform = ax.transAxes, color='white')
-        f.savefig(a.exposures[i]+'_xcor.png')
-        plt.close(f)
-        
-    ### Write log file  
-    fp = open('%s_fine.txt' %(root), 'w')
-    fp.write('# image   x_shift   y_shift\n')
-    for i in range(N):
-        fp.write('%s  %6.3f  %6.3f\n' %(a.exposures[i], xmax[i]-xmax[0], ymax[i]-ymax[0]))
-    #
-    fp.close()
-    
-def apply_fine_alignment(asn, min_shift=0.2, max_shift=0.7, keep=True, verbose=True):
-    """
-    Apply fine alignment shifts to FLT headers
-    """
-    from threedhst import catIO
-    
-    a = threedhst.utils.ASNFile(asn)
-    root = a.product.lower()
-    
-    if (not os.path.exists('%s_fine.txt' %(root))) | (not keep):
-        get_fine_alignment(asn)
-    
-    fine = catIO.Readfile('%s_fine.txt' %(root), save_fits=False)
-    if verbose:
-        print 'Applying fine shifts: '
-        
-    for i in range(fine.N):
-        flt = pyfits.open(fine.image[i]+'_flt.fits', mode='update')
-        xs, ys = np.abs(fine.x_shift[i]), np.abs(fine.y_shift[i])
-        vstr = '%s  %6.3f  %6.3f' %(fine.image[i], fine.x_shift[i], fine.y_shift[i])
-        if (np.minimum(xs, ys) > min_shift) & (np.maximum(xs, ys) < max_shift):
-            for ext in range(5):
-                flt[ext+1].header['CRPIX1'] -= fine.x_shift[i]
-                flt[ext+1].header['CRPIX2'] -= fine.y_shift[i]
-            #
-            vstr += ' *'
+    for image in images:
+        root = image.split('_sci.fits')[0]
+        se = threedhst.sex.SExtractor()
+        se.options['WEIGHT_IMAGE'] = '%s_wht.fits[0]' %(root)
+        se.options['WEIGHT_TYPE'] = 'MAP_WEIGHT'
         #
-        if verbose:
-            print vstr
-            
-        flt.flush()
-    
-def align_to_reference(asn, matchImage='/Users/brammer/3DHST/Ancillary/Mosaics/uds-f160w-astrodrizzle-v4.0_drz_sci.fits'):
-    """
-    Align to external reference using tweakshifts
-    """
-    threedhst.prep_flt_astrodrizzle.runAstroDrizzle(asn, clean=False, static=True, skysub=True, driz_separate=True, median=True, blot=True, driz_cr=True, driz_combine=True, build=True, final_rot=0.)
-    
-    threedhst.shifts.matchImagePixels(input=[matchImage], matchImage=asn.replace('_asn', '_drz'), output=asn.replace('_asn', '_align'), input_extension=0, match_extension=1)
-    
-    a = threedhst.utils.ASNFile(asn)
-    root = a.product.lower()
-    
-    se = threedhst.sex.SExtractor()
-    se.aXeParams()
-    se.copyConvFile()
-    se.overwrite = True
-    se.options['CHECKIMAGE_TYPE'] = 'SEGMENTATION'
-    se.options['WEIGHT_TYPE']     = 'MAP_WEIGHT'
-    se.options['WEIGHT_IMAGE']    = '%s_drz.fits[1]' %(root)
-    se.options['FILTER']    = 'Y'
-    se.options['DETECT_MINAREA']    = '10'
-    se.options['DETECT_THRESH']    = '4.0'
-    se.options['ANALYSIS_THRESH']  = '4.0'
-    se.options['MAG_ZEROPOINT'] = '25'
-    se.options['DEBLEND_NTHRESH'] = '64'
-    se.options['DEBLEND_MINCONT'] = '0.00002'
-    se.options['PHOT_APERTURES'] = '1'
-    se.options['GAIN']  = '2.4'
-    
-    #### Detect on input image
-    se.options['CATALOG_NAME']    = '%s_wcs.cat' %(root)
-    se.options['CHECKIMAGE_NAME'] = '%s_wcs_seg.fits' %(root)
-    status = se.sextractImage('%s_drz.fits[0]' %(root))
-    threedhst.sex.sexcatRegions('%s_wcs.cat' %(root), '%s_wcs.reg' %(root), format=2)
-    
-    #### Detect on alignment image
-    se.options['CATALOG_NAME']    = '%s_align.cat' %(root)
-    se.options['CHECKIMAGE_NAME'] = '%s_align_seg.fits' %(root)
-    status = se.sextractImage(asn.replace('_asn', '_align'))
-    threedhst.sex.sexcatRegions('%s_align.cat' %(root), '%s_align.reg' %(root), format=2)
-    
-    #### 'wcs' is in (x,y) pixels and 'align' is in (ra,dec)
-    for ext, col in zip(['wcs', 'align'], [(1,2), (3,4)]):
-        c = np.loadtxt('%s_%s.cat' %(root, ext))
-        N = c.shape[0]
-        fp = open('%s_%s.xy' %(root, ext), 'w')
-        for i in range(N): 
-            fp.write('%.5f %.5f %.3f\n' %(c[i,col[0]], c[i,col[1]], c[i,17]))
+        se.params['X_IMAGE'] = True; se.params['Y_IMAGE'] = True
+        se.params['MAG_AUTO'] = True
+        #
+        se.options['CATALOG_NAME'] = '%s_sci.cat' %(root)
+        se.options['FILTER'] = 'N'
+        se.options['DETECT_THRESH'] = '5'
+        se.options['ANALYSIS_THRESH'] = '5'
+        #
+        se.sextractImage('%s_sci.fits[0]' %(root))
+        threedhst.sex.sexcatRegions('%s_sci.cat' %(root), '%s_sci.reg' %(root), format=1)
+        #
+        t = table.read('%s_sci.cat' %(root), format='ascii.sextractor')
+        np.savetxt('%s_sci.xy' %(root), np.array([t['X_IMAGE'], t['Y_IMAGE']]).T, fmt='%.7f')
+        fp = open('%s_sci.catfile' %(root), 'w')
+        fp.write('%s_sci.fits %s_sci.xy\n' %(root, root))
         fp.close()
-            
-    fp = open('%s_wcs.list' %(root), 'w')
-    fp.write('%s_drz.fits %s_wcs.xy\n' %(root, root))
-    fp.close()
+        
+    reference = '%s_sci.xy' %(images[0].split('_sci.fits')[0])
     
-    tweakreg.TweakReg(asn.replace('_asn', '_drz'), refimage=asn.replace('_asn', '_align'), updatewcs=False, writecat=False, updatehdr=False, shiftfile=True, outshifts='%s_wcs.shifts' %(root), catfile='%s_wcs.list' %(root), xcol=1, ycol=2, fluxcol=3, fluxunits='mag', xyunits='pixels', refcat='%s_align.xy' %(root), refxcol=1, refycol=2, rfluxcol=3, refxyunits='degrees', rfluxunits='mag')
+    for image in images[1:]:
+        root = image.split('_sci.fits')[0]
+        tweakreg.TweakReg(image, refimage=images[0], updatehdr=True, updatewcs=True, catfile='%s_sci.catfile' %(root), xcol=1, ycol=2, xyunits='pixels', refcat=reference, refxcol=1, refycol=2, refxyunits='pixels', shiftfile=False, searchrad=5, tolerance=12, wcsname='TWEAK3', interactive=False, residplot='No plot', see2dplot=False, clean=True, headerlet=True, clobber=True)
+        tweakback.tweakback(image)
     
-    #### Check wcs.shifts
-    tweakreg.TweakReg(asn.replace('_asn', '_drz'), refimage=asn.replace('_asn', '_align'), updatewcs=False, writecat=False, updatehdr=True, wcsname='TWEAK2', catfile='%s_wcs.list' %(root), xcol=1, ycol=2, fluxcol=3, fluxunits='mag', xyunits='pixels', refcat='%s_align.xy' %(root), refxcol=1, refycol=2, rfluxcol=3, refxyunits='degrees', rfluxunits='mag')
+    pass
     
-    threedhst.shifts.matchImagePixels(input=[matchImage], matchImage=asn.replace('_asn', '_drz'), output=asn.replace('_asn', '_align'), input_extension=0, match_extension=1)
-
-    test = threedhst.shifts.align_to_reference(root.upper(), '%s_align.fits' %(root), fitgeometry="shift",
-        clean=True, verbose=False, ALIGN_EXTENSION=0, toler=3, skip_swarp=True,
-        align_sdss_ds9=False)    
-    #
-    mydrizzlepac.updatehdr.updatewcs_with_shift('%s_drz.fits' %(a.product), '%s_align.fits' %(root), xsh=test[0], ysh=test[1], rot=test[2], force=True, verbose=True)
-    
-    tweakback.tweakback('%s_drz.fits' %(a.product), input=None, origwcs=None, newname=None, wcsname=None, extname='SCI', force=False, verbose=False)
-    threedhst.prep_flt_astrodrizzle.runAstroDrizzle(asn, clean=False, static=False, skysub=False, driz_separate=False, median=False, blot=False, driz_cr=False, driz_combine=True, build=True, final_rot=0.)
-    
-def xxx():
-    #os.chdir('/Users/brammer/3DHST/Spectra/Work/Perlmutter/PREP_FLT')
-    #asn = 'MACSJ1720+3536-F140W_asn.fits'
-    #REF_IMAGE = '../CLASH/hlsp_clash_hst_wfc3ir_macs1720_f160w_v1_drz.fits'
-    
-    #### First run of Astrodrizzle to flag CRs and subtract simple background
-    tweakreg.TweakReg(asn, refimage=None, updatewcs=True, writecat=True, updatehdr=True)
-    threedhst.prep_flt_astrodrizzle.runAstroDrizzle(asn, skysub=True, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_combine=True, build=False)
-    
-    tweakreg.TweakReg(asn, refimage=REF_IMAGE, updatewcs=True, writecat=True)
-    tweakreg.TweakReg(asn.replace('_asn','_drz_sci'), refimage=REF_IMAGE, updatewcs=True, writecat=True, clean=True, updatehdr=True, headerlet=False, shiftfile=False)
-    tweakback.tweakback(asn.replace('_asn','_drz_sci'), input=None, verbose=True)
-    threedhst.prep_flt_astrodrizzle.runAstroDrizzle(asn, skysub=True, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_combine=True, build=False, wcskey='TWEAK_1')
-    
-    ### doesn't work
-    
-def runAstroDrizzle(asn_file='ibhm04030_asn.fits', final_scale=0.06, pixfrac=0.8, clean=True, use_mdrztab=True, ivar_weights=True, rms_weights=False, build_drz=True, driz_cr_snr='5.0 4.0', driz_cr_scale = '1.2 0.7', **more_params):
+def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False):
     """
-    Wrapper to run AstroDrizzle
-    
-    Steps: 
-        skysub=True, driz_separate=True, driz_sep_wcs=True, 
-        median=True, blot=True, driz_cr=True, driz_combine=True
-        
+    Subtract polynomial background
     """
-    import threedhst
-    asn = threedhst.utils.ASNFile(file=asn_file)
+    import numpy as np
+    import scipy.optimize
     
-    #### Set default parameters from pipeline mdz file
-    if use_mdrztab:
-        #### Read the first FLT image and read its MDRIZTAB file
-        flt = pyfits.open(asn.exposures[0]+'_flt.fits')
-        
-        #### Get the filter string, WFC3 or ACS
-        if flt[0].header['INSTRUME'] == 'WFC3':
-            filter=flt[0].header['FILTER']
-            REF = 'iref'
-        else:
-            filter=(flt[0].header['FILTER1']+','+flt[0].header['FILTER2']).strip()
-            REF = 'jref'
-        
-        mdz = pyfits.open(flt[0].header['MDRIZTAB'].replace(REF+'$',os.getenv(REF)+'/'))[1].data
-        
-        #### Force direct filter because parameters are a bit strange for grisms
-        if filter.startswith('G1'):
-            filter='F140W'
-        
-        if filter.startswith('G8'):
-            filter='F814W'
-        
-        #### find 
-        idx = np.where(mdz.field('filter') == filter)[0]
-        if len(idx) == 0:
-            filter='ANY'
-            idx = np.where(mdz.field('filter') == filter)[0]
-        
-        #### Find right column for given "numimages" = len(exposures)  
-        use = idx[0]
-        for i in idx[1:]:
-            if len(asn.exposures) >= mdz.field('numimages')[i]:
-                use = i
-        
-        #### Now set all of the parameters
-        param_dict = {}
-        for param in mdz.names:
-            try:
-                value = mdz.field(param)[use]
-                if (not np.isfinite(value)) | (value < -1000):
-                    value = ''
-                #
-                param_dict[param] = value
-            except:
-                #### some columns in the MDZ file aren't actually parameters, skip
-                pass
-        #
-        param_dict['crbit'] = 4096
-        param_dict['combine_type'] = 'minmed'
-        #param_dict['combine_type'] = 'median'
-        param_dict['mdriztab'] = True
-        param_dict['expkeyword'] = 'EXPTIME'
-             
-    #
-    param_dict['driz_cr_snr'] = '5.0 4.0'
-    param_dict['driz_cr_scale'] = '1.2 0.7'
+    import astropy.units as u
     
-    if flt[0].header['INSTRUME'] == 'WFC3':
-        #iraf.dither.multidrizzle.driz_cr_snr = '6.0 3.0'
-        driz_cr_snr = '3.5 3.0'
-        #iraf.dither.multidrizzle.driz_cr_scale = '1.6 0.7'
-        ### More conservative to avoid rejecting central pixels of stars
-        driz_cr_scale = '2.5 0.7'
-        param_dict['rnkeyword'] = 'READNSEA,READNSEB,READNSEC,READNSED'
-        param_dict['gnkeyword'] = 'ATODGNA,ATODGNB,ATODGNC,ATODGND'
-        
-    #
-    if rms_weights:
-        #### Generate inverse variance weight map, will need 
-        #### flat + dark images in the iref or jref directories
-        param_dict['final_wht_type'] = 'RMS'
-    
-    if ivar_weights:
-        #### Generate inverse variance weight map, will need 
-        #### flat + dark images in the iref or jref directories
-        param_dict['final_wht_type'] = 'IVM'
-    
-    bad_keys = ['subsky', 'numimages', 'ra', 'dec', 'crbitval']
-    for key in bad_keys:
-        if key in param_dict.keys():
-            status = param_dict.pop(key)
-    
-    # param_dict['runfile'] = asn_file.replace('_asn.fits','_asn')
-    # for key in more_params.keys():
-    #     param_dict[key] = more_params[key]
-    print 
-    
-    param_dict['final_wcs'] = True
-    param_dict['final_scale'] = final_scale
-    param_dict['final_pixfrac'] = pixfrac
-    param_dict['clean'] = clean
-    
-    astrodrizzle.AstroDrizzle(input=asn_file, runfile=asn_file.replace('_asn.fits','_asn'), final_wcs=True, final_scale=final_scale, final_pixfrac=pixfrac, clean=clean, final_wht_type=param_dict['final_wht_type'], driz_cr_snr=driz_cr_snr, driz_cr_scale=driz_cr_scale, **more_params)
-    
-def test_grism_mask():
-    """
-    try convolving direct image with a kernel to make the grism
-    """
-    
-    threedhst.prep_flt_astrodrizzle.runAstroDrizzle('ibhm04030_asn.fits', rms_weights=True, final_scale=0.128)
-    threedhst.prep_flt_astrodrizzle.runAstroDrizzle('ibhm04040_asn.fits', rms_weights=True, final_scale=0.128)
-    
-    direct = pyfits.open('IBHM04030_drz.fits') #[1].data
-    grism = pyfits.open('IBHM04040_drz.fits') #[1].data    
-
-    sigma = 1./np.sqrt(grism[2].data)
-    ok = np.isfinite(sigma)
-    direct[1].data[~ok] = 0
-    
-    xkern = np.arange(-207,207)
-    kernel = np.zeros((15, xkern.shape[0]))
-    kernel[:, (xkern > 25) & (xkern < 196)] = 1.
-    kernel[:, (xkern > -207) & (xkern < -177)] = 1.
-    
-    test = nd.convolve(direct[1].data, kernel/kernel.sum()*3)
-    
-    gr = grism[1].data*1.
-    mask = test/np.median(sigma) > 4
-    
-    #### Can "ablot" the mask directly back to the FLT frame
-    
-def test_ablot_seg():
-    threedhst.prep_flt_astrodrizzle.ablot_segmentation(segimage='UDS_F160W_seg.fits', refimage='UDS-4-F140W_drz.fits', output='blot_drz_seg.fits')
-    threedhst.prep_flt_astrodrizzle.ablot_segmentation(segimage='UDS_F160W_seg.fits', refimage='ibhm04a7q_flt.fits', output='blot_flt_seg.fits')
-    
-def ablot_segmentation(segimage='UDS_F160W_seg.fits', refimage='UDS-4-F140W_drz.fits', output='blot_seg.fits', seg_ext=0, ref_ext=1, clobber=True):
-    """
-    Try blotting a segmentation image
-    """
-    #os.chdir("/Users/brammer/3DHST/Spectra/Work/UDS/PipelineDemo")
-
-    # segimage='UDS_F160W_seg.fits'; refimage='UDS-4-F140W_drz.fits'; output='blot_seg.fits'; seg_ext=0; ref_ext=1; clobber=True
-
-    import pyfits
-    #import drizzlepac
-    #from drizzlepac import astrodrizzle
-    import stwcs
-    
-    #segimage = 'UDS_F160W_seg.fits'
-    #segimage = 'blot_seg_full.fits'
-    seg = pyfits.open(segimage)
-    ref = pyfits.open(refimage)
-    
-    seg_wcs = stwcs.wcsutil.HSTWCS(seg, ext=seg_ext)
-    ref_wcs = stwcs.wcsutil.HSTWCS(ref, ext=ref_ext)
-    
-    use_coeffs = refimage.split('.gz')[0].endswith('_flt.fits')
-    ### Blot segmentation image
-    blotted = astrodrizzle.ablot.do_blot(seg[seg_ext].data, seg_wcs, ref_wcs, 1, coeffs=use_coeffs, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
-    
-    ### Blot "ones" image to get relative pixel weights
-    ones = np.cast[np.int8](seg[seg_ext].data > 0)
-    blotted_ones = astrodrizzle.ablot.do_blot(ones, seg_wcs, ref_wcs, 1, coeffs=use_coeffs, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
-    blotted_ones[blotted_ones == 0] = 1
-    
-    ### Scale by relative pixel areas to get input segmentatino values
-    ratio = blotted / blotted_ones
-    
-    ### Force integers
-    segm = np.cast[np.int32](np.round(ratio))
-    
-    ### Write output
-    pyfits.writeto(output, data=segm, header=ref[ref_ext].header, clobber=clobber)
-    
-def test_blot_clean():
-    """
-    See if ablot can work like SWarp to blot to a rotated output frame
-    """
-    
-    os.chdir('/Users/brammer/3DHST/Spectra/Work/AEGIS/Test_Astrodrizzle')
-    asn = 'ibhj56030_asn.fits'
-    threedhst.prep_flt_astrodrizzle.runAstroDrizzle(asn, rms_weights=True, final_scale=0.06)
-    
-    matchImage = '/Users/brammer/3DHST/Ancillary/Mosaics/aegis-f160w-astrodrizzle-v4.0_drz_sci.fits'
-    matchImage = '/Users/brammer/3DHST/Ancillary/Mosaics/uds-f160w-astrodrizzle-v4.0_drz_sci.fits'
-    
-    #threedhst.shifts.matchImagePixels(input=[matchImage], matchImage=asn.replace('_asn', '_drz'), output=asn.replace('_asn', '_align'), input_extension=0, match_extension=1)
+    from astropy.table import Table as table
     
     import drizzlepac
-    from drizzlepac import astrodrizzle
     import stwcs
-
-    ref = pyfits.open(matchImage)
-    next = pyfits.open(asn.replace('_asn', '_drz'))
+    from drizzlepac import astrodrizzle, tweakreg, tweakback
+    
+    import threedhst
+    
+    se = threedhst.sex.SExtractor()
+    se.options['WEIGHT_IMAGE'] = '%s_drz_wht.fits' %(root)
+    se.options['WEIGHT_TYPE'] = 'MAP_WEIGHT'
+    se.options['CHECKIMAGE_TYPE'] = 'SEGMENTATION'
+    se.options['CHECKIMAGE_NAME'] = '%s_drz_seg.fits' %(root)
+    #
+    se.params['X_IMAGE'] = True; se.params['Y_IMAGE'] = True
+    se.params['MAG_AUTO'] = True
+    #
+    se.options['CATALOG_NAME'] = '%s_drz_sci.cat' %(root)
+    se.options['FILTER'] = 'Y'
+    se.copyConvFile()
+    se.options['FILTER_NAME'] = 'gauss_4.0_7x7.conv'
+    se.options['DETECT_THRESH'] = '0.8'
+    se.options['ANALYSIS_THRESH'] = '0.8'
+    #
+    se.sextractImage('%s_drz_sci.fits' %(root))
+    #threedhst.sex.sexcatRegions('%s_flt.cat' %(exp), '%s_flt.reg' %(exp), format=1)
+    
+    #### Blot segmentation map to FLT images for object mask
+    asn = threedhst.utils.ASNFile('%s_asn.fits' %(root))
+    
+    #print 'Read files...'
+    ref = pyfits.open('%s_drz_sci.fits' %(root))
+    seg = pyfits.open('%s_drz_seg.fits' %(root))
+    seg_data = np.cast[np.float32](seg[0].data)
     
     ref_wcs = stwcs.wcsutil.HSTWCS(ref, ext=0)
-    flt_wcs = stwcs.wcsutil.HSTWCS(next, ext=1)
     
-    root = asn.split('_asn')[0]
-    a = threedhst.utils.ASNFile(asn)
+    yi, xi = np.indices((1014,1014))
+    if scattered_light:
+        bg_components = np.ones((4,1014,1014))
+        bg_components[1,:,:] = xi/1014.*2
+        bg_components[2,:,:] = yi/1014.*2
+        bg_components[3,:,:] = pyfits.open(os.getenv('THREEDHST') + '/CONF/G141_scattered_light.fits')[0].data
+        NCOMP=4
+    else:
+        bg_components = np.ones((3,1014,1014))
+        bg_components[1,:,:] = xi/1014.*2
+        bg_components[2,:,:] = yi/1014.*2
+        NCOMP=3
+        
+    bg_flat = bg_components.reshape((NCOMP,1014**2))
     
-    blotted = astrodrizzle.ablot.do_blot(ref[0].data, ref_wcs, flt_wcs, 1, coeffs=False, interp='poly5', sinscl=1.0, stepsize=10, wcsmap=None)
-    pyfits.writeto('%s_align.fits' %(root), data=blotted, header=next[1].header, clobber=True)
+    #### Loop through FLTs, blotting reference and segmentation
+    for exp in asn.exposures:
+        flt = pyfits.open('%s_flt.fits' %(exp), mode='update')
+        flt_wcs = stwcs.wcsutil.HSTWCS(flt, ext=1)
+        ### segmentation
+        print 'Segmentation image: %s_blot.fits' %(exp)
+        blotted_seg = astrodrizzle.ablot.do_blot(seg_data, ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
+        mask = (blotted_seg == 0) & (flt['DQ'].data == 0) & (flt[1].data < 5) & (flt[1].data > -1) & (xi > 50) & (yi > 50) & (xi < 964) & (yi < 964)
+        data_range = np.percentile(flt[1].data[mask], [2.5, 97.5])
+        mask &= (flt[1].data >= data_range[0]) & (flt[1].data <= data_range[1])
+        data_range = np.percentile(flt[2].data[mask], [2.5, 97.5])
+        mask &= (flt[2].data >= data_range[0]) & (flt[2].data <= data_range[1])
+        ### Least-sq fit for component normalizations
+        data = flt[1].data[mask].flatten()
+        wht = (1./flt[2].data[mask].flatten())**2
+        templates = bg_flat[:, mask.flatten()]
+        p0 = np.zeros(NCOMP)
+        p0[0] = np.median(data)
+        obj_fun = threedhst.grism_sky.obj_lstsq
+        popt = scipy.optimize.leastsq(obj_fun, p0, args=(data, templates, wht), full_output=True, ftol=1.49e-8/1000., xtol=1.49e-8/1000.)
+        xcoeff = popt[0]
+        model = np.dot(xcoeff, bg_flat).reshape((1014,1014))
+        # add header keywords
+        flt[1].data -= model
+        for i in range(NCOMP):
+            if 'BGCOMP%d' %(i+1) in flt[0].header:
+                flt[0].header['BGCOMP%d' %(i+1)] += xcoeff[i]
+            else:
+                flt[0].header['BGCOMP%d' %(i+1)] = xcoeff[i]                
+        #
+        flt.flush()
+        coeff_str = '  '.join(['%.4f' %c for c in xcoeff])
+        threedhst.showMessage('Background subtraction, %s_flt.fits:\n\n  %s' %(exp, coeff_str))
+
+def copy_adriz_headerlets(direct_asn='GOODS-S-15-F140W_asn.fits', grism_asn='GOODS-S-15-G141_asn.fits', force=False, ACS=False):
+    """
+    Copy Tweaked WCS solution in direct image to the paired grism exposures.
     
-    #### Alignment
-    # test = threedhst.shifts.align_to_reference(root, 'align_blot.fits', fitgeometry="rotate",
-    #     clean=True, verbose=False, ALIGN_EXTENSION=0, toler=3, skip_swarp=True,
-    #     align_sdss_ds9=False)    
+    If same number of grism as direct exposures, match the WCS headers
+    directly.  If not, just get the overall shift from the first direct 
+    exposure and apply that to the grism exposures.
+    """
+    import stwcs
+    from stwcs import updatewcs
+    import drizzlepac
+    
+    direct = threedhst.utils.ASNFile(direct_asn)
+    grism = threedhst.utils.ASNFile(grism_asn)
+    
+    Nd = len(direct.exposures)
+    Ng = len(grism.exposures)
+    
+    if ACS:
+        NCHIP=2
+        sci_ext = [1,4]
+        ext = 'flc'
+    else:
+        NCHIP=1
+        sci_ext = [1]
+        ext = 'flt'
+        
+    if Nd == Ng:
+        for i in range(Nd):
+            imd = pyfits.open('%s_%s.fits' %(direct.exposures[i], ext))
+            #img = pyfits.open('%s_%s.fits' %(grism.exposures[i]))
+            #
+            for sci in sci_ext:
+                #sci_ext=1
+                direct_WCS = stwcs.wcsutil.HSTWCS(imd, ext=sci)
+                #
+                drizzlepac.updatehdr.update_wcs('%s_%s.fits' %(grism.exposures[i], ext), sci, direct_WCS, verbose=True)    
+    else:
+        #### Get overall shift from a shift-file and apply it to the 
+        #### grism exposures
+        sf = threedhst.shifts.ShiftFile(direct_asn.replace('_asn.fits', '_shifts.txt'))
+        imd = pyfits.open(direct_asn.replace('asn','wcs'))
+        print imd.filename()
+        direct_WCS = stwcs.wcsutil.HSTWCS(imd, ext='wcs')
+        #
+        for i in range(Ng):
+            img = pyfits.open('%s_%s.fits' %(grism.exposures[i], ext))
+            if 'WCSNAME' in img[1].header:
+                if img[1].header['WCSNAME'] == 'TWEAK':
+                    if force is False:
+                        threedhst.showMessage('"TWEAK" WCS already found in %s_flt.fits.\nRun copy_adriz_headerlets with force=True to force update the shifts' %(grism.exposures[i]), warn=True)
+                        continue
+            #
+            updatewcs.updatewcs('%s_%s.fits' %(grism.exposures[i]), ext)
+            drizzlepac.updatehdr.updatewcs_with_shift('%s_%s.fits' %(grism.exposures[i], ext), direct_WCS, rot=sf.rotate[0], scale=sf.scale[0], xsh=sf.xshift[0], ysh=sf.yshift[0], wcsname='TWEAK')
+  
+def subtract_acs_grism_background(asn_file='RXJ2248-08-G800L_asn.fits', final_scale=None):
+
+    import glob
+    import os
+    
+    import drizzlepac
+    from drizzlepac import tweakreg
+    from stwcs import updatewcs
+    
+    import threedhst.prep_flt_astrodrizzle
+    
+    ### First pass to flag CRs and make crclean images
+    drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=False, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_cr_corr=True, driz_combine=True)
+    
+    ### add mdrizsky back to values, fit on crclean but subtract from flc
+    asn = threedhst.utils.ASNFile(asn_file)
+    
+    sky1 = pyfits.open(os.getenv('THREEDHST') + '/CONF/ACS.WFC.CHIP1.msky.1.fits')
+    sky2 = pyfits.open(os.getenv('THREEDHST') + '/CONF/ACS.WFC.CHIP2.msky.1.fits')    
+    skies = [sky1, sky2]
+    extensions = [1,4] ### SCI extensions
+    
+    for exp in asn.exposures:
+        flt = pyfits.open(exp+'_flc.fits', mode='update')
+        #crc = pyfits.open(exp+'_crclean.fits')
+        ### Loop through ACS chips
+        for j in [0,1]:
+            ext = extensions[j]
+            #
+            exptime = flt[0].header['EXPTIME']
+            mask = flt['dq', j+1].data == 0
+            ratio = flt['sci', j+1].data/exptime/skies[j][0].data
+            med = np.median(ratio[mask])
+            #
+            mask2 = mask & ((flt['sci',j+1].data-med*exptime)/flt['err',j+1].data < 3)
+            med2 = np.median(ratio[mask2])
+            #
+            flt['sci', j+1].data -= med2*exptime*skies[j][0].data     
+            flt['sci', j+1].header['MDRIZSKY'] = 0. #.update('MDRIZSKY', med2*exptime)
+            print '%s chip%d: %.3f' %(exp, j+1, med2)
+        #
+        ### Write updates
+        flt.flush()
+    
+    drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, skysub=False, skyuser='MDRIZSKY', final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, preserve=False) # , final_wcs=True, final_rot=0)
+    
+def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW/', final_scale=0.06, visit_sky=True, column_average=True, mask_grow=18):
+    """
+    Subtract master grism sky from FLTs
+    """
+    import os
+    import astropy.io.fits as pyfits
+    import pyfits as orig_pyfits
+    import scipy.ndimage as nd
+    import pyregion
+    
+    from drizzlepac import astrodrizzle
+    import drizzlepac
+    
+    from stwcs import updatewcs
+    import stwcs
+    
+    import threedhst.grism_sky as bg
+    
+    asn = threedhst.utils.ASNFile(asn_file)
+    root = asn_file.split('_asn')[0]
+    
+    ### Rough background subtraction
+    threedhst.process_grism.fresh_flt_files(asn_file, from_path=PATH_TO_RAW, preserve_dq=False)
+    flt = pyfits.open('%s_flt.fits' %(asn.exposures[0]))
+    GRISM = flt[0].header['FILTER']
+    
+    bg.set_grism_flat(grism=GRISM, verbose=True)
+    
+    sky_images = {'G141':['zodi_G141_clean.fits', 'excess_lo_G141_clean.fits', 'G141_scattered_light.fits'],
+                  'G102':['zodi_G102_clean.fits', 'excess_G102_clean.fits']}
+    
+    zodi = pyfits.open(os.getenv('THREEDHST')+'/CONF/%s' %(sky_images[GRISM][0]))[0].data
+    
+    for exp in asn.exposures:
+        updatewcs.updatewcs('%s_flt.fits' %(exp))
+        flt = pyfits.open('%s_flt.fits' %(exp), mode='update')
+        #flt = pyfits.open('%s_flt.fits' %(exp))
+        flt[1].data *= bg.flat
+        #
+        mask = (flt['DQ'].data == 0)
+        data_range = np.percentile(flt[1].data[mask], [20, 80])
+        mask &= (flt[1].data >= data_range[0]) & (flt[1].data <= data_range[1]) & (flt[2].data != 0) & np.isfinite(flt[1].data) & np.isfinite(flt[2].data)
+        ### Least-sq fit for component normalizations
+        data = flt[1].data[mask].flatten()
+        wht = (1./flt[2].data[mask].flatten())**2
+        zodi_mask = zodi[mask].flatten()
+        coeff_zodi = np.sum(data*zodi_mask*wht)/np.sum(zodi_mask**2*wht)
+        flt[1].data -= zodi*coeff_zodi
+        flt.flush()
+        threedhst.showMessage('Rough background for %s (zodi): %0.4f' %(exp, coeff_zodi))
+        #templates = bg_flat[:, mask.flatten()]
+        
+    ### Run astrodrizzle to make DRZ mosaic, grism-SExtractor mask
+    drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_combine=True, final_wcs=False)
+    
+    se = threedhst.sex.SExtractor()
+    se.options['WEIGHT_IMAGE'] = '%s_drz_wht.fits' %(root)
+    se.options['WEIGHT_TYPE'] = 'MAP_WEIGHT'
+    se.options['CHECKIMAGE_TYPE'] = 'SEGMENTATION'
+    se.options['CHECKIMAGE_NAME'] = '%s_drz_seg.fits' %(root)
     #
-    test = threedhst.shifts.align_to_reference(a.product, '%s_align.fits' %(root), fitgeometry="rxyscale",
-        clean=True, verbose=False, ALIGN_EXTENSION=0, toler=3, skip_swarp=True, align_sdss_ds9=False)    
+    se.params['X_IMAGE'] = True; se.params['Y_IMAGE'] = True
+    se.params['MAG_AUTO'] = True
     #
-    mydrizzlepac.updatehdr.updatewcs_with_shift('%s_drz.fits' %(a.product), '%s_align.fits' %(root), xsh=test[0], ysh=test[1], scale=test[3], rot=test[2], force=True, verbose=True)
-    mydrizzlepac.tweakback.tweakback('%s_drz.fits' %(a.product), input=None, origwcs=None, newname=None, wcsname=None, extname='SCI', force=False, verbose=False)
+    se.options['CATALOG_NAME'] = '%s_drz_sci.cat' %(root)
+    se.options['FILTER'] = 'Y'
+    se.copyConvFile(grism=True)
+    se.options['FILTER_NAME'] = 'grism.conv'
+    se.options['DETECT_THRESH'] = '0.7'
+    se.options['ANALYSIS_THRESH'] = '0.7'
+    #
+    se.sextractImage('%s_drz_sci.fits' %(root))
+    
+    #### Blot segmentation map to FLT images for object mask
+    ref = pyfits.open('%s_drz_sci.fits' %(root))
+    seg = pyfits.open('%s_drz_seg.fits' %(root))
+    seg_data = np.cast[np.float32](seg[0].data)
+    
+    # mask_reg = asn_file.replace('asn.fits', 'mask.reg')
+    # if os.path.exists(mask_reg):
+    #     threedhst.showMessage('Add mask: %s' %(mask_reg))
+    #     refo = orig_pyfits.open('%s_drz_sci.fits' %(root))
+    #     r = pyregion.open(mask_reg).as_imagecoord(header=refo[0].header)
+    #     manual_mask = r.get_mask(hdu=refo[0])
+    #     seg_data += manual_mask*10
+    
+    ref_wcs = stwcs.wcsutil.HSTWCS(ref, ext=0)
+        
+    #### Loop through FLTs, blotting reference and segmentation
+    threedhst.showMessage('%s: Blotting grism segmentation masks.' %(root))
+    
+    for exp in asn.exposures:
+        flt = pyfits.open('%s_flt.fits' %(exp))
+        flt_wcs = stwcs.wcsutil.HSTWCS(flt, ext=1)
+        ### segmentation
+        #print 'Segmentation image: %s_blot.fits' %(exp)
+        blotted_seg = astrodrizzle.ablot.do_blot(seg_data, ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
+        seg_grow = nd.maximum_filter((blotted_seg > 0)*1, size=8)
+        pyfits.writeto('%s_flt.seg.fits' %(exp), header=flt[1].header, data=seg_grow, clobber=True)
+        
+    ### Run background subtraction scripts
+    threedhst.process_grism.fresh_flt_files(asn_file, from_path=PATH_TO_RAW, preserve_dq=False)
+    for exp in asn.exposures:
+        updatewcs.updatewcs('%s_flt.fits' %(exp))
+        #threedhst.grism_sky.remove_grism_sky(flt=exp+'_flt.fits', list=sky_images[GRISM], path_to_sky=os.getenv('THREEDHST')+'/CONF/', verbose=True, second_pass=True, overall=True)
+    
+    if visit_sky:
+        threedhst.grism_sky.remove_visit_sky(asn_file=asn_file, list=sky_images[GRISM], add_constant=False, column_average=column_average, mask_grow=mask_grow)
+    else:
+        for exp in asn.exposures:
+            threedhst.grism_sky.remove_grism_sky(flt='%s_flt.fits' %(exp), list=sky_images[GRISM],  path_to_sky = os.getenv('THREEDHST')+'/CONF/', out_path='./', verbose=False, plot=False, flat_correct=True, sky_subtract=True, second_pass=column_average, overall=True, combine_skies=False, sky_components=True, add_constant=False)
+            
+    ### Astrodrizzle again to reflag CRs and make cleaned mosaic
+    drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, skysub=False, skyuser='MDRIZSKY', final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') # , final_wcs=True, final_rot=0)
+
+def get_vizier_cat(image='RXJ2248-IR_sci.fits', ext=0, catalog="II/246"):
+    """
+    Get a list of RA/Dec coords from a Vizier catalog that can be used
+    for WCS alignment.
+    
+    `catalog` is any catalog ID recognized by Vizier, e.g.: 
+        "II/328/allwise": WISE
+        "II/246": 2MASS
+    
+    """
+    import threedhst.dq
+    import astropy.wcs as pywcs
+    from astropy.table import Table as table
+    import astropy.io.fits as pyfits
+    
+    import astroquery
+    from astroquery.vizier import Vizier
+    import astropy.coordinates as coord
+    import astropy.units as u
+    
+    im = pyfits.open(image)
+    
+    wcs = pywcs.WCS(im[ext].header)
+    #wcs = pywcs.WCS(pyfits.getheader('Q0821+3107-F140W_drz.fits', 1))
+
+    Vizier.ROW_LIMIT = -1
+            
+    r0, d0 = wcs.wcs_pix2world([[im[ext].header['NAXIS1']/2., im[ext].header['NAXIS2']/2.]], 1)[0]
+    foot = wcs.calc_footprint()
+    
+    corner_radius = np.sqrt((foot[:,0]-r0)**2/np.cos(d0/360.*2*np.pi)**2 + (foot[:,1]-d0)**2).max()*60*1.1
+
+    try:
+        c = coord.ICRS(ra=r0, dec=d0, unit=(u.deg, u.deg))
+    except:
+        c = coord.ICRSCoordinates(ra=r0, dec=d0, unit=(u.deg, u.deg))
+        
+    #### something with astropy.coordinates
+    # c.icrs.ra.degree = c.icrs.ra.degrees
+    # c.icrs.dec.degree = c.icrs.dec.degrees
+    #
+    vt = Vizier.query_region(c, radius=u.Quantity(corner_radius, u.arcminute), catalog=[catalog])
+    if not vt:
+        threedhst.showMessage('No matches found in Vizier %s @ (%.6f, %.6f).\n\nhttp://vizier.u-strasbg.fr/viz-bin/VizieR?-c=%.6f+%.6f&-c.rs=8' %(catalog, r0, d0, r0, d0), warn=True)
+        return False
+    
+    vt = vt[0]
+            
+    #### Make a region file
+    ra_list, dec_list = vt['RAJ2000'], vt['DEJ2000']
+    print 'Vizier, found %d objects in %s.' %(len(ra_list), catalog)
+    
+    fp = open('%s.vizier.radec' %(image.split('.fits')[0]), 'w')
+    fpr = open('%s.vizier.reg' %(image.split('.fits')[0]), 'w')
+    
+    fp.write('# %s, r=%.1f\'\n' %(catalog, corner_radius))
+    fpr.write('# %s, r=%.1f\'\nfk5\n' %(catalog, corner_radius))
+    for ra, dec in zip(ra_list, dec_list):
+        fp.write('%.7f %.7f\n' %(ra, dec))
+        fpr.write('circle(%.6f, %.6f, 0.5")\n' %(ra, dec))
+    
+    fpr.close()
+    fp.close()
+    
+    return True
+    
+    
+def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goodss-34-G141_asn.fits', radec=None, raw_path='../RAW/', mask_grow=18, scattered_light=False, final_scale=None, skip_direct=False, ACS=False):
+    """
+    Process both the direct and grism observations of a given visit
+    """
+    import threedhst.prep_flt_astrodrizzle as prep
+    import drizzlepac
+    from stwcs import updatewcs
+    
+    import time
+    
+    t0 = time.time()
+    
+    #direct_asn='goodss-34-F140W_asn.fits'; grism_asn='goodss-34-G141_asn.fits'; radec=None; raw_path='../RAW/'
+    #radec = os.getenv('THREEDHST') + '/ASTRODRIZZLE_FLT/Catalog/goodss_radec.dat'
+    
+    ################################
+    #### Direct image processing
+    ################################
+    
+    #### xx add astroquery 2MASS/SDSS workaround for radec=None
+    
+    #### Get fresh FLTS from ../RAW/
+    if not skip_direct:
+        asn = threedhst.utils.ASNFile(direct_asn)
+        if ACS:
+            for exp in asn.exposures:
+                print 'cp %s/%s_flc.fits.gz .' %(raw_path, exp)
+                os.system('cp %s/%s_flc.fits.gz .' %(raw_path, exp))
+                os.system('gunzip %s_flc.fits.gz' %(exp))
+        else:
+            threedhst.process_grism.fresh_flt_files(direct_asn, from_path=raw_path)
+    
+        #### Run TweakReg
+        if (radec is None) & (not ACS):
+            drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, clean=True, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') # ,
+        else:
+            prep.runTweakReg(asn_file=direct_asn, master_catalog=radec, final_scale=None, ACS=ACS)
+    
+        #### Subtract background of direct images
+        if ACS:
+            for exp in asn.exposures:
+                flc = pyfits.open('%s_flc.fits' %(exp), mode='update')
+                for ext in [1,4]:
+                    threedhst.showMessage('Subtract background from %s_flc.fits[%d] : %.4f' %(exp, ext, flc[ext].header['MDRIZSKY']))
+                    flc[ext].data -= flc[ext].header['MDRIZSKY']
+                    flc[ext].header['MDRIZSK0'] = flc[ext].header['MDRIZSKY']
+                    flc[ext].header['MDRIZSKY'] = 0.
+                #
+                flc.flush()
+        else:
+            prep.subtract_flt_background(root=direct_asn.split('_asn')[0], scattered_light=scattered_light)
+            
+        if not ACS:
+            #### Flag CRs again on BG-subtracted image
+            drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, clean=True, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') # ,
+    
+        if not grism_asn:
+            t1 = time.time()
+            threedhst.showMessage('direct: %s\n\nDone (%d s).' %(direct_asn, int(t1-t0)))
+            return True
+        
+    ################################
+    #### Grism image processing
+    ################################
+    
+    if ACS:
+        asn = threedhst.utils.ASNFile(grism_asn)
+        for exp in asn.exposures:
+            print 'cp %s/%s_flc.fits.gz .' %(raw_path, exp)
+            os.system('cp %s/%s_flc.fits.gz .' %(raw_path, exp))
+            os.system('gunzip %s_flc.fits.gz' %(exp))
+            updatewcs.updatewcs('%s_flc.fits' %(exp))
+            
+        prep.copy_adriz_headerlets(direct_asn=direct_asn, grism_asn=grism_asn, ACS=True)
+        prep.subtract_acs_grism_background(asn_file=grism_asn, final_scale=None)
+    else:
+        #### Remove the sky and flag CRs
+        prep.subtract_grism_background(asn_file=grism_asn, PATH_TO_RAW='../RAW/', final_scale=None, visit_sky=True, column_average=True, mask_grow=mask_grow)
+
+        #### Copy headers from direct images
+        if radec is not None:
+            prep.copy_adriz_headerlets(direct_asn=direct_asn, grism_asn=grism_asn, ACS=False)
+
+            #### Run with final shifts
+            drizzlepac.astrodrizzle.AstroDrizzle(grism_asn, clean=True, skysub=False, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7')
+    
+    t1 = time.time()
+    threedhst.showMessage('direct: %s\ngrism: %s\n\nDone (%d s).' %(direct_asn, grism_asn, int(t1-t0)))
     

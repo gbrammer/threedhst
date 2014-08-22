@@ -83,7 +83,7 @@ def set_grism_flat(grism='G141', verbose=True):
         bg.flat_direct = flat_f105.filename()
         
     return True
-        
+    
 def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits'],  path_to_sky = '../CONF/', out_path='./', verbose=False, plot=False, flat_correct=True, sky_subtract=True, second_pass=True, overall=True, combine_skies=False, sky_components=True, add_constant=True):
     """ 
     Process a (G141) grism exposure by dividing by the F140W imaging flat-field
@@ -325,6 +325,164 @@ def obj_lstsq(x, b, A, wht):
     """
     return (b-np.dot(x, A))*wht
     
+def remove_visit_sky(asn_file='GDN12-G102_asn.fits', list=['zodi_G102_clean.fits', 'excess_G102_clean.fits'], add_constant=False, column_average=True, mask_grow=18):
+    """
+    Require that all exposures in a visit have the same zodi component.
+    """
+    from scipy.linalg import lstsq
+    import scipy.optimize
+    import scipy.ndimage as nd
+    import astropy.io.fits as pyfits
+    
+    import copy
+    
+    import threedhst.grism_sky as bg
+    
+    asn = threedhst.utils.ASNFile(asn_file)
+    
+    data = []
+    whts = []
+    masks = []
+    for exp in asn.exposures:
+        flt = pyfits.open('%s_flt.fits' %(exp))
+        bg.set_grism_flat(grism=flt[0].header['FILTER'], verbose=True)
+        segfile = '%s_flt.seg.fits' %(exp)
+        seg = pyfits.open(segfile)[0].data
+        seg_mask = nd.maximum_filter((seg > 0), size=18) == 0
+        dq_ok = (flt[3].data & (4+32+16+512+2048+4096)) == 0
+        #
+        flat_corr = flt[1].data*bg.flat
+        mask = seg_mask & dq_ok 
+        mask &= (flat_corr < np.percentile(flat_corr[mask], 98)) & (flt[2].data > 0) & (flat_corr > np.percentile(flat_corr[mask], 1))
+        #
+        data.append(flat_corr.flatten())
+        whts.append(1/flt[2].data.flatten()**2)
+        masks.append(mask.flatten())
+    
+    data = np.array(data)
+    whts = np.array(whts)
+    masks = np.array(masks)
+    
+    #### Read in the master skies    
+    ims = []
+    skies = copy.deepcopy(list)
+    
+    for sky in skies:
+        ims.append(pyfits.open(os.getenv('THREEDHST') + '/CONF/' + sky)[0].data.flatten())
+    
+    if add_constant:
+        ims.append(flt[1].data.flatten()*0.+1)
+        skies.append('Constant')
+    
+    ims = np.array(ims)
+
+    #### Do the fit
+    p0 = np.ones((ims.shape[0]-1)*len(asn.exposures)+1)
+    popt = scipy.optimize.leastsq(bg.obj_lstsq_visit, p0, args=(data, ims, whts, masks), full_output=True, ftol=1.49e-8/1000., xtol=1.49e-8/1000.)
+    xcoeff = popt[0]
+    
+    sh_temp = ims.shape
+    logstr = 'Master grism sky: %s\n\n FLT   %s\n' %(asn_file, '  '.join(skies))
+    
+    for i in range(len(asn.exposures)):
+        coeff = np.zeros(sh_temp[0])
+        coeff[0] = xcoeff[0]
+        coeff[1:] = xcoeff[1+i*(sh_temp[0]-1):1+(i+1)*(sh_temp[0]-1)]
+        bg_model = np.dot(coeff, ims).reshape((1014,1014))
+        logstr += '%s  %s\n' %(asn.exposures[i], ''.join([' %9.4f' %(c) for c in coeff]))
+        flt = pyfits.open('%s_flt.fits' %(asn.exposures[i]), mode='update')
+        flt[1].data = flt[1].data*bg.flat - bg_model
+        for j in range(sh_temp[0]):
+            flt[0].header['GSKY%02d' %(j)] = (coeff[j], 'Master sky: %s' %(skies[j]))
+        #
+        flt[1].header['MDRIZSKY'] = 0.
+        flt.flush()
+    
+    threedhst.showMessage(logstr)
+    
+    if column_average:
+        grism_sky_column_average(asn_file=asn_file, mask_grow=mask_grow)
+        
+def grism_sky_column_average(asn_file='GDN12-G102_asn.fits', iter=3, mask_grow=18):
+    """
+    Remove column-averaged residuals from grism exposures
+    """
+    import scipy.ndimage as nd
+    import astropy.io.fits as pyfits
+    
+    asn = threedhst.utils.ASNFile(asn_file)
+            
+    for k in range(len(asn.exposures)):
+        #### 1D column averages
+        flt = pyfits.open('%s_flt.fits' %(asn.exposures[k]), mode='update')
+        segfile = '%s_flt.seg.fits' %(asn.exposures[k])
+        seg = pyfits.open(segfile)[0].data
+        seg_mask = nd.maximum_filter((seg > 0), size=mask_grow) == 0
+        dq_ok = (flt[3].data & (4+32+16+512+2048+4096)) == 0
+        
+        mask = seg_mask & dq_ok 
+        
+        #### Iterative clips on percentile
+        mask &= (flt[1].data < np.percentile(flt[1].data[mask], 98)) & (flt[2].data > 0) & (flt[1].data > np.percentile(flt[1].data[mask], 1))
+        mask &= (flt[1].data < np.percentile(flt[1].data[mask], 84)) & (flt[2].data > 0) & (flt[1].data > np.percentile(flt[1].data[mask], 16))
+                    
+        residuals = []
+        for j in range(iter):
+            yres = np.zeros(1014)
+            for i in range(1014):
+                ymsk = mask[:,i]
+                yres[i] = np.median(flt[1].data[ymsk,i])
+            #
+            yres_sm = threedhst.utils.medfilt(yres, 41)
+            #
+            resid = np.dot(np.ones((1014,1)), yres_sm.reshape(1,1014))
+            flt[1].data -= resid
+            residuals.append(yres_sm*1)
+            
+        threedhst.showMessage('Remove column average: %s' %(asn.exposures[k]))
+        flt.flush()
+        
+        #plt.plot(yres_sm)
+        
+        ### Make figure
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_agg import FigureCanvasAgg
+        
+        fig = Figure(figsize=[6,4], dpi=100)
+
+        fig.subplots_adjust(wspace=0.25,hspace=0.02,left=0.15,
+                            bottom=0.08,right=0.97,top=0.92)
+
+        ax = fig.add_subplot(111)
+        ax.set_xlim(0,1014)
+        ax.set_title(flt.filename())
+
+        ax.plot(yres, color='black')
+        for yres_sm in residuals:
+            ax.plot(yres_sm, color='red', linewidth=2, alpha=0.7)
+        
+        ax.set_xlim(0,1014)
+
+        canvas = FigureCanvasAgg(fig)
+        canvas.print_figure(flt.filename().split('.fits')[0] + '.column.png', dpi=100, transparent=False)
+            
+
+def obj_lstsq_visit(x, data, ims, whts, mask):
+    """
+    Objective function for least squares
+    """
+    sh_data = data.shape
+    sh_temp = ims.shape
+    resid = data*0.
+    
+    for i in range(sh_data[0]):
+        coeff = np.zeros(sh_temp[0])
+        coeff[0] = x[0]
+        coeff[1:] = x[1+i*(sh_temp[0]-1):1+(i+1)*(sh_temp[0]-1)]
+        resid[i,:] = (data[i,:] - np.dot(coeff, ims))*whts[i,:]
+        
+    return resid[mask] #, (b-np.dot(x, A))*wht
+
 def profile(flt='ibhm46ioq_flt.fits', extension=1, flatcorr=True, biweight=False):
     """
     Get a cut across the columns of a FLT image, optionally masking objects and DQ 
