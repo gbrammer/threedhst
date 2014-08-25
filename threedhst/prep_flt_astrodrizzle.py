@@ -218,7 +218,7 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False):
     #print 'Read files...'
     ref = pyfits.open('%s_drz_sci.fits' %(root))
     seg = pyfits.open('%s_drz_seg.fits' %(root))
-    seg_data = np.cast[np.float32](seg[0].data)
+    seg_data = np.cast[np.float16](seg[0].data)
     
     ref_wcs = stwcs.wcsutil.HSTWCS(ref, ext=0)
     
