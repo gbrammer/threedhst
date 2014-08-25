@@ -9,8 +9,14 @@ __version__ = "$Rev$"
 # $Author$
 # $Date$
 
-import matplotlib.pyplot as pyplot
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
+
 import numpy as np
+
+import matplotlib.pyplot as pyplot
 import numpy.random as nprand
 import threedhst
 
@@ -508,9 +514,7 @@ def extract1D(ID, root='orient1', path='../HTML', show=False, out2d=False):
     Include background estimate.
     
     """
-    import pyfits
     import matplotlib.pyplot as plt
-    import numpy as np
 
     import threedhst
     import threedhst.catIO as catIO

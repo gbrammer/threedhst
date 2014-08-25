@@ -14,9 +14,14 @@ __version__ = "$Rev$"
 
 import os
 
-import pyfits
-import numpy as np
 import Tkinter as tk
+
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
+
+import numpy as np
 
 import threedhst
 

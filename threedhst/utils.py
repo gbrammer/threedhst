@@ -14,7 +14,11 @@ import os
 import string
 import time
 
-import pyfits
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
+
 import numpy as np
 
 def test_conserve():
@@ -394,7 +398,13 @@ _read_asn_file(self)
             memtype = self.in_fits[1].columns[1]
             memprsnt = self.in_fits[1].columns[2]
             coldefs = pyfits.ColDefs([memname, memtype, memprsnt])
-            hdu = pyfits.new_table(coldefs)
+            try:
+                #print 'from_columns'
+                hdu = pyfits.BinTableHDU.from_columns(coldefs)
+            except:
+                #print 'fail pyfits'
+                hdu = pyfits.new_table(coldefs)
+                
             hdu.header = self.in_fits[1].header
             hdu.header['TFORM1'] = '40A'
             hdu.header['TDISP1'] = 'A40'
@@ -550,9 +560,7 @@ combine_asn_shifts(asn_list, out_root='combined', path_to_FLT='./',
     >>> asn_files = glob.glob()
     >>> combine_asn_shifts(asn_files, out_root='combined',
                            run_multidrizzle=False)
-    """
-    import numpy as np
-    import pyfits
+    """    
     import threedhst.utils
     import threedhst.shifts
     

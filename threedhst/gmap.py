@@ -8,8 +8,14 @@ __version__ = "$Rev$"
 # $Date$
 
 import os
-import numpy as np
 import glob
+
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
+
+import numpy as np
 
 # Specifies the size of the map (in pixels).
 TILE_SIZE = 256
@@ -31,10 +37,8 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1,
     "fitsfile" can be a single FITS image or a comma-separated list of three
     images (R,G,B) that will be used to generate a 3-color image.  
     """
-    import pyfits
     import pywcs
     #import fitsimage
-    import numpy as np
     
     if fitsfile is None:
         fitsfile = 'ib3721050_drz.fits'
@@ -239,8 +243,6 @@ makeOtherTiles
     Xray, radio etc.
     """
     import threedhst
-    import pyfits
-    import numpy as np
     
     #### Swarp the `other_image` to the `reference_image` pixels
     sw = threedhst.sex.SWarp()
@@ -300,8 +302,6 @@ mapParams = makeAllTiles(ROOT_DIRECT, ROOT_GRISM, zmin=-0.1, zmax=1,
                          PARAM_ONLY=False)
     """
     import threedhst
-    import pyfits
-    import numpy as np
     
     threedhst.showMessage("""
 Make all of the google map tiles.  This involves running SWarp
@@ -476,7 +476,6 @@ data2image(data,zmin=-0.1,zmax=0.5)
     
     """ 
     from PIL import Image
-    import numpy as np
     # array sizes
     xsize = data.shape[1]
     ysize = data.shape[0]
@@ -575,7 +574,6 @@ radec2latlon(radec)
     Convert R.A./Dec to Lat./Lon.
     
     """
-    import numpy as np
     #latlon = np.zeros(2.)
     latlon = np.array([radec[1],360.-radec[0]])
     #latlon = np.array([radec[1],(360.-radec[0])/np.cos(radec[1]/360.*2*np.pi)])
@@ -809,7 +807,6 @@ def congrid(a, newdims, method='linear', centre=False, minusone=False):
     True - inarray is resampled by(i-1)/(x-1) * (j-1)/(y-1)
     This prevents extrapolation one element beyond bounds of input array.
     '''
-    import numpy as n
     import scipy.interpolate
     import scipy.ndimage
     
@@ -937,10 +934,7 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
         FITS_IMAGES = ['red.fits[1]*10,green.fits[0]*2,blue.fits[0]*1.']
       
     """
-    import threedhst
-    import pyfits
-    import numpy as np
-    
+    import threedhst    
     
     #### Make into lists if not already
     #if FITS_IMAGES.__class__ == ''.__class__:

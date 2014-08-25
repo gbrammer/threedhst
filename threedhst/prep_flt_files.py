@@ -21,8 +21,13 @@ import os
 import glob
 import shutil
 
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
+
 import numpy as np
-import pyfits
+
 import scipy.linalg
 # from scipy import polyfit, polyval
 import matplotlib.pyplot as plt
@@ -1894,7 +1899,6 @@ MultidrizzleRun(root='IB3728050')
     Get list of flt files and their shifts as used by multidrizzle.
     """
     def __init__(self, root='IB3728050'):
-        import numpy as np
         
         runfile = root+'.run'
         self.root = root
@@ -2088,7 +2092,6 @@ class DRZFile(MultidrizzleRun):
     file
     """
     def __init__(self, fitsfile='ib6o23010_drz.fits'):
-        import numpy as np
         
         self.root = fitsfile.split('_drz.fits')[0]
         
@@ -2126,7 +2129,6 @@ jitter_info()
     """
     import glob
     import os
-    import numpy as np
     
     fp = open('jitter_info.dat','w')
     

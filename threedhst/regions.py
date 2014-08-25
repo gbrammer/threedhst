@@ -14,7 +14,11 @@ import os
 import string
 import time
 
-import pyfits
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
+
 import numpy as np
 
 import threedhst

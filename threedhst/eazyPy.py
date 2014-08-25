@@ -14,6 +14,11 @@ eazyPy: routines for reading and plotting Eazy output
 import os
 import string
 
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
+
 import numpy as np
 
 import matplotlib
@@ -918,8 +923,15 @@ PlotSEDExample(idx=20)
     #ax.errorbar(lci,fobs,yerr=efobs,ecolor=None,
     #           color='black',fmt='o',alpha=alph)
     #
-    ax.errorbar(lci,fobs,yerr=efobs,ecolor='black',
-               color='black',fmt='o',alpha=alph, markeredgecolor='black', markerfacecolor='None', markeredgewidth=1.5, ms=8, zorder=1)
+    # ax.errorbar(lci, fobs, yerr=efobs, ecolor='black',
+    #            color='black',fmt='o',alpha=alph, markeredgecolor='black', markerfacecolor='None', markeredgewidth=1.5, ms=8, zorder=1)
+
+    highsn = fobs/efobs > 2
+    ax.errorbar(lci[highsn], fobs[highsn], yerr=efobs[highsn], ecolor='black',
+               color='black',fmt='o',alpha=alph, markeredgecolor='black', markerfacecolor='None', markeredgewidth=1.5, ms=8, zorder=2)
+    #
+    ax.errorbar(lci[~highsn], fobs[~highsn], yerr=efobs[~highsn], ecolor='0.7',
+               color='black',fmt='o',alpha=alph, markeredgecolor='0.7', markerfacecolor='None', markeredgewidth=1.5, ms=8, zorder=1)
     
     for i in range(len(lci)):
         print '%f %e %e %e' %(lci[i], obs_sed[i], fobs[i], efobs[i])
@@ -1617,7 +1629,6 @@ def compute_template_line_fluxes():
     """
     
     import threedhst.eazyPy as eazy
-    import numpy as np
     import matplotlib.pyplot as plt
     import research.v4 as cat2
     

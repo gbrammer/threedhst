@@ -53,7 +53,12 @@ __version__ = "$Rev$"
 # $Date$
 
 import os
-import pyfits
+
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
+
 import numpy as np
 
 import threedhst
@@ -142,7 +147,6 @@ Pipeline to process a set of grism/direct exposures.
     """
     import shutil
     import glob
-    import numpy as np
     
     import pyraf
     import aXe2html.sexcat.sextractcat
@@ -1491,8 +1495,6 @@ fix_g141_sky_image(conf_path='./', verbose=True)
     by `conf_path` (WFC3.IR.G141.sky.V1.0.fits is read from `conf_path`).
     
     """
-    import pyfits
-    import numpy as np
     
     if verbose:
         threedhst.showMessage("""Filling holes in G141 sky image.
@@ -1574,7 +1576,6 @@ class Conf(object):
         
         Apply parameter values to self.lines
         """
-        import numpy as np
         for key in self.params.keys():
             param = self.params[key]
             if type(param) is not type('xxx'):
@@ -1656,7 +1657,6 @@ def update_catalogs(root='COSMOS-3-G141', HTML_DIR='./HTML/', DATA_DIR='./DATA/'
         MCONTAM = maximum contamination within coverage region
     """  
     import os
-    import numpy as np
     import threedhst.catIO as catIO
     
     if GRISM == 'G141':

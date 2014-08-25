@@ -2,8 +2,12 @@ import string
 import os
 import time
 
-import numpy as np 
-import pyfits
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
+
+import numpy as np
 
 import threedhst
 

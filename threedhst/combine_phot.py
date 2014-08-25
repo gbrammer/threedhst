@@ -11,8 +11,15 @@ __version__ = "$Rev$"
 
 import os
 import matplotlib.pyplot as pyplot
+
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
+
 import numpy as np
 import numpy.random as nprand
+
 import threedhst
 
 ## Global        

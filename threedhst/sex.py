@@ -14,7 +14,13 @@ __version__ = "$Rev$"
 # $Author$
 # $Date$
 
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
+
 import numpy as np
+
 import aXe2html.sexcat.sextractcat
 import threedhst
 
@@ -636,7 +642,6 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         
         Pop item id#NUMBER from a SExtractor catalog.
         """
-        import numpy as np
         
         #### search for line with object NUMBER itself and pop it. 
         #### Return message if number not found)
@@ -1059,7 +1064,7 @@ class SWarp(object):
         Get WCS image from matchImage[extension] and set swarp parameters
         so that the output image will have the same size/position.
         """
-        import pyfits, pywcs
+        import pywcs
         from pyraf import iraf
         
         im = pyfits.open(matchImage)

@@ -13,14 +13,20 @@ __version__ = "$Rev: 199 $"
 # $Author: gbrammer $
 # $Date: 2011-05-22 01:59:38 -0400 (Sun, 22 May 2011) $
 
-import matplotlib.pyplot as plt
-
-import numpy as np
-import threedhst
-import threedhst.prep_flt_files
-import pyfits
 import glob
 import os
+
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
+
+import numpy as np
+
+import matplotlib.pyplot as plt
+
+import threedhst
+import threedhst.prep_flt_files
 
 IREF = os.getenv('iref')
 

@@ -11,15 +11,17 @@ __version__ = "$Rev$"
 # $Author$
 # $Date$
 
-import utils
-import shifts
-import sex
-import process_grism
-import plotting
-import gmap
-import regions
-import spec1d   
-import TerminalController
+#### Package imports
+from . import utils
+from . import shifts
+from . import sex
+from . import process_grism
+from . import plotting
+from . import plotting
+from . import gmap
+from . import regions
+from . import spec1d   
+from . import TerminalController
 
 options = {}
 currentRun = {}

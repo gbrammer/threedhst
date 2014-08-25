@@ -7,9 +7,14 @@ xxx still need full "pair" wrapper to put it all together, including adding dire
 """
 import os
 
-import astropy.io.fits as pyfits
-import matplotlib.pyplot as plt
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
+
 import numpy as np
+
+import matplotlib.pyplot as plt
 import scipy.ndimage as nd
 
 import stsci.convolve
@@ -180,7 +185,6 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False):
     """
     Subtract polynomial background
     """
-    import numpy as np
     import scipy.optimize
     
     import astropy.units as u
@@ -217,10 +221,13 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False):
     
     #print 'Read files...'
     ref = pyfits.open('%s_drz_sci.fits' %(root))
-    seg = pyfits.open('%s_drz_seg.fits' %(root))
-    seg_data = np.cast[np.float16](seg[0].data)
-    
     ref_wcs = stwcs.wcsutil.HSTWCS(ref, ext=0)
+
+    seg = pyfits.open('%s_drz_seg.fits' %(root))    
+    #### Fill ref[0].data with zeros for seg mask
+    #seg_data = ref[0].data
+    #seg_data[seg[0].data == 0] = 0
+    seg_data = np.cast[np.float32](seg[0].data)
     
     yi, xi = np.indices((1014,1014))
     if scattered_light:
@@ -239,16 +246,19 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False):
     
     #### Loop through FLTs, blotting reference and segmentation
     for exp in asn.exposures:
-        flt = pyfits.open('%s_flt.fits' %(exp), mode='update')
+        flt = pyfits.open('%s_flt.fits' %(exp)) #, mode='update')
         flt_wcs = stwcs.wcsutil.HSTWCS(flt, ext=1)
-        ### segmentation
+        
+        ### segmentation        
         print 'Segmentation image: %s_blot.fits' %(exp)
         blotted_seg = astrodrizzle.ablot.do_blot(seg_data, ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
+        
         mask = (blotted_seg == 0) & (flt['DQ'].data == 0) & (flt[1].data < 5) & (flt[1].data > -1) & (xi > 50) & (yi > 50) & (xi < 964) & (yi < 964)
         data_range = np.percentile(flt[1].data[mask], [2.5, 97.5])
         mask &= (flt[1].data >= data_range[0]) & (flt[1].data <= data_range[1])
         data_range = np.percentile(flt[2].data[mask], [2.5, 97.5])
         mask &= (flt[2].data >= data_range[0]) & (flt[2].data <= data_range[1])
+        
         ### Least-sq fit for component normalizations
         data = flt[1].data[mask].flatten()
         wht = (1./flt[2].data[mask].flatten())**2
@@ -259,14 +269,16 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False):
         popt = scipy.optimize.leastsq(obj_fun, p0, args=(data, templates, wht), full_output=True, ftol=1.49e-8/1000., xtol=1.49e-8/1000.)
         xcoeff = popt[0]
         model = np.dot(xcoeff, bg_flat).reshape((1014,1014))
-        # add header keywords
+        
+        # add header keywords of the fit components
+        flt = pyfits.open('%s_flt.fits' %(exp), mode='update')
         flt[1].data -= model
         for i in range(NCOMP):
             if 'BGCOMP%d' %(i+1) in flt[0].header:
                 flt[0].header['BGCOMP%d' %(i+1)] += xcoeff[i]
             else:
                 flt[0].header['BGCOMP%d' %(i+1)] = xcoeff[i]                
-        #
+        
         flt.flush()
         coeff_str = '  '.join(['%.4f' %c for c in xcoeff])
         threedhst.showMessage('Background subtraction, %s_flt.fits:\n\n  %s' %(exp, coeff_str))
@@ -378,8 +390,6 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
     Subtract master grism sky from FLTs
     """
     import os
-    import astropy.io.fits as pyfits
-    import pyfits as orig_pyfits
     import scipy.ndimage as nd
     import pyregion
     
@@ -448,19 +458,11 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
     
     #### Blot segmentation map to FLT images for object mask
     ref = pyfits.open('%s_drz_sci.fits' %(root))
+    ref_wcs = stwcs.wcsutil.HSTWCS(ref, ext=0)
+
     seg = pyfits.open('%s_drz_seg.fits' %(root))
     seg_data = np.cast[np.float32](seg[0].data)
-    
-    # mask_reg = asn_file.replace('asn.fits', 'mask.reg')
-    # if os.path.exists(mask_reg):
-    #     threedhst.showMessage('Add mask: %s' %(mask_reg))
-    #     refo = orig_pyfits.open('%s_drz_sci.fits' %(root))
-    #     r = pyregion.open(mask_reg).as_imagecoord(header=refo[0].header)
-    #     manual_mask = r.get_mask(hdu=refo[0])
-    #     seg_data += manual_mask*10
-    
-    ref_wcs = stwcs.wcsutil.HSTWCS(ref, ext=0)
-        
+            
     #### Loop through FLTs, blotting reference and segmentation
     threedhst.showMessage('%s: Blotting grism segmentation masks.' %(root))
     
@@ -555,7 +557,7 @@ def get_vizier_cat(image='RXJ2248-IR_sci.fits', ext=0, catalog="II/246"):
     return True
     
     
-def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goodss-34-G141_asn.fits', radec=None, raw_path='../RAW/', mask_grow=18, scattered_light=False, final_scale=None, skip_direct=False, ACS=False):
+def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goodss-34-G141_asn.fits', radec=None, raw_path='../RAW/', mask_grow=18, scattered_light=False, final_scale=None, skip_direct=False, ACS=False, jump=False):
     """
     Process both the direct and grism observations of a given visit
     """
@@ -605,42 +607,49 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
                 #
                 flc.flush()
         else:
-            prep.subtract_flt_background(root=direct_asn.split('_asn')[0], scattered_light=scattered_light)
-            
-        if not ACS:
+            pass
+            #### Do this later, gives segfaults here???
+            #prep.subtract_flt_background(root=direct_asn.split('_asn')[0], scattered_light=scattered_light)
             #### Flag CRs again on BG-subtracted image
-            drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, clean=True, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') # ,
-    
-        if not grism_asn:
-            t1 = time.time()
-            threedhst.showMessage('direct: %s\n\nDone (%d s).' %(direct_asn, int(t1-t0)))
-            return True
+            #drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, clean=True, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') # ,
         
     ################################
     #### Grism image processing
     ################################
     
-    if ACS:
-        asn = threedhst.utils.ASNFile(grism_asn)
-        for exp in asn.exposures:
-            print 'cp %s/%s_flc.fits.gz .' %(raw_path, exp)
-            os.system('cp %s/%s_flc.fits.gz .' %(raw_path, exp))
-            os.system('gunzip %s_flc.fits.gz' %(exp))
-            updatewcs.updatewcs('%s_flc.fits' %(exp))
-            
-        prep.copy_adriz_headerlets(direct_asn=direct_asn, grism_asn=grism_asn, ACS=True)
-        prep.subtract_acs_grism_background(asn_file=grism_asn, final_scale=None)
-    else:
-        #### Remove the sky and flag CRs
-        prep.subtract_grism_background(asn_file=grism_asn, PATH_TO_RAW='../RAW/', final_scale=None, visit_sky=True, column_average=True, mask_grow=mask_grow)
+    if grism_asn:
+        if ACS:
+            asn = threedhst.utils.ASNFile(grism_asn)
+            for exp in asn.exposures:
+                print 'cp %s/%s_flc.fits.gz .' %(raw_path, exp)
+                os.system('cp %s/%s_flc.fits.gz .' %(raw_path, exp))
+                os.system('gunzip %s_flc.fits.gz' %(exp))
+                updatewcs.updatewcs('%s_flc.fits' %(exp))
 
-        #### Copy headers from direct images
-        if radec is not None:
-            prep.copy_adriz_headerlets(direct_asn=direct_asn, grism_asn=grism_asn, ACS=False)
+            prep.copy_adriz_headerlets(direct_asn=direct_asn, grism_asn=grism_asn, ACS=True)
+            prep.subtract_acs_grism_background(asn_file=grism_asn, final_scale=None)
+        else:
+            #### Remove the sky and flag CRs
+            prep.subtract_grism_background(asn_file=grism_asn, PATH_TO_RAW='../RAW/', final_scale=None, visit_sky=True, column_average=True, mask_grow=mask_grow)
 
-            #### Run with final shifts
-            drizzlepac.astrodrizzle.AstroDrizzle(grism_asn, clean=True, skysub=False, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7')
+            #### Copy headers from direct images
+            if radec is not None:
+                prep.copy_adriz_headerlets(direct_asn=direct_asn, grism_asn=grism_asn, ACS=False)
+                #### Run CR rejection with final shifts
+                drizzlepac.astrodrizzle.AstroDrizzle(grism_asn, clean=True, skysub=False, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7')
     
-    t1 = time.time()
-    threedhst.showMessage('direct: %s\ngrism: %s\n\nDone (%d s).' %(direct_asn, grism_asn, int(t1-t0)))
+    
+    #### put at the end to workaround segfaults???
+    if (not skip_direct) & (not ACS):
+        #### Subtract WFC3/IR direct backgrounds
+        prep.subtract_flt_background(root=direct_asn.split('_asn')[0], scattered_light=scattered_light)
+        #### Flag IR CRs again on BG-subtracted image
+        drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, clean=True, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7', resetbits=4096) # ,
+    
+    if not grism_asn:
+        t1 = time.time()
+        threedhst.showMessage('direct: %s\n\nDone (%d s).' %(direct_asn, int(t1-t0)))
+    else:
+        t1 = time.time()
+        threedhst.showMessage('direct: %s\ngrism: %s\n\nDone (%d s).' %(direct_asn, grism_asn, int(t1-t0)))
     

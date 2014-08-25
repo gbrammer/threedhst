@@ -10,7 +10,11 @@ __version__ = "$Rev$"
 # $Date$
 
 import os
-import pyfits
+
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
 
 import numpy as np
 
@@ -96,7 +100,6 @@ align_img_list = find_align_images_that_overlap()
     don't overlap with the target image.
     """
     import glob
-    import numpy as np
     import threedhst.regions
     #ROOT_DIRECT = threedhst.options['ROOT_DIRECT']
     align_images = glob.glob(ALIGN_IMAGE)
@@ -150,7 +153,6 @@ refine_shifts(ROOT_DIRECT='f160w',
     Refine shifts by catalog matching an input multidrizzle image, 
     ROOT_DIRECT+'_drz.fits' to one or more alignment images
     """
-    import numpy as np
         
     run = threedhst.prep_flt_files.MultidrizzleRun(ROOT_DIRECT.upper())
     
@@ -398,7 +400,6 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     import os
     import glob
     import shutil
-    import numpy as np
     
     from pyraf import iraf
     from iraf import stsdas,dither
@@ -693,8 +694,7 @@ def match_diagnostic_plot(root='JKCS041-2r-168-F160W'):
     """
     Make delta_x delta_y scatter plot and vector diagram for outputs from the 
     alignment script. 
-    """
-    import pyfits
+    """    
     import pywcs
     drz = pyfits.getheader(root+'_drz.fits', 'SCI')
     wcs = pywcs.WCS(drz)

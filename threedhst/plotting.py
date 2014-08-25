@@ -10,7 +10,10 @@ __version__ = "$Rev$"
 # $Author$
 # $Date$
 
-import pyfits
+try:
+    import astropy.io.fits as pyfits
+except:
+    import pyfits
 
 import numpy as np
 errs = np.seterr(divide='ignore', invalid='ignore')
