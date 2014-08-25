@@ -324,7 +324,7 @@ def copy_adriz_headerlets(direct_asn='GOODS-S-15-F140W_asn.fits', grism_asn='GOO
                         threedhst.showMessage('"TWEAK" WCS already found in %s_flt.fits.\nRun copy_adriz_headerlets with force=True to force update the shifts' %(grism.exposures[i]), warn=True)
                         continue
             #
-            updatewcs.updatewcs('%s_%s.fits' %(grism.exposures[i]), ext)
+            updatewcs.updatewcs('%s_%s.fits' %(grism.exposures[i], ext))
             drizzlepac.updatehdr.updatewcs_with_shift('%s_%s.fits' %(grism.exposures[i], ext), direct_WCS, rot=sf.rotate[0], scale=sf.scale[0], xsh=sf.xshift[0], ysh=sf.yshift[0], wcsname='TWEAK')
   
 def subtract_acs_grism_background(asn_file='RXJ2248-08-G800L_asn.fits', final_scale=None):
