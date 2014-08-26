@@ -82,8 +82,12 @@ def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_rad
     for exp in asn.exposures:
         updatewcs.updatewcs('%s_%s.fits' %(exp, ext))
     
-    drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=False, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_cr_corr=True, driz_combine=True)
-    #drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=False, context=False, preserve=False, skysub=True, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=True, driz_cr_corr=True, driz_combine=False)
+    has_crclean = True
+    for exp in asn.exposures:
+        has_crclean &= os.path.exists('%s_crclean.fits' %(exp))
+    
+    if not has_crclean: 
+        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=False, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_cr_corr=True, driz_combine=True)
         
     #### Make SExtractor source catalogs in *each* flt
     for exp in asn.exposures:
@@ -196,6 +200,9 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False):
     from drizzlepac import astrodrizzle, tweakreg, tweakback
     
     import threedhst
+    
+    if not os.path.exists('%s_drz_sci.fits' %(root)):
+        drizzlepac.astrodrizzle.AstroDrizzle(root+'_asn.fits', clean=False, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_cr_corr=True, driz_combine=True)
     
     se = threedhst.sex.SExtractor()
     se.options['WEIGHT_IMAGE'] = '%s_drz_wht.fits' %(root)
@@ -578,8 +585,9 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
     
     #### xx add astroquery 2MASS/SDSS workaround for radec=None
     
-    #### Get fresh FLTS from ../RAW/
     if not skip_direct:
+
+        #### Get fresh FLTS from ../RAW/
         asn = threedhst.utils.ASNFile(direct_asn)
         if ACS:
             for exp in asn.exposures:
@@ -588,14 +596,19 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
                 os.system('gunzip %s_flc.fits.gz' %(exp))
         else:
             threedhst.process_grism.fresh_flt_files(direct_asn, from_path=raw_path)
-    
+        
+        if (not ACS):
+            #### Subtract WFC3/IR direct backgrounds
+            prep.subtract_flt_background(root=direct_asn.split('_asn')[0], scattered_light=scattered_light)
+            #### Flag IR CRs again within runTweakReg
+        
         #### Run TweakReg
         if (radec is None) & (not ACS):
             drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, clean=True, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') # ,
         else:
             prep.runTweakReg(asn_file=direct_asn, master_catalog=radec, final_scale=None, ACS=ACS)
     
-        #### Subtract background of direct images
+        #### Subtract background of direct ACS images
         if ACS:
             for exp in asn.exposures:
                 flc = pyfits.open('%s_flc.fits' %(exp), mode='update')
@@ -637,15 +650,7 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
                 prep.copy_adriz_headerlets(direct_asn=direct_asn, grism_asn=grism_asn, ACS=False)
                 #### Run CR rejection with final shifts
                 drizzlepac.astrodrizzle.AstroDrizzle(grism_asn, clean=True, skysub=False, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7')
-    
-    
-    #### put at the end to workaround segfaults???
-    if (not skip_direct) & (not ACS):
-        #### Subtract WFC3/IR direct backgrounds
-        prep.subtract_flt_background(root=direct_asn.split('_asn')[0], scattered_light=scattered_light)
-        #### Flag IR CRs again on BG-subtracted image
-        drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, clean=True, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7', resetbits=4096) # ,
-    
+        
     if not grism_asn:
         t1 = time.time()
         threedhst.showMessage('direct: %s\n\nDone (%d s).' %(direct_asn, int(t1-t0)))
