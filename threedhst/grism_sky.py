@@ -399,7 +399,10 @@ def remove_visit_sky(asn_file='GDN12-G102_asn.fits', list=['zodi_G102_clean.fits
         flt = pyfits.open('%s_flt.fits' %(asn.exposures[i]), mode='update')
         flt[1].data = flt[1].data*bg.flat - bg_model
         for j in range(sh_temp[0]):
-            flt[0].header['GSKY%02d' %(j)] = (coeff[j], 'Master sky: %s' %(skies[j]))
+            if 'GSKY%02d' %(j) in flt[0].header:
+                flt[0].header['GSKY%02d' %(j)] += coeff[j]
+            else:
+                flt[0].header['GSKY%02d' %(j)] = (coeff[j], 'Master sky: %s' %(skies[j]))
         #
         flt[1].header['MDRIZSKY'] = 0.
         flt.flush()
@@ -407,9 +410,12 @@ def remove_visit_sky(asn_file='GDN12-G102_asn.fits', list=['zodi_G102_clean.fits
     threedhst.showMessage(logstr)
     
     if column_average:
+        #for iter in range(2):
         grism_sky_column_average(asn_file=asn_file, mask_grow=mask_grow)
         
-def grism_sky_column_average(asn_file='GDN12-G102_asn.fits', iter=3, mask_grow=18):
+        #grism_sky_column_average(asn_file=asn_file, mask_grow=mask_grow)
+        
+def grism_sky_column_average(asn_file='GDN12-G102_asn.fits', iter=2, mask_grow=8):
     """
     Remove column-averaged residuals from grism exposures
     """
@@ -426,27 +432,37 @@ def grism_sky_column_average(asn_file='GDN12-G102_asn.fits', iter=3, mask_grow=1
         seg_mask = nd.maximum_filter((seg > 0), size=mask_grow) == 0
         dq_ok = (flt[3].data & (4+32+16+512+2048+4096)) == 0
         
-        mask = seg_mask & dq_ok 
+        mask = seg_mask & dq_ok & (flt[2].data > 0)
         
         #### Iterative clips on percentile
-        mask &= (flt[1].data < np.percentile(flt[1].data[mask], 98)) & (flt[2].data > 0) & (flt[1].data > np.percentile(flt[1].data[mask], 1))
-        mask &= (flt[1].data < np.percentile(flt[1].data[mask], 84)) & (flt[2].data > 0) & (flt[1].data > np.percentile(flt[1].data[mask], 16))
+        #mask &= (flt[1].data < np.percentile(flt[1].data[mask], 98)) & (flt[2].data > 0) & (flt[1].data > np.percentile(flt[1].data[mask], 2))
+        #mask &= (flt[1].data < np.percentile(flt[1].data[mask], 84)) & (flt[2].data > 0) & (flt[1].data > np.percentile(flt[1].data[mask], 16))
                     
         residuals = []
         for j in range(iter):
+            masked = flt[1].data*1
+            masked[~mask] = np.nan
             yres = np.zeros(1014)
             for i in range(1014):
-                ymsk = mask[:,i]
-                yres[i] = np.median(flt[1].data[ymsk,i])
+                # ymsk = mask[:,i]
+                # yres[i] = np.median(flt[1].data[ymsk,i])
+                ymsk = masked[:,i]
+                #ymsk = masked[:,np.maximum(i-10,0):i+10]
+                #yres[i] = np.median(ymsk[np.isfinite(ymsk)])
+                ok = np.isfinite(ymsk)
+                ymsk[(ymsk > np.percentile(ymsk[ok], 84)) | (ymsk < np.percentile(ymsk[ok], 16))] = np.nan
+                yres[i] = np.mean(ymsk[np.isfinite(ymsk)])
+                
             #
-            yres_sm = threedhst.utils.medfilt(yres, 41)
+            resid = threedhst.utils.medfilt(yres, 41)
             #
-            resid = np.dot(np.ones((1014,1)), yres_sm.reshape(1,1014))
+            #resid = np.dot(np.ones((1014,1)), yres_sm.reshape(1,1014))
             flt[1].data -= resid
-            residuals.append(yres_sm*1)
+            residuals.append(resid*1)
             
         threedhst.showMessage('Remove column average: %s' %(asn.exposures[k]))
         flt.flush()
+        #flt.writeto(flt.filename(), clobber=True)
         
         #plt.plot(yres_sm)
         
@@ -464,8 +480,8 @@ def grism_sky_column_average(asn_file='GDN12-G102_asn.fits', iter=3, mask_grow=1
         ax.set_title(flt.filename())
 
         ax.plot(yres, color='black')
-        for yres_sm in residuals:
-            ax.plot(yres_sm, color='red', linewidth=2, alpha=0.7)
+        for resid in residuals:
+            ax.plot(resid, color='red', linewidth=2, alpha=0.7)
         
         ax.set_xlim(0,1014)
 

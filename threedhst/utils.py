@@ -896,8 +896,8 @@ def xyrot(xin, yin, theta, x0=0., y0=0., radians=False, ccw=False):
     coo[1,:] = yin-y0
 
     out = np.dot(mat.transpose(), coo)
-    xout = out[0,:]
-    yout = out[1,:]
+    xout = out[0,:] + x0
+    yout = out[1,:] + y0
     return xout, yout
 
 def color_table(value, table='hsv.rgb', normalized=False, show=False):

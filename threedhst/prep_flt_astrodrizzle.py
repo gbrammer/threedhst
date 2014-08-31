@@ -195,13 +195,19 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False):
     
     from astropy.table import Table as table
     
-    import drizzlepac
     import stwcs
+    from stwcs import updatewcs
+    
+    import drizzlepac
     from drizzlepac import astrodrizzle, tweakreg, tweakback
     
     import threedhst
     
     if not os.path.exists('%s_drz_sci.fits' %(root)):
+        asn = threedhst.utils.ASNFile(root+'_asn.fits')
+        for exp in asn.exposures:
+            updatewcs.updatewcs('%s_%s.fits' %(exp, 'flt'))
+        
         drizzlepac.astrodrizzle.AstroDrizzle(root+'_asn.fits', clean=False, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_cr_corr=True, driz_combine=True)
     
     se = threedhst.sex.SExtractor()
@@ -392,7 +398,7 @@ def subtract_acs_grism_background(asn_file='RXJ2248-08-G800L_asn.fits', final_sc
     
     drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, skysub=False, skyuser='MDRIZSKY', final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, preserve=False) # , final_wcs=True, final_rot=0)
     
-def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW/', final_scale=0.06, visit_sky=True, column_average=True, mask_grow=18):
+def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW/', final_scale=0.06, visit_sky=True, column_average=True, mask_grow=18, first_run=True):
     """
     Subtract master grism sky from FLTs
     """
@@ -410,41 +416,46 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
     
     asn = threedhst.utils.ASNFile(asn_file)
     root = asn_file.split('_asn')[0]
-    
-    ### Rough background subtraction
-    threedhst.process_grism.fresh_flt_files(asn_file, from_path=PATH_TO_RAW, preserve_dq=False)
-    flt = pyfits.open('%s_flt.fits' %(asn.exposures[0]))
-    GRISM = flt[0].header['FILTER']
-    
-    bg.set_grism_flat(grism=GRISM, verbose=True)
-    
+        
     sky_images = {'G141':['zodi_G141_clean.fits', 'excess_lo_G141_clean.fits', 'G141_scattered_light.fits'],
                   'G102':['zodi_G102_clean.fits', 'excess_G102_clean.fits']}
-    
-    zodi = pyfits.open(os.getenv('THREEDHST')+'/CONF/%s' %(sky_images[GRISM][0]))[0].data
-    
-    for exp in asn.exposures:
-        updatewcs.updatewcs('%s_flt.fits' %(exp))
-        flt = pyfits.open('%s_flt.fits' %(exp), mode='update')
-        #flt = pyfits.open('%s_flt.fits' %(exp))
-        flt[1].data *= bg.flat
-        #
-        mask = (flt['DQ'].data == 0)
-        data_range = np.percentile(flt[1].data[mask], [20, 80])
-        mask &= (flt[1].data >= data_range[0]) & (flt[1].data <= data_range[1]) & (flt[2].data != 0) & np.isfinite(flt[1].data) & np.isfinite(flt[2].data)
-        ### Least-sq fit for component normalizations
-        data = flt[1].data[mask].flatten()
-        wht = (1./flt[2].data[mask].flatten())**2
-        zodi_mask = zodi[mask].flatten()
-        coeff_zodi = np.sum(data*zodi_mask*wht)/np.sum(zodi_mask**2*wht)
-        flt[1].data -= zodi*coeff_zodi
-        flt.flush()
-        threedhst.showMessage('Rough background for %s (zodi): %0.4f' %(exp, coeff_zodi))
-        #templates = bg_flat[:, mask.flatten()]
         
-    ### Run astrodrizzle to make DRZ mosaic, grism-SExtractor mask
-    drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_combine=True, final_wcs=False)
+    if first_run:
+        ### Rough background subtraction
+        threedhst.process_grism.fresh_flt_files(asn_file, from_path=PATH_TO_RAW, preserve_dq=False)
+        flt = pyfits.open('%s_flt.fits' %(asn.exposures[0]))
+        GRISM = flt[0].header['FILTER']
+        bg.set_grism_flat(grism=GRISM, verbose=True)
     
+        zodi = pyfits.open(os.getenv('THREEDHST')+'/CONF/%s' %(sky_images[GRISM][0]))[0].data
+    
+        for exp in asn.exposures:
+            updatewcs.updatewcs('%s_flt.fits' %(exp))
+            flt = pyfits.open('%s_flt.fits' %(exp), mode='update')
+            #flt = pyfits.open('%s_flt.fits' %(exp))
+            flt[1].data *= bg.flat
+            #
+            mask = (flt['DQ'].data == 0)
+            data_range = np.percentile(flt[1].data[mask], [20, 80])
+            mask &= (flt[1].data >= data_range[0]) & (flt[1].data <= data_range[1]) & (flt[2].data != 0) & np.isfinite(flt[1].data) & np.isfinite(flt[2].data)
+            ### Least-sq fit for component normalizations
+            data = flt[1].data[mask].flatten()
+            wht = (1./flt[2].data[mask].flatten())**2
+            zodi_mask = zodi[mask].flatten()
+            coeff_zodi = np.sum(data*zodi_mask*wht)/np.sum(zodi_mask**2*wht)
+            flt[1].data -= zodi*coeff_zodi
+            flt.flush()
+            threedhst.showMessage('Rough background for %s (zodi): %0.4f' %(exp, coeff_zodi))
+            #templates = bg_flat[:, mask.flatten()]
+        
+        ### Run astrodrizzle to make DRZ mosaic, grism-SExtractor mask
+        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_combine=True, final_wcs=False)
+    else:
+        flt = pyfits.open('%s_flt.fits' %(asn.exposures[0]))
+        GRISM = flt[0].header['FILTER']
+        bg.set_grism_flat(grism=GRISM, verbose=True)
+    
+        
     se = threedhst.sex.SExtractor()
     se.options['WEIGHT_IMAGE'] = '%s_drz_wht.fits' %(root)
     se.options['WEIGHT_TYPE'] = 'MAP_WEIGHT'
@@ -472,7 +483,7 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
             
     #### Loop through FLTs, blotting reference and segmentation
     threedhst.showMessage('%s: Blotting grism segmentation masks.' %(root))
-    
+        
     for exp in asn.exposures:
         flt = pyfits.open('%s_flt.fits' %(exp))
         flt_wcs = stwcs.wcsutil.HSTWCS(flt, ext=1)
@@ -482,11 +493,12 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
         seg_grow = nd.maximum_filter((blotted_seg > 0)*1, size=8)
         pyfits.writeto('%s_flt.seg.fits' %(exp), header=flt[1].header, data=seg_grow, clobber=True)
         
-    ### Run background subtraction scripts
-    threedhst.process_grism.fresh_flt_files(asn_file, from_path=PATH_TO_RAW, preserve_dq=False)
-    for exp in asn.exposures:
-        updatewcs.updatewcs('%s_flt.fits' %(exp))
-        #threedhst.grism_sky.remove_grism_sky(flt=exp+'_flt.fits', list=sky_images[GRISM], path_to_sky=os.getenv('THREEDHST')+'/CONF/', verbose=True, second_pass=True, overall=True)
+    if first_run:
+        ### Run background subtraction scripts
+        threedhst.process_grism.fresh_flt_files(asn_file, from_path=PATH_TO_RAW, preserve_dq=False)
+        for exp in asn.exposures:
+            updatewcs.updatewcs('%s_flt.fits' %(exp))
+            #threedhst.grism_sky.remove_grism_sky(flt=exp+'_flt.fits', list=sky_images[GRISM], path_to_sky=os.getenv('THREEDHST')+'/CONF/', verbose=True, second_pass=True, overall=True)
     
     if visit_sky:
         threedhst.grism_sky.remove_visit_sky(asn_file=asn_file, list=sky_images[GRISM], add_constant=False, column_average=column_average, mask_grow=mask_grow)
@@ -496,7 +508,8 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
             
     ### Astrodrizzle again to reflag CRs and make cleaned mosaic
     drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, skysub=False, skyuser='MDRIZSKY', final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') # , final_wcs=True, final_rot=0)
-
+    
+    
 def get_vizier_cat(image='RXJ2248-IR_sci.fits', ext=0, catalog="II/246"):
     """
     Get a list of RA/Dec coords from a Vizier catalog that can be used
@@ -643,7 +656,10 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
             prep.subtract_acs_grism_background(asn_file=grism_asn, final_scale=None)
         else:
             #### Remove the sky and flag CRs
-            prep.subtract_grism_background(asn_file=grism_asn, PATH_TO_RAW='../RAW/', final_scale=None, visit_sky=True, column_average=True, mask_grow=mask_grow)
+            ## with mask from rough zodi-only subtraction
+            prep.subtract_grism_background(asn_file=grism_asn, PATH_TO_RAW='../RAW/', final_scale=None, visit_sky=True, column_average=False, mask_grow=mask_grow, first_run=True)
+            ## Redo making mask from better combined image
+            prep.subtract_grism_background(asn_file=grism_asn, PATH_TO_RAW='../RAW/', final_scale=None, visit_sky=True, column_average=True, mask_grow=mask_grow, first_run=False)
 
             #### Copy headers from direct images
             if radec is not None:
