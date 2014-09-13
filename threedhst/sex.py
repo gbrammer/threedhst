@@ -1064,7 +1064,11 @@ class SWarp(object):
         Get WCS image from matchImage[extension] and set swarp parameters
         so that the output image will have the same size/position.
         """
-        import pywcs
+        try:
+            import astropy.wcs as pywcs
+        except:
+            import pywcs
+        
         from pyraf import iraf
         
         im = pyfits.open(matchImage)
@@ -1077,9 +1081,13 @@ class SWarp(object):
             
         wcs = pywcs.WCS(head)
         # coord = wcs.all_pix2sky([[head['NAXIS1']/2.,head['NAXIS1']/2.]],0)
-        coord = wcs.all_pix2sky([[head['CRPIX1'], head['CRPIX2']]],1)
-        coord = wcs.all_pix2sky([[head['NAXIS1']/2., head['NAXIS2']/2.]],1)
-        
+        try:
+            coord = wcs.all_pix2sky([[head['CRPIX1'], head['CRPIX2']]],1)
+            coord = wcs.all_pix2sky([[head['NAXIS1']/2., head['NAXIS2']/2.]],1)
+        except:
+            coord = wcs.all_pix2world([[head['CRPIX1'], head['CRPIX2']]],1)
+            coord = wcs.all_pix2world([[head['NAXIS1']/2., head['NAXIS2']/2.]],1)
+            
         # print coord
         ra0 = self.decimalToDMS(coord[0][0],hours=True)
         de0 = self.decimalToDMS(coord[0][1],hours=False)

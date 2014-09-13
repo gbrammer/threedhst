@@ -7,10 +7,76 @@ try:
 except:
     import pyfits
 
+try:
+    from astropy.table import Table as table_base
+except:
+    print 'Couldn\'t run "from astropy.table import Table".  catIO.Table won\'t work' 
+    table_base = list
+    
 import numpy as np
 
 import threedhst
 
+def Table(filename, format=None, *args, **kwargs):
+    if 'fits' in filename.lower():
+        format = 'fits'
+    else:
+        if format is None:
+            line = open(filename).readline()
+            if line.strip().startswith('#'):
+                if line.split()[1].isdigit():
+                    format='ascii.sextractor'
+                else:
+                    format='ascii.commented_header'
+            else:
+                format='ascii.basic'
+    
+    data = table_base.read(filename, format=format, *args, **kwargs)
+    data.filename = filename
+    data.input_format = format
+    return data
+    
+def region_from_cat(cat, filename='ds9.reg', x='ra', y='dec', extra=None, radius=None, style=None, type='fk5'):
+    
+    if radius is None:
+        if type == 'fk5':
+            radius = '0.5"'
+        else:
+            radius = '5'
+            
+    if ('X_WORLD' in cat.columns) & (x not in cat.columns):
+        print 'Assume SExtractor'
+        ra='X_WORLD'
+        dec='Y_WORLD'
+        
+    if (x not in cat.columns):
+        print 'Column "%s" not in the table.' %(x)
+        return False
+        
+    if (y not in cat.columns):
+        print 'Column "%s" not in the table.' %(y)
+        return False
+        
+    if extra:
+        if (extra not in cat.columns):
+            print 'Extra column "%s" not in the table.' %(extra)
+    
+    N = len(cat)
+    lines = ['%s\n' %(type)]
+    for i in range(N):
+        item = 'circle(%.6f, %.6f, %s) #' %(cat[x][i], cat[y][i], radius)
+        if extra:
+            item += ' text={%s}' %(str(cat[extra][i]))
+        
+        if style:
+            item += ' ' + style
+            
+        lines.append(item+'\n')
+    
+    fp = open(filename, 'w')
+    fp.writelines(lines)
+    fp.close()
+        
 def columnFormat(colname):
     """
 Set format for common column names.  
@@ -318,7 +384,10 @@ class Readfile():
         
         if save_fits:
             self.write_fits()
-            
+    
+    def __len__(self):
+        return self.N
+                
     def __getitem__(self, key):
         """
     Allow you to address the column names as strings, e.g.
