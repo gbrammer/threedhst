@@ -195,7 +195,7 @@ def align_drizzled(images=['MACS2129-35-F814W_drc_sci.fits', 'MACS2129-36-F814W_
     
     pass
     
-def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False):
+def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False, sex_background=False):
     """
     Subtract polynomial background
     """
@@ -226,8 +226,10 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False):
     se = threedhst.sex.SExtractor()
     se.options['WEIGHT_IMAGE'] = '%s_drz_wht.fits' %(root)
     se.options['WEIGHT_TYPE'] = 'MAP_WEIGHT'
-    se.options['CHECKIMAGE_TYPE'] = 'SEGMENTATION'
-    se.options['CHECKIMAGE_NAME'] = '%s_drz_seg.fits' %(root)
+    se.options['CHECKIMAGE_TYPE'] = 'SEGMENTATION,BACKGROUND'
+    se.options['CHECKIMAGE_NAME'] = '%s_drz_seg.fits,%s_drz_bkg.fits' %(root, root)
+    se.options['BACK_TYPE'] = 'AUTO'
+    se.options['BACK_SIZE'] = '256'
     #
     se.params['X_IMAGE'] = True; se.params['Y_IMAGE'] = True
     se.params['MAG_AUTO'] = True
@@ -255,6 +257,8 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False):
     #seg_data[seg[0].data == 0] = 0
     seg_data = np.cast[np.float32](seg[0].data)
     
+    bkg_data = pyfits.open('%s_drz_bkg.fits' %(root))[0].data
+      
     yi, xi = np.indices((1014,1014))
     if scattered_light:
         bg_components = np.ones((4,1014,1014))
@@ -263,14 +267,23 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False):
         bg_components[3,:,:] = pyfits.open(os.getenv('THREEDHST') + '/CONF/G141_scattered_light.fits')[0].data
         NCOMP=4
     else:
-        bg_components = np.ones((3,1014,1014))
-        bg_components[1,:,:] = xi/1014.*2
-        bg_components[2,:,:] = yi/1014.*2
-        NCOMP=3
+        # bg_components = np.ones((3,1014,1014))
+        # bg_components[1,:,:] = xi/1014.*2
+        # bg_components[2,:,:] = yi/1014.*2
+        # NCOMP=3
+        #
+        NCOMP=6
+        bg_components = np.ones((NCOMP,1014,1014))
+        bg_components[1,:,:] = (xi-507)/507.
+        bg_components[2,:,:] = (yi-507)/507.
+        bg_components[3,:,:] = ((xi-507)/507.)**2
+        bg_components[4,:,:] = ((yi-507)/507.)**2
+        bg_components[5,:,:] = (xi-507)*(yi-507)/507.**2
         
     bg_flat = bg_components.reshape((NCOMP,1014**2))
     
     #### Loop through FLTs, blotting reference and segmentation
+    models = []
     for exp in asn.exposures:
         flt = pyfits.open('%s_flt.fits' %(exp)) #, mode='update')
         flt_wcs = stwcs.wcsutil.HSTWCS(flt, ext=1)
@@ -279,10 +292,15 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False):
         print 'Segmentation image: %s_blot.fits' %(exp)
         blotted_seg = astrodrizzle.ablot.do_blot(seg_data, ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
         
-        mask = (blotted_seg == 0) & (flt['DQ'].data == 0) & (flt[1].data < 5) & (flt[1].data > -1) & (xi > 50) & (yi > 50) & (xi < 964) & (yi < 964)
+        blotted_bkg = 0.
+        if sex_background:
+            blotted_bkg = astrodrizzle.ablot.do_blot(bkg_data, ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
+            flt[1].data -= blotted_bkg
+            
+        mask = (blotted_seg == 0) & (flt['DQ'].data == 0) & (flt[1].data < 5) & (flt[1].data > -1) & (xi > 10) & (yi > 10) & (xi < 1004) & (yi < 1004)
         data_range = np.percentile(flt[1].data[mask], [2.5, 97.5])
         mask &= (flt[1].data >= data_range[0]) & (flt[1].data <= data_range[1])
-        data_range = np.percentile(flt[2].data[mask], [2.5, 97.5])
+        data_range = np.percentile(flt[2].data[mask], [0.5, 99.5])
         mask &= (flt[2].data >= data_range[0]) & (flt[2].data <= data_range[1])
         
         ### Least-sq fit for component normalizations
@@ -295,10 +313,11 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False):
         popt = scipy.optimize.leastsq(obj_fun, p0, args=(data, templates, wht), full_output=True, ftol=1.49e-8/1000., xtol=1.49e-8/1000.)
         xcoeff = popt[0]
         model = np.dot(xcoeff, bg_flat).reshape((1014,1014))
+        models.append(model)
         
         # add header keywords of the fit components
         flt = pyfits.open('%s_flt.fits' %(exp), mode='update')
-        flt[1].data -= model
+        flt[1].data -= model+blotted_bkg
         for i in range(NCOMP):
             if 'BGCOMP%d' %(i+1) in flt[0].header:
                 flt[0].header['BGCOMP%d' %(i+1)] += xcoeff[i]
@@ -308,7 +327,9 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False):
         flt.flush()
         coeff_str = '  '.join(['%.4f' %c for c in xcoeff])
         threedhst.showMessage('Background subtraction, %s_flt.fits:\n\n  %s' %(exp, coeff_str))
-
+        
+    return models
+    
 def copy_adriz_headerlets(direct_asn='GOODS-S-15-F140W_asn.fits', grism_asn='GOODS-S-15-G141_asn.fits', force=False, ACS=False):
     """
     Copy Tweaked WCS solution in direct image to the paired grism exposures.
