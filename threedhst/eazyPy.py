@@ -1069,7 +1069,7 @@ zPhot_zSpec(zoutfile="./OUTPUT/photz.zout', zmax=4)
     
     #fig.savefig('/tmp/test.pdf',dpi=100)
     
-def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, adjust_zeropoints='zphot.zeropoint', fix_filter=None, ref_filter=None, get_resid=False):
+def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, adjust_zeropoints='zphot.zeropoint', fix_filter=None, ref_filter=None, get_resid=False, wclip=[1200, 3.e4]):
     """
     Plot the EAZY fit residuals to evaluate zeropoint updates
     """
@@ -1188,8 +1188,8 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         residfull.extend(resid[i,keep]/stats[i]['median'])
         
     xmfull, ymfull, ysfull, nnfull = threedhst.utils.runmed(np.array(lcfull), np.array(residfull), NBIN=np.maximum(int(len(residfull)/2000.), 10))
-    ymfull[xmfull > 3.e4] = 1.
-    ymfull[xmfull < 1200] = 1.
+    ymfull[xmfull > wclip[1]] = 1.
+    ymfull[xmfull < wclip[0]] = 1.
     
     ax.plot(xmfull, ymfull, color='black', alpha=0.75, linewidth=2)
     
@@ -1535,7 +1535,27 @@ def log_offsets(fp, fnumbers, lc_i, delta_i, toler):
         print log
         fp.write(log+'\n')
 
+def compute_taylor_mass(root='photz', PATH='OUTPUT', gi=[157,159], ABZP=25):
+    """
+    Compute stellar masses from Ned Taylor's g-i / Mi relation
+    
+    log M/Msun = 1.15 + 0.70 (g-i) - 0.4 Mi
+    
+    (Taylor 2011, Taylor 2014)
+    
+    """
+    
+    rfg = catIO.Readfile('%s/%s.%0d.rf' %(PATH, root, gi[0]))
+    mg = ABZP - 2.5*np.log10(rfg['l%0d' %(gi[0])])
+    Mg = mg-rfg.dm
 
+    rfi = catIO.Readfile('%s/%s.%0d.rf' %(PATH, root, gi[1]))
+    mi = ABZP - 2.5*np.log10(rfi['l%0d' %(gi[1])])
+    Mi = mi-rfi.dm
+    
+    logM = 1.15 + 0.70*(mg-mi) - 0.4*Mi
+    return (mg-mi), Mi, logM
+    
 def compute_eazy_mass(root='photz', PATH='OUTPUT', rf_file='153-155', V_filter='155', ABZP=25, MLv_templates = [4.301, 0.059, 0.292, 0.918, 2.787, 0.940, 4.302], line_correction_V=[ 0.997,  0.976,  0.983,  0.999,  0.999,  0.951]):
     """
     Estimate stellar masses simply from the estimate M/Lv of the templates.  

@@ -18,22 +18,52 @@ import numpy as np
 import threedhst
 
 def Table(filename, format=None, *args, **kwargs):
+    
+    if not os.path.exists(filename):
+        threedhst.showMessage('File %s not found.' %(filename), warn=True)
+        return False
+        
+    if format is not None:
+        data = table_base.read(filename, format=format, *args, **kwargs)
+        data.input_format = {'format':format}
+        data.filename = filename
+        return data
+        
     if 'fits' in filename.lower():
         format = 'fits'
     else:
         if format is None:
-            line = open(filename).readline()
-            if line.strip().startswith('#'):
-                if line.split()[1].isdigit():
-                    format='ascii.sextractor'
+            try:
+                t = pyfits.open(filename)
+                format = 'fits'
+            except:
+                print 'Try ascii:'
+                line = open(filename).readline()
+                if line.strip().startswith('#'):
+                    if line.split()[1].isdigit():
+                        format='ascii.sextractor'
+                    else:
+                        format='ascii.commented_header'
                 else:
-                    format='ascii.commented_header'
-            else:
-                format='ascii.basic'
+                    format='ascii.basic'
     
-    data = table_base.read(filename, format=format, *args, **kwargs)
+                data = table_base.read(filename, format=format, *args, **kwargs)
+                data.input_format = {'format':format}
+    
+    if format == 'fits':
+        t = pyfits.open(filename)
+        if t[0].header['EXTEND']:
+            if t[1].header['EXTNAME'] == 'LDAC_IMHEAD':
+                hdu = 2
+            else:
+                hdu = 1
+        else:
+            hdu = 0
+        
+        data = table_base.read(filename, format='fits', hdu=hdu, *args, **kwargs)            
+        data.input_format = {'format':'fits','HDU':hdu}
+                    
     data.filename = filename
-    data.input_format = format
     return data
     
 def region_from_cat(cat, filename='ds9.reg', x='ra', y='dec', extra=None, radius=None, style=None, type='fk5'):
