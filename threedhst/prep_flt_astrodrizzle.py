@@ -50,7 +50,86 @@ def clean_wcsname(flt='ibhj15wyq_flt.fits', wcsname='TWEAK', ACS=False):
     
     im.flush()
     
-def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_radec.dat', final_scale=0.06, ACS=False):
+def drzTweakReg(sci='goodss-34-F140W_drz_sci.fits', master_catalog='goodss_radec.dat', threshold=20, apply=True):
+    import drizzlepac
+    from drizzlepac import tweakback
+    from stwcs import updatewcs
+    from threedhst import catIO
+    
+    se = threedhst.sex.SExtractor()
+    se.options['WEIGHT_IMAGE'] = sci.replace('sci','wht')
+    se.options['WEIGHT_TYPE'] = 'MAP_WEIGHT'
+    #
+    se.params['X_IMAGE'] = True; se.params['Y_IMAGE'] = True
+    se.params['X_WORLD'] = True; se.params['Y_WORLD'] = True
+    se.params['MAG_AUTO'] = True
+    #
+    se.options['CATALOG_NAME'] = sci+'.align.cat'
+    se.options['FILTER'] = 'N'
+    se.options['DETECT_THRESH'] = '%f' %(threshold)
+    se.options['ANALYSIS_THRESH'] = '%f' %(threshold)
+    #
+    se.sextractImage(sci)
+    threedhst.sex.sexcatRegions(sci+'.align.cat', sci+'.align.reg', format=2)
+    
+    c = catIO.Table(sci+'.align.cat', format='ascii.sextractor')
+    #c.ra = c['X_WORLD']
+    #c.dec = c['Y_WORLD']
+    m = catIO.CoordinateMatcher(c, ra_column='X_WORLD', dec_column='Y_WORLD')
+    r0, d0 = np.loadtxt(master_catalog, unpack=True)
+    dr, idx = m.match_list(r0, d0)
+    
+    dx = (c['X_WORLD'][idx]-r0)*np.cos(d0/180*np.pi)*3600
+    dy = (c['Y_WORLD'][idx]-d0)*3600
+
+         
+    x0 = (c['X_WORLD'][idx]-np.median(c['X_WORLD']))*np.cos(d0/180*np.pi)*3600
+    y0 = (c['Y_WORLD'][idx]-np.median(c['Y_WORLD']))*3600
+    
+    ok = dr < 1.5 
+    if ok.sum() == 0:
+        threedhst.showMessage('No matches found within 1.5".')
+        return False
+    
+    # plt.scatter(x0[ok], y0[ok], color='black')
+    # for i in np.arange(len(ok))[ok]:
+    #     plt.plot(x0[i]+np.array([0, dx[i]*20]), y0[i]+np.array([0, dy[i]*20]), color='black')
+     
+    dra = (c['X_WORLD'][idx]-r0)
+    dde = (c['Y_WORLD'][idx]-d0) 
+    rshift, dshift = np.median(dra[ok]), np.median(dde[ok])
+    
+    fp = open(sci.split('.fits')[0]+'.align.dat','w')
+    lines = ['# dx dy xrms yrms N\n# %s %s\n' %(sci, master_catalog), '%f %f %f %f %d\n' %(np.median(dx[ok]), np.median(dy[ok]), np.std(dx[ok]), np.std(dy[ok]), ok.sum())]
+    fp.writelines(lines)
+    fp.close()
+    threedhst.showMessage(''.join(lines))
+    
+    if not apply:
+        print 'Not applying shift.  Re-run with apply=true to apply them.'
+        return rshift, dshift
+        
+    for fits in [sci.replace('sci','wht'), sci]:
+        print 'Update WCS: %s' %(fits)
+        im = pyfits.open(fits, mode='update')
+        im[0].header['CRVAL1'] -= rshift
+        im[0].header['CRVAL2'] -= dshift
+        im.flush()
+    
+    im = pyfits.open(sci)
+    for i in range(im[0].header['NDRIZIM']):
+        flt_im = im[0].header['D%03dDATA' %(i+1)].split('[')[0]
+        print 'Update WCS: %s' %(flt_im)
+        flt = pyfits.open(flt_im, mode='update')
+        for ext in [1,2]:
+            flt[ext].header['CRVAL1'] -= rshift
+            flt[ext].header['CRVAL2'] -= dshift
+
+        flt.flush()
+        
+    #return rshift, dshift
+    
+def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_radec.dat', final_scale=0.06, ACS=False, threshold=20):
     """
     Wrapper around tweakreg, generating source catalogs separately from 
     `findpars`.
@@ -109,8 +188,8 @@ def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_rad
             #
             se.options['CATALOG_NAME'] = '%s_%s_%d.cat' %(exp, ext, sci_ext[i])
             se.options['FILTER'] = 'N'
-            se.options['DETECT_THRESH'] = '4'
-            se.options['ANALYSIS_THRESH'] = '4'
+            se.options['DETECT_THRESH'] = '%f' %(threshold)
+            se.options['ANALYSIS_THRESH'] = '%f' %(threshold)
             #
             se.sextractImage('%s_%s.fits[%d]' %(exp, dext, sci_ext[i]-1))
             threedhst.sex.sexcatRegions('%s_%s_%d.cat' %(exp, ext, sci_ext[i]), '%s_%s_%d.reg' %(exp, ext, sci_ext[i]), format=1)
@@ -195,7 +274,7 @@ def align_drizzled(images=['MACS2129-35-F814W_drc_sci.fits', 'MACS2129-36-F814W_
     
     pass
     
-def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False, sex_background=False):
+def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False, sex_background=False, order=2):
     """
     Subtract polynomial background
     """
@@ -213,11 +292,11 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False, se
     
     import threedhst
     
-    if not os.path.exists('%s_drz_sci.fits' %(root)):
-        asn = threedhst.utils.ASNFile(root+'_asn.fits')
-        for exp in asn.exposures:
-            updatewcs.updatewcs('%s_%s.fits' %(exp, 'flt'))
-        
+    asn = threedhst.utils.ASNFile(root+'_asn.fits')
+    for exp in asn.exposures:
+        updatewcs.updatewcs('%s_%s.fits' %(exp, 'flt'))
+
+    if not os.path.exists('%s_drz_sci.fits' %(root)):        
         if len(asn.exposures) == 1:
             drizzlepac.astrodrizzle.AstroDrizzle(root+'_asn.fits', clean=False, context=False, preserve=False, skysub=True, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False, driz_combine=True)
         else:
@@ -260,11 +339,16 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False, se
     bkg_data = pyfits.open('%s_drz_bkg.fits' %(root))[0].data
       
     yi, xi = np.indices((1014,1014))
-    if scattered_light:
+    if scattered_light:        
         bg_components = np.ones((4,1014,1014))
         bg_components[1,:,:] = xi/1014.*2
         bg_components[2,:,:] = yi/1014.*2
         bg_components[3,:,:] = pyfits.open(os.getenv('THREEDHST') + '/CONF/G141_scattered_light.fits')[0].data
+        #### Use flat-field itself for images affected by full-field 
+        #### persistence from the tungsten lamp
+        if scattered_light == 2:
+            bg_components[3,:,:] = pyfits.open(os.getenv('iref') + 'flat_UDF_F140W_v0.fits')[1].data[5:-5,5:-5]
+            
         NCOMP=4
     else:
         # bg_components = np.ones((3,1014,1014))
@@ -272,14 +356,20 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False, se
         # bg_components[2,:,:] = yi/1014.*2
         # NCOMP=3
         #
-        NCOMP=6
-        bg_components = np.ones((NCOMP,1014,1014))
-        bg_components[1,:,:] = (xi-507)/507.
-        bg_components[2,:,:] = (yi-507)/507.
-        bg_components[3,:,:] = ((xi-507)/507.)**2
-        bg_components[4,:,:] = ((yi-507)/507.)**2
-        bg_components[5,:,:] = (xi-507)*(yi-507)/507.**2
-        
+        if order == 2:
+            NCOMP=6
+            bg_components = np.ones((NCOMP,1014,1014))
+            bg_components[1,:,:] = (xi-507)/507.
+            bg_components[2,:,:] = (yi-507)/507.
+            bg_components[3,:,:] = ((xi-507)/507.)**2
+            bg_components[4,:,:] = ((yi-507)/507.)**2
+            bg_components[5,:,:] = (xi-507)*(yi-507)/507.**2
+        else:
+            NCOMP=3
+            bg_components = np.ones((NCOMP,1014,1014))
+            bg_components[1,:,:] = (xi-507)/507.
+            bg_components[2,:,:] = (yi-507)/507.
+            
     bg_flat = bg_components.reshape((NCOMP,1014**2))
     
     #### Loop through FLTs, blotting reference and segmentation
@@ -552,7 +642,7 @@ def get_vizier_cat(image='RXJ2248-IR_sci.fits', ext=0, catalog="II/246"):
     `catalog` is any catalog ID recognized by Vizier, e.g.: 
         "II/328/allwise": WISE
         "II/246": 2MASS
-    
+        "V/139": SDSS DR9
     """
     import threedhst.dq
     import astropy.wcs as pywcs
@@ -611,7 +701,7 @@ def get_vizier_cat(image='RXJ2248-IR_sci.fits', ext=0, catalog="II/246"):
     return True
     
     
-def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goodss-34-G141_asn.fits', radec=None, raw_path='../RAW/', mask_grow=18, scattered_light=False, final_scale=None, skip_direct=False, ACS=False, jump=False):
+def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goodss-34-G141_asn.fits', radec=None, raw_path='../RAW/', mask_grow=18, scattered_light=False, final_scale=None, skip_direct=False, ACS=False, jump=False, order=2, get_shift=True):
     """
     Process both the direct and grism observations of a given visit
     """
@@ -646,14 +736,15 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
         
         if (not ACS):
             #### Subtract WFC3/IR direct backgrounds
-            prep.subtract_flt_background(root=direct_asn.split('_asn')[0], scattered_light=scattered_light)
+            prep.subtract_flt_background(root=direct_asn.split('_asn')[0], scattered_light=scattered_light, order=order)
             #### Flag IR CRs again within runTweakReg
         
         #### Run TweakReg
         if (radec is None) & (not ACS):
             drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, clean=True, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') # ,
         else:
-            prep.runTweakReg(asn_file=direct_asn, master_catalog=radec, final_scale=None, ACS=ACS)
+            if get_shift:
+                prep.runTweakReg(asn_file=direct_asn, master_catalog=radec, final_scale=None, ACS=ACS)
     
         #### Subtract background of direct ACS images
         if ACS:
