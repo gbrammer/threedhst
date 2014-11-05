@@ -196,6 +196,7 @@ defaultOptions()
     options['FLT_PERSISTENCE_PATH'] = '/3DHST/Spectra/Work/PERSISTENCE/All'
     options['FLT_PERSISTENCE_THRESH'] = 0.6
     options['FLT_PERSISTENCE_SUBTRACT'] = False
+    options['FLT_PERSISTENCE_FILTER'] = 3
 
 #############################################
 #### Set the default options    

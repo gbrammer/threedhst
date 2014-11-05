@@ -2326,6 +2326,12 @@ def apply_persistence_mask(flt_file, limit_sigma=0.6, filter_size=3, persistence
     flt = pyfits.open(flt_file, mode='update')
     persist = pyfits.open(persist_file)
     
+    msg = 'P'
+    if threedhst.options['FLT_PERSISTENCE_SUBTRACT']:
+        msg = 'Subtracted P'
+        flt[1].data -= persist[1].data
+        #print 'Subtracted persistence mask: %s' %(persist_file)
+        
     mask = (persist[1].data > (limit_sigma*flt['ERR'].data))*1
     
     #### Unflagged cosmic rays
@@ -2336,7 +2342,7 @@ def apply_persistence_mask(flt_file, limit_sigma=0.6, filter_size=3, persistence
     flt.flush()
     
     if verbose:
-        print 'Persistence mask: %s, S/N > %.1f [%d masked pixels]' %(persist_file, limit_sigma, mask_grow.sum())
+        print msg+'ersistence mask: %s, S/N > %.1f [%d masked pixels]' %(persist_file, limit_sigma, mask_grow.sum())
     
 def find_best_flat(flt_fits, verbose=True): #, IREF='/research/HST/GRISM/IREF/'):
     """

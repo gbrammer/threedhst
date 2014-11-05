@@ -1102,7 +1102,8 @@ def fresh_flt_files(asn_filename, from_path="../RAW", preserve_dq = False):
         fi[3] = dq
         fi.writeto('./'+exp+'_flt.fits', clobber=True)
         threedhst.prep_flt_files.apply_best_flat(exp+'_flt.fits', verbose=True)
-        threedhst.prep_flt_files.apply_persistence_mask(exp+'_flt.fits', limit_sigma=0.6, filter_size=3, persistence_path=threedhst.options['FLT_PERSISTENCE_PATH'], verbose=True)
+        
+        threedhst.prep_flt_files.apply_persistence_mask(exp+'_flt.fits', limit_sigma=threedhst.options['FLT_PERSISTENCE_THRESH'], filter_size=threedhst.options['FLT_PERSISTENCE_FILTER'], persistence_path=threedhst.options['FLT_PERSISTENCE_PATH'], verbose=True)
         
         #### Make sure most recent IDCTAB is used
         flt = pyfits.open(exp+'_flt.fits','update')
@@ -1545,7 +1546,7 @@ class Conf(object):
         self._pline = {}
         for i,line in enumerate(self.lines):
             if (line[0] is not '#') & (line.strip() is not  ''):
-                spl = line.split()
+                spl = line.split(';')[0].split()
                 self.params[spl[0]] = ' '.join(spl[1:])
                 self._pline[spl[0]] = i
         self.nkeys = self.params.keys().__len__()

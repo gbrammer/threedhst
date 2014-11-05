@@ -129,7 +129,7 @@ def drzTweakReg(sci='goodss-34-F140W_drz_sci.fits', master_catalog='goodss_radec
         
     #return rshift, dshift
     
-def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_radec.dat', final_scale=0.06, ACS=False, threshold=20):
+def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_radec.dat', final_scale=0.06, ACS=False, threshold=5):
     """
     Wrapper around tweakreg, generating source catalogs separately from 
     `findpars`.
@@ -320,6 +320,10 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False, se
     se.options['DETECT_THRESH'] = '0.8'
     se.options['ANALYSIS_THRESH'] = '0.8'
     #
+    se.options['MEMORY_OBJSTACK'] = '30000'
+    se.options['MEMORY_PIXSTACK'] = '3000000'
+    se.options['MEMORY_BUFSIZE'] = '2048'
+    
     se.sextractImage('%s_drz_sci.fits' %(root))
     #threedhst.sex.sexcatRegions('%s_flt.cat' %(exp), '%s_flt.reg' %(exp), format=1)
     
@@ -387,7 +391,8 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False, se
             blotted_bkg = astrodrizzle.ablot.do_blot(bkg_data, ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
             flt[1].data -= blotted_bkg
             
-        mask = (blotted_seg == 0) & (flt['DQ'].data == 0) & (flt[1].data < 5) & (flt[1].data > -1) & (xi > 10) & (yi > 10) & (xi < 1004) & (yi < 1004)
+        mask = (blotted_seg == 0) & (flt['DQ'].data == 0) & (flt[1].data > -1) & (xi > 10) & (yi > 10) & (xi < 1004) & (yi < 1004)
+        mask &= (flt[1].data < 5*np.median(flt[1].data[mask]))
         data_range = np.percentile(flt[1].data[mask], [2.5, 97.5])
         mask &= (flt[1].data >= data_range[0]) & (flt[1].data <= data_range[1])
         data_range = np.percentile(flt[2].data[mask], [0.5, 99.5])
@@ -701,7 +706,7 @@ def get_vizier_cat(image='RXJ2248-IR_sci.fits', ext=0, catalog="II/246"):
     return True
     
     
-def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goodss-34-G141_asn.fits', radec=None, raw_path='../RAW/', mask_grow=18, scattered_light=False, final_scale=None, skip_direct=False, ACS=False, jump=False, order=2, get_shift=True):
+def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goodss-34-G141_asn.fits', radec=None, raw_path='../RAW/', mask_grow=18, scattered_light=False, final_scale=None, skip_direct=False, ACS=False, jump=False, order=2, get_shift=True, align_threshold=20, column_average=True):
     """
     Process both the direct and grism observations of a given visit
     """
@@ -744,7 +749,7 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
             drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, clean=True, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') # ,
         else:
             if get_shift:
-                prep.runTweakReg(asn_file=direct_asn, master_catalog=radec, final_scale=None, ACS=ACS)
+                prep.runTweakReg(asn_file=direct_asn, master_catalog=radec, final_scale=None, ACS=ACS, threshold=align_threshold)
     
         #### Subtract background of direct ACS images
         if ACS:
@@ -784,7 +789,7 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
             ## with mask from rough zodi-only subtraction
             prep.subtract_grism_background(asn_file=grism_asn, PATH_TO_RAW='../RAW/', final_scale=None, visit_sky=True, column_average=False, mask_grow=mask_grow, first_run=True)
             ## Redo making mask from better combined image
-            prep.subtract_grism_background(asn_file=grism_asn, PATH_TO_RAW='../RAW/', final_scale=None, visit_sky=True, column_average=True, mask_grow=mask_grow, first_run=False)
+            prep.subtract_grism_background(asn_file=grism_asn, PATH_TO_RAW='../RAW/', final_scale=None, visit_sky=True, column_average=column_average, mask_grow=mask_grow, first_run=False)
 
             #### Copy headers from direct images
             if radec is not None:
