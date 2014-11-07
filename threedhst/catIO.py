@@ -53,8 +53,11 @@ def Table(filename, format=None, *args, **kwargs):
     if format == 'fits':
         t = pyfits.open(filename)
         if t[0].header['EXTEND']:
-            if t[1].header['EXTNAME'] == 'LDAC_IMHEAD':
-                hdu = 2
+            if 'EXTNAME' in t[1].header:
+                if t[1].header['EXTNAME'] == 'LDAC_IMHEAD':
+                    hdu = 2
+                else:
+                    hdu = 1
             else:
                 hdu = 1
         else:
