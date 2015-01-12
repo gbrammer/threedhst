@@ -532,7 +532,7 @@ def subtract_acs_grism_background(asn_file='RXJ2248-08-G800L_asn.fits', final_sc
     
     drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, skysub=False, skyuser='MDRIZSKY', final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, preserve=False) # , final_wcs=True, final_rot=0)
     
-def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW/', final_scale=0.06, visit_sky=True, column_average=True, mask_grow=18, first_run=True):
+def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW/', final_scale=0.06, visit_sky=True, column_average=True, mask_grow=18, first_run=True, sky_iter=1):
     """
     Subtract master grism sky from FLTs
     """
@@ -550,10 +550,10 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
     
     asn = threedhst.utils.ASNFile(asn_file)
     root = asn_file.split('_asn')[0]
-        
+            
     sky_images = {'G141':['zodi_G141_clean.fits', 'excess_lo_G141_clean.fits', 'G141_scattered_light.fits'],
                   'G102':['zodi_G102_clean.fits', 'excess_G102_clean.fits']}
-        
+
     if first_run:
         ### Rough background subtraction
         threedhst.process_grism.fresh_flt_files(asn_file, from_path=PATH_TO_RAW, preserve_dq=False)
@@ -637,6 +637,9 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
     
     if visit_sky:
         threedhst.grism_sky.remove_visit_sky(asn_file=asn_file, list=sky_images[GRISM], add_constant=False, column_average=column_average, mask_grow=mask_grow, flat_correct=first_run)
+        if (sky_iter > 1) & (~first_run):
+            for i in range(1, sky_iter):
+                threedhst.grism_sky.remove_visit_sky(asn_file=asn_file, list=sky_images[GRISM], add_constant=False, column_average=column_average, mask_grow=mask_grow, flat_correct=False)
     else:
         for exp in asn.exposures:
             threedhst.grism_sky.remove_grism_sky(flt='%s_flt.fits' %(exp), list=sky_images[GRISM],  path_to_sky = os.getenv('THREEDHST')+'/CONF/', out_path='./', verbose=False, plot=False, flat_correct=first_run, sky_subtract=True, second_pass=column_average, overall=True, combine_skies=False, sky_components=True, add_constant=False)
@@ -712,7 +715,7 @@ def get_vizier_cat(image='RXJ2248-IR_sci.fits', ext=0, catalog="II/246"):
     return True
     
     
-def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goodss-34-G141_asn.fits', radec=None, raw_path='../RAW/', mask_grow=18, scattered_light=False, final_scale=None, skip_direct=False, ACS=False, jump=False, order=2, get_shift=True, align_threshold=20, column_average=True):
+def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goodss-34-G141_asn.fits', radec=None, raw_path='../RAW/', mask_grow=18, scattered_light=False, final_scale=None, skip_direct=False, ACS=False, jump=False, order=2, get_shift=True, align_threshold=20, column_average=True, sky_iter=1):
     """
     Process both the direct and grism observations of a given visit
     """
@@ -780,8 +783,8 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
     ################################
     
     if grism_asn:
+        asn = threedhst.utils.ASNFile(grism_asn)
         if ACS:
-            asn = threedhst.utils.ASNFile(grism_asn)
             for exp in asn.exposures:
                 print 'cp %s/%s_flc.fits.gz .' %(raw_path, exp)
                 os.system('cp %s/%s_flc.fits.gz .' %(raw_path, exp))
@@ -791,12 +794,15 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
             prep.copy_adriz_headerlets(direct_asn=direct_asn, grism_asn=grism_asn, ACS=True)
             prep.subtract_acs_grism_background(asn_file=grism_asn, final_scale=None)
         else:
+            flt = pyfits.open('%s_flt.fits' %(asn.exposures[0]))
+            GRISM = flt[0].header['FILTER']
+            
             #### Remove the sky and flag CRs
             ## with mask from rough zodi-only subtraction
             prep.subtract_grism_background(asn_file=grism_asn, PATH_TO_RAW='../RAW/', final_scale=None, visit_sky=True, column_average=False, mask_grow=mask_grow, first_run=True)
             ## Redo making mask from better combined image
-            prep.subtract_grism_background(asn_file=grism_asn, PATH_TO_RAW='../RAW/', final_scale=None, visit_sky=True, column_average=column_average, mask_grow=mask_grow, first_run=False)
-
+            prep.subtract_grism_background(asn_file=grism_asn, PATH_TO_RAW='../RAW/', final_scale=None, visit_sky=True, column_average=column_average, mask_grow=mask_grow, first_run=False, sky_iter=sky_iter)
+                        
             #### Copy headers from direct images
             if radec is not None:
                 prep.copy_adriz_headerlets(direct_asn=direct_asn, grism_asn=grism_asn, ACS=False)
