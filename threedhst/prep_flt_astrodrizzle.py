@@ -498,8 +498,13 @@ def subtract_acs_grism_background(asn_file='RXJ2248-08-G800L_asn.fits', final_sc
     ### add mdrizsky back to values, fit on crclean but subtract from flc
     asn = threedhst.utils.ASNFile(asn_file)
     
-    sky1 = pyfits.open(os.getenv('THREEDHST') + '/CONF/ACS.WFC.CHIP1.msky.1.fits')
-    sky2 = pyfits.open(os.getenv('THREEDHST') + '/CONF/ACS.WFC.CHIP2.msky.1.fits')    
+    try:
+        sky1 = pyfits.open(os.getenv('THREEDHST') + '/CONF/ACS.WFC.CHIP1.msky.1.smooth.fits')
+        sky2 = pyfits.open(os.getenv('THREEDHST') + '/CONF/ACS.WFC.CHIP2.msky.1.smooth.fits')    
+    except:
+        sky1 = pyfits.open(os.getenv('THREEDHST') + '/CONF/ACS.WFC.CHIP1.msky.1.fits')
+        sky2 = pyfits.open(os.getenv('THREEDHST') + '/CONF/ACS.WFC.CHIP2.msky.1.fits')    
+
     skies = [sky1, sky2]
     extensions = [1,4] ### SCI extensions
     
@@ -578,7 +583,8 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
             #templates = bg_flat[:, mask.flatten()]
         
         ### Run astrodrizzle to make DRZ mosaic, grism-SExtractor mask
-        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_combine=True, final_wcs=False)
+        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_combine=True, final_wcs=False, resetbits=4096, final_bits=576, driz_sep_bits=576, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7')
+                
     else:
         flt = pyfits.open('%s_flt.fits' %(asn.exposures[0]))
         GRISM = flt[0].header['FILTER']
@@ -630,10 +636,10 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
             #threedhst.grism_sky.remove_grism_sky(flt=exp+'_flt.fits', list=sky_images[GRISM], path_to_sky=os.getenv('THREEDHST')+'/CONF/', verbose=True, second_pass=True, overall=True)
     
     if visit_sky:
-        threedhst.grism_sky.remove_visit_sky(asn_file=asn_file, list=sky_images[GRISM], add_constant=False, column_average=column_average, mask_grow=mask_grow)
+        threedhst.grism_sky.remove_visit_sky(asn_file=asn_file, list=sky_images[GRISM], add_constant=False, column_average=column_average, mask_grow=mask_grow, flat_correct=first_run)
     else:
         for exp in asn.exposures:
-            threedhst.grism_sky.remove_grism_sky(flt='%s_flt.fits' %(exp), list=sky_images[GRISM],  path_to_sky = os.getenv('THREEDHST')+'/CONF/', out_path='./', verbose=False, plot=False, flat_correct=True, sky_subtract=True, second_pass=column_average, overall=True, combine_skies=False, sky_components=True, add_constant=False)
+            threedhst.grism_sky.remove_grism_sky(flt='%s_flt.fits' %(exp), list=sky_images[GRISM],  path_to_sky = os.getenv('THREEDHST')+'/CONF/', out_path='./', verbose=False, plot=False, flat_correct=first_run, sky_subtract=True, second_pass=column_average, overall=True, combine_skies=False, sky_components=True, add_constant=False)
             
     ### Astrodrizzle again to reflag CRs and make cleaned mosaic
     drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, skysub=False, skyuser='MDRIZSKY', final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') # , final_wcs=True, final_rot=0)
@@ -795,7 +801,7 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
             if radec is not None:
                 prep.copy_adriz_headerlets(direct_asn=direct_asn, grism_asn=grism_asn, ACS=False)
                 #### Run CR rejection with final shifts
-                drizzlepac.astrodrizzle.AstroDrizzle(grism_asn, clean=True, skysub=False, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7')
+                drizzlepac.astrodrizzle.AstroDrizzle(grism_asn, clean=True, skysub=False, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='8.0 5.0', driz_cr_scale='2.5 0.7') # driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7')
                 
     if not grism_asn:
         t1 = time.time()

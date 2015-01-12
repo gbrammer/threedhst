@@ -311,6 +311,10 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
     #### Add a header keyword and write to the output image
     im[0].header.update('GRISMSKY',keep,comment='Image used for sky subtraction')
     im[0].header.update('SKYSCALE',sky_stats[0],comment='Scale factor of sky')
+    
+    #### Sky flat keyword
+    im[0].header['SKYFLAT'] = (flat_correct, 'Direct image flat applied')
+    
     bad = ~np.isfinite(im[1].data)
     im[1].data[bad] = 1
     im[3].data[bad] = im[3].data[bad] | 32
@@ -331,7 +335,7 @@ def obj_lstsq(x, b, A, wht):
     """
     return (b-np.dot(x, A))*wht
     
-def remove_visit_sky(asn_file='GDN12-G102_asn.fits', list=['zodi_G102_clean.fits', 'excess_G102_clean.fits'], add_constant=False, column_average=True, mask_grow=18):
+def remove_visit_sky(asn_file='GDN12-G102_asn.fits', list=['zodi_G102_clean.fits', 'excess_G102_clean.fits'], add_constant=False, column_average=True, mask_grow=18, flat_correct=True):
     """
     Require that all exposures in a visit have the same zodi component.
     """
@@ -346,18 +350,25 @@ def remove_visit_sky(asn_file='GDN12-G102_asn.fits', list=['zodi_G102_clean.fits
     
     asn = threedhst.utils.ASNFile(asn_file)
     
+    flt = pyfits.open('%s_flt.fits' %(asn.exposures[0]))
+    bg.set_grism_flat(grism=flt[0].header['FILTER'], verbose=True)
+    
+    if flat_correct:
+        flat = bg.flat*1.
+    else:
+        flat = bg.flat*0.+1
+        
     data = []
     whts = []
     masks = []
     for exp in asn.exposures:
         flt = pyfits.open('%s_flt.fits' %(exp))
-        bg.set_grism_flat(grism=flt[0].header['FILTER'], verbose=True)
         segfile = '%s_flt.seg.fits' %(exp)
         seg = pyfits.open(segfile)[0].data
         seg_mask = nd.maximum_filter((seg > 0), size=18) == 0
         dq_ok = (flt[3].data & (4+32+16+512+2048+4096)) == 0
         #
-        flat_corr = flt[1].data*bg.flat
+        flat_corr = flt[1].data*flat
         mask = seg_mask & dq_ok 
         mask &= (flat_corr < np.percentile(flat_corr[mask], 98)) & (flt[2].data > 0) & (flat_corr > np.percentile(flat_corr[mask], 1))
         #
@@ -383,8 +394,10 @@ def remove_visit_sky(asn_file='GDN12-G102_asn.fits', list=['zodi_G102_clean.fits
     ims = np.array(ims)
 
     #### Do the fit
+    tol=1.49e-8  # not sure what this controls
+    
     p0 = np.ones((ims.shape[0]-1)*len(asn.exposures)+1)
-    popt = scipy.optimize.leastsq(bg.obj_lstsq_visit, p0, args=(data, ims, whts, masks), full_output=True, ftol=1.49e-8/1000., xtol=1.49e-8/1000.)
+    popt = scipy.optimize.leastsq(bg.obj_lstsq_visit, p0, args=(data, ims, whts, masks), full_output=True, ftol=tol/1000., xtol=tol/1000.)
     xcoeff = popt[0]
     
     sh_temp = ims.shape
@@ -397,7 +410,7 @@ def remove_visit_sky(asn_file='GDN12-G102_asn.fits', list=['zodi_G102_clean.fits
         bg_model = np.dot(coeff, ims).reshape((1014,1014))
         logstr += '%s  %s\n' %(asn.exposures[i], ''.join([' %9.4f' %(c) for c in coeff]))
         flt = pyfits.open('%s_flt.fits' %(asn.exposures[i]), mode='update')
-        flt[1].data = flt[1].data*bg.flat - bg_model
+        flt[1].data = flt[1].data*flat - bg_model
         for j in range(sh_temp[0]):
             if 'GSKY%02d' %(j) in flt[0].header:
                 flt[0].header['GSKY%02d' %(j)] += coeff[j]
@@ -406,7 +419,8 @@ def remove_visit_sky(asn_file='GDN12-G102_asn.fits', list=['zodi_G102_clean.fits
         #
         flt[1].header['MDRIZSKY'] = 0.
         flt.flush()
-    
+        flt[0].header['SKYFLAT'] = (flat_correct, 'Direct image flat applied')
+        
     threedhst.showMessage(logstr)
     
     if column_average:
