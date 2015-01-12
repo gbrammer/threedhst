@@ -794,9 +794,6 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
             prep.copy_adriz_headerlets(direct_asn=direct_asn, grism_asn=grism_asn, ACS=True)
             prep.subtract_acs_grism_background(asn_file=grism_asn, final_scale=None)
         else:
-            flt = pyfits.open('%s_flt.fits' %(asn.exposures[0]))
-            GRISM = flt[0].header['FILTER']
-            
             #### Remove the sky and flag CRs
             ## with mask from rough zodi-only subtraction
             prep.subtract_grism_background(asn_file=grism_asn, PATH_TO_RAW='../RAW/', final_scale=None, visit_sky=True, column_average=False, mask_grow=mask_grow, first_run=True)
