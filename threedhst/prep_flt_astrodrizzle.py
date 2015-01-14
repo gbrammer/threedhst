@@ -715,7 +715,7 @@ def get_vizier_cat(image='RXJ2248-IR_sci.fits', ext=0, catalog="II/246"):
     return True
     
     
-def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goodss-34-G141_asn.fits', radec=None, raw_path='../RAW/', mask_grow=18, scattered_light=False, final_scale=None, skip_direct=False, ACS=False, jump=False, order=2, get_shift=True, align_threshold=20, column_average=True, sky_iter=1):
+def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goodss-34-G141_asn.fits', radec=None, raw_path='../RAW/', mask_grow=18, scattered_light=False, final_scale=None, skip_direct=False, ACS=False, jump=False, order=2, get_shift=True, align_threshold=20, column_average=True, sky_iter=3):
     """
     Process both the direct and grism observations of a given visit
     """

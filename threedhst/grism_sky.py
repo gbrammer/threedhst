@@ -313,8 +313,11 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
     im[0].header.update('SKYSCALE',sky_stats[0],comment='Scale factor of sky')
     
     #### Sky flat keyword
-    im[0].header['SKYFLAT'] = (flat_correct, 'Direct image flat applied')
-    
+    if 'SKYFLAT' in im[0].header.keys():
+        im[0].header['SKYFLAT'] = (flat_correct | im[0].header['SKYFLAT'], 'Direct image flat applied')
+    else:
+        im[0].header['SKYFLAT'] = (flat_correct, 'Direct image flat applied')
+        
     bad = ~np.isfinite(im[1].data)
     im[1].data[bad] = 1
     im[3].data[bad] = im[3].data[bad] | 32
@@ -418,8 +421,11 @@ def remove_visit_sky(asn_file='GDN12-G102_asn.fits', list=['zodi_G102_clean.fits
                 flt[0].header['GSKY%02d' %(j)] = (coeff[j], 'Master sky: %s' %(skies[j]))
         #
         flt[1].header['MDRIZSKY'] = 0.
+        if 'SKYFLAT' in im[0].header.keys():
+            flt[0].header['SKYFLAT'] = (flat_correct | flt[0].header['SKYFLAT'], 'Direct image flat applied')
+        else:
+            flt[0].header['SKYFLAT'] = (flat_correct, 'Direct image flat applied')
         flt.flush()
-        flt[0].header['SKYFLAT'] = (flat_correct, 'Direct image flat applied')
         
     threedhst.showMessage(logstr)
     
