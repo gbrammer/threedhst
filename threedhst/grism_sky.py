@@ -421,7 +421,7 @@ def remove_visit_sky(asn_file='GDN12-G102_asn.fits', list=['zodi_G102_clean.fits
                 flt[0].header['GSKY%02d' %(j)] = (coeff[j], 'Master sky: %s' %(skies[j]))
         #
         flt[1].header['MDRIZSKY'] = 0.
-        if 'SKYFLAT' in im[0].header.keys():
+        if 'SKYFLAT' in flt[0].header.keys():
             flt[0].header['SKYFLAT'] = (flat_correct | flt[0].header['SKYFLAT'], 'Direct image flat applied')
         else:
             flt[0].header['SKYFLAT'] = (flat_correct, 'Direct image flat applied')
