@@ -2292,7 +2292,7 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_
         
         if BEST_PFL is None:
             threedhst.showMessage("No PFL file found! (NEED %s)" %(USED_PFL), warn=True)
-            exit
+            return
                     
         BEST_PFL = os.path.basename(BEST_PFL)
                 
