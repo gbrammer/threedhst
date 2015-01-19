@@ -358,8 +358,54 @@ def parse_polygons(file='goods-s_ACSz.reg'):
             regions.append(Polyreg(line))
     
     return regions
-    
+
 def apply_dq_mask(flt_file, extension=3, mask_file=None, addval=2048, fk5=False, verbose=False):
+    """
+apply_dq_mask(flt_file, addval=2048)
+
+    Read mask polygons from `flt_file`+'.mask.reg', if available,
+    and apply to the DQ extension of `flt_file`.
+    
+    DQnew = DQold + `addval` within the polygon.
+    
+    Rewrite with Pyregion
+    """
+    import pyregion
+    
+    try:
+        if mask_file is None:
+            mask_file = flt_file.split('.gz')[0]+'.mask.reg'
+            
+        fp = open(mask_file,'r')
+    except:
+        return None
+    #
+    print 'Applying mask from %s.mask_reg' %(flt_file.split('.gz')[0])
+    regions = ''.join(fp.readlines())
+    fp.close()
+    
+    if not flt_file.endswith('.gz'):
+        mode = 'update'
+    else:
+        mode = 'readonly'
+        
+    fi = pyfits.open(threedhst.utils.find_fits_gz(flt_file.split('.gz')[0]),
+                     mode=mode)
+                         
+    ##### Set DQ bit
+    r = pyregion.open(mask_file).as_imagecoord(header=fi['SCI'].header)
+    mask = r.get_mask(hdu=fi['SCI'])
+    fi['DQ'].data |= (addval*mask)
+    
+    ##### Write back to flt_file
+    if not flt_file.endswith('.gz'):
+        fi.flush()
+    else:
+        fi.writeto(flt_file.split('.gz')[0], clobber=True)
+        os.remove(flt_file)
+        os.system('gzip %s' %(flt_file.split('.gz')[0]))
+
+def apply_dq_mask_old(flt_file, extension=3, mask_file=None, addval=2048, fk5=False, verbose=False):
     """
 apply_dq_mask(flt_file, addval=2048)
 

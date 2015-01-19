@@ -1239,5 +1239,48 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
             #self.swarpImage(self.swarpInputImage)
         else:
             print 'THREEDHST/Swarp.recenter: No SWarp output found\n'
-            
+
+def grow_segmentation_map(seg_file='MACS1149-IR_drz_seg.fits', cat_file='MACS1149-IR.cat', size=30, mag=20):
+    import scipy.ndimage as nd
+    import pyregion
+    import os
+    #import stsci.convolve
+    
+    #seg_file='MACS1149-IR_drz_seg.fits'; cat_file='MACS1149-IR.cat'; size=30; mag=20.5
+    
+    seg_im = pyfits.open(seg_file)
+    seg = seg_im[0].data*1
+    
+    cat = threedhst.catIO.Table(cat_file)
+    
+    ok = cat['MAG_APER'] < mag
+    so = np.argsort(cat['MAG_APER'][ok])
+    idx = np.arange(len(cat))[ok][so]
+    
+    print 'Grow masks:'
+    for i in idx:
+        id = cat['NUMBER'][i]
+        print '%5d (%.2f)' %(id, cat['MAG_APER'][i])
+        mask = (seg == id)*1
+        grow_mask = nd.maximum_filter(mask, size=size*2)
+        #grow_mask = nd.convolve(mask, np.ones((size, size)))
+        #grow_mask = stsci.convolve.convolve2d(mask, np.ones((size, size)), output=None, mode='nearest', cval=0.0, fft=1)
+        seg[seg == 0] += grow_mask[seg == 0]*id
+     
+    reg_file = seg_file.replace('.fits', '_mask.reg')
+    if os.path.exists(reg_file):
+        print 'Region mask: %s' %(reg_file)
+        reg = pyregion.open(reg_file).as_imagecoord(seg_im[0].header)
+        N = len(reg)
+        for i in range(N):
+            if 'text=' not in reg[i].comment:
+                continue
+        
+            id = int(reg[i].comment.strip('text={')[:-1])
+            print '%4d' %(id)
+            mask = reg[i:i+1].get_mask(seg_im[0])
+            seg[seg == 0] += mask[seg == 0]*id
+    
+    pyfits.writeto(seg_file.replace('seg.fits','seg_grow.fits'), data=seg, header=seg_im[0].header, clobber=True)
+          
 # End

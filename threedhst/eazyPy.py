@@ -556,9 +556,13 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
         flam_factor = 10**(-0.4*(params['PRIOR_ABZP']+48.6))*3.e18/1.e-17
     else:
         flam_factor = 5500.**2
-        
+    
+    missing = (tempfilt['fnu'][:,idx] < -99) | (tempfilt['efnu'][:,idx] < 0)
     fobs = tempfilt['fnu'][:,idx]/lci**2*flam_factor
     efobs = tempfilt['efnu'][:,idx]/lci**2*flam_factor
+    fobs[missing] = -99
+    efobs[missing] = -99
+    #print lci, tempfilt['fnu'][:,idx], tempfilt['efnu'][:,idx]
     
     ##### Broad-band SED
     obs_sed = np.dot(tempfilt['tempfilt'][:,:,coeffs['izbest'][idx]],\
