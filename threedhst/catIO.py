@@ -646,10 +646,12 @@ class CoordinateMatcher():
          array([100,  90,  95, 157, 174], dtype=int32))
     
     """
-    def __init__(self, cat, ra_column = 'ra', dec_column = 'dec', USE_WORLD=False):
+    def __init__(self, cat, ra_column = 'ra', dec_column = 'dec', USE_WORLD=False, pixel_units=False):
         
         if USE_WORLD:
             ra_column, dec_column = 'x_world', 'y_world'
+        
+        self.pixel_units = pixel_units
         
         try:
             columns = cat.columns
@@ -680,7 +682,11 @@ class CoordinateMatcher():
         """
         import scipy.spatial
         
-        cosd = self.cat[self.ra_column] * np.cos(self.cat[self.dec_column]/360*2*np.pi)
+        if not self.pixel_units:
+            cosd = self.cat[self.ra_column] * np.cos(self.cat[self.dec_column]/360*2*np.pi)
+        else:
+            cosd = self.cat[self.ra_column]
+            
         self.xy = np.array([cosd, self.cat[self.dec_column]]).T
         self.tree = scipy.spatial.cKDTree(self.xy, 10)
     
@@ -698,9 +704,15 @@ class CoordinateMatcher():
         if self.tree is None:
             self.init_tree()
             
-        xy_test = [ra*np.cos(dec/360.*2*np.pi), dec]
+        if self.pixel_units:
+            xy_test = [ra, dec]
+            scale=1
+        else:
+            xy_test = [ra*np.cos(dec/360.*2*np.pi), dec]
+            scale=3600
+            
         dist, ids = self.tree.query(xy_test, k=N, distance_upper_bound=distance_upper_bound)
-        return dist*3600, ids
+        return dist*scale, ids
     
     def match_list(self, ra=[], dec=[], N=1, MATCH_SELF=False, verbose=True):
         """
