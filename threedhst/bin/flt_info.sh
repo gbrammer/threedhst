@@ -2,8 +2,10 @@
 
 ### ACS
 filter="FILTER"
+acs=0
 if [ "$1" == "acs" ]; then
     filter="FILTER1 FILTER2"
+    acs=1
 fi
 
 echo "# FILE  TARGNAME  DATE-OBS        TIME-OBS   EXPSTART ${filter}  EXPTIME         PA_V3 RA_TARG DEC_TARG POSTARG1 POSTARG2" > files.info
@@ -20,6 +22,11 @@ for file in $files; do
     
     echo "${file}  ${line}" |sed "s/...RAW.//" >> files.info ;
 done
+
+if [ "${acs}" == "1" ]; then
+    cat files.info  | sed "s/CLEAR.L[\t ]*//g" | sed "s/FILTER1[ \t]*FILTER2/FILTER/" > files.info.x
+    mv files.info.x files.info
+fi
 
 ### Sort by date [xxx doesn't work because unix sort can't handle 2010-01-01 format]
 # head -1 files.info > files.info.tmp
