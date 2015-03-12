@@ -1,12 +1,15 @@
 #!/bin/sh
 
 ### ACS
-filter="FILTER"
-acs=0
-if [ "$1" == "acs" ]; then
-    filter="FILTER1 FILTER2"
-    acs=1
-fi
+# filter="FILTER"
+# acs=0
+# if [ "$1" == "acs" ]; then
+#     filter="FILTER1 FILTER2 FILTER"
+#     acs=1
+# fi
+filter="FILTER1 FILTER2 FILTER"
+acs=1
+
 
 echo "# FILE  TARGNAME  DATE-OBS        TIME-OBS   EXPSTART ${filter}  EXPTIME         PA_V3 RA_TARG DEC_TARG POSTARG1 POSTARG2" > files.info
 files=`ls ../RAW/*fl[tc].fits* |grep -v "\.reg"`
@@ -24,7 +27,7 @@ for file in $files; do
 done
 
 if [ "${acs}" == "1" ]; then
-    cat files.info  | sed "s/CLEAR.L[\t ]*//g" | sed "s/FILTER1[ \t]*FILTER2/FILTER/" > files.info.x
+    cat files.info  | sed "s/CLEAR.L[\t ]*//g" | sed "s/FILTER1[ \t]*FILTER2/FILTER/" | sed "s/FILTER[ \t]*FILTER/FILTER/" > files.info.x
     mv files.info.x files.info
 fi
 
