@@ -553,7 +553,7 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
             
     sky_images = {'G141':['zodi_G141_clean.fits', 'excess_lo_G141_clean.fits', 'G141_scattered_light.fits'],
                   'G102':['zodi_G102_clean.fits', 'excess_G102_clean.fits']}
-
+    
     if first_run:
         ### Rough background subtraction
         threedhst.process_grism.fresh_flt_files(asn_file, from_path=PATH_TO_RAW, preserve_dq=False)

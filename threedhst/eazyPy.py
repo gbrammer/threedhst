@@ -726,6 +726,13 @@ class TemplateInterpolator():
         self.templam = self.sed['templam']
         self.temp_seds = self.sed['temp_seds']
         
+        # if True:
+        #     import threedhst
+        #     import unicorn
+        #     threedhst.showMessage('Conroy model', warn=True)
+        #     cvd12 = np.loadtxt(unicorn.GRISM_HOME+'/templates/cvd12_t11_solar_Chabrier.dat')
+        #     self.temp_seds[:,0] = np.interp(self.templam, cvd12[:,0], cvd12[:,1])
+        
         self.in_zgrid = tempfilt['zgrid']
         self.tempfilt = tempfilt['tempfilt'][self.bands, :, :]
         if f_lambda:
@@ -864,7 +871,7 @@ def convert_chi_to_pdf(tempfilt, pz):
             
     return tempfilt['zgrid']*1., pdf
     
-def plotExampleSED(idx=20, writePNG=True, MAIN_OUTPUT_FILE = 'photz', OUTPUT_DIRECTORY = 'OUTPUT', CACHE_FILE = 'Same', lrange=[3000,8.e4], axes=None, individual_templates=False):
+def plotExampleSED(idx=20, writePNG=True, MAIN_OUTPUT_FILE = 'photz', OUTPUT_DIRECTORY = 'OUTPUT', CACHE_FILE = 'Same', lrange=[3000,8.e4], axes=None, individual_templates=False, fnu=False):
     """
 PlotSEDExample(idx=20)
 
@@ -905,6 +912,12 @@ PlotSEDExample(idx=20)
     plotsize=35
     alph=0.9
     
+    if fnu:
+        temp_sed *= (lambdaz / 5500.)**2
+        fobs *= (lci/5500.)**2
+        efobs *= (lci/5500.)**2
+        obs_sed *= (lci/5500.)**2
+
     #### Full best-fit template
     if axes is None:
         ax = fig.add_subplot(121)
@@ -920,7 +933,7 @@ PlotSEDExample(idx=20)
         ax.plot(lambdaz, temp_sed, linewidth=1.5, color='blue',alpha=alph*0.8, zorder=-3)
     
     #### template fluxes integrated through the filters
-    ax.scatter(lci,obs_sed,
+    ax.scatter(lci, obs_sed,
                c='red',marker='o',s=plotsize,alpha=alph, zorder=-1)
 
     #### Observed fluxes w/ errors

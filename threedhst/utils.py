@@ -364,11 +364,18 @@ the_file = find_fits_gz(fits_file, hard_break = True)
     else:
         return None
 
-def ASN_footprint(asn_file, color='green'):
+def ASN_footprint(asn_file, color='green', path_to_flt='./', verbose=False):
     """
     Make a region file with footprints for each exposure in an ASN file
     """
-    import astropy.wcs as pywcs
+    
+    try:
+        import stwcs
+        has_stwcs = True
+    except:
+        import astropy.wcs as pywcs
+        has_stwcs = False
+        
     import glob
     
     asn = ASNFile(asn_file)
@@ -376,7 +383,7 @@ def ASN_footprint(asn_file, color='green'):
     fp.write('fk5\n')
 
     for exp in asn.exposures:
-        file=glob.glob('%s_fl?.fi*[tg][sz]' %(exp))[0]
+        file=glob.glob('%s/%s_fl?.fi*[tg][sz]' %(path_to_flt, exp))[0]
         flt = pyfits.open(file)
         
         if flt[0].header['DETECTOR'] in ['WFC', 'UVIS']:
@@ -385,9 +392,15 @@ def ASN_footprint(asn_file, color='green'):
             extensions = [1]
         
         for ext in extensions:
-            wcs = pywcs.WCS(flt[ext].header)
+            if has_stwcs:
+                wcs = stwcs.wcsutil.HSTWCS(flt, ext=ext)
+            else:
+                wcs = pywcs.WCS(flt[ext].header)
+            
             foot = wcs.calc_footprint()
-        
+            if verbose:
+                print exp, foot
+                 
             poly_str = ', '.join(['%.6f, %.6f' %(foot[i][0], foot[i][1]) for i in range(foot.shape[0])])
             fp.write('polygon(%s) # color=%s\n' %(poly_str, color))
     

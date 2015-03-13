@@ -177,8 +177,13 @@ fit_image(self, root, A=None, overwrite=False, show=True)
         else:
             fi = pyfits.open(root, mode='update')
             
-        IMG = fi[1].data
-        DQ = fi[3].data
+        try:
+            IMG = fi[1].data
+            DQ = fi[3].data
+        except:
+            IMG = fi[0].data
+            DQ = np.cast[int](IMG*0)
+            
         NX, NY = IMG.shape
         
         #### array indices for each pixel position
