@@ -17,6 +17,50 @@ import numpy as np
 
 import threedhst
 
+def SortableHTML(t, output="table.html", replace_braces=True):
+    """
+    Make an HTML table with sortable columns
+    """
+    t.write(output)
+    lines = open(output).readlines()
+    
+    header = """
+    <link rel="stylesheet" href="http://localhost:8888/map_scripts/table_style.css" type="text/css" id="" media="print, projection, screen" /> 
+
+        <script type="text/javascript" src="http://localhost:8888/map_scripts/jquery-1.4.2.min.js"></script>
+
+        <script type="text/javascript" src="http://localhost:8888/map_scripts/jquery.tablesorter.min.js"></script> 
+
+        <script type="text/javascript" id="js">
+
+        // Add ability to sort the table
+        $(document).ready(function() {
+            $.tablesorter.defaults.sortList = [[2,2]]; 
+            $("table").tablesorter({
+                    // pass the headers argument and assing a object
+                    headers: {
+                    }
+            });        
+        });
+        </script>
+    """
+    for i in range(len(lines)):
+        if "<head>" in lines[i]:
+            lines.insert(i+1, header)
+        
+        if "<table>" in lines[i]:
+            lines[i] = "    <table id=\"myTable\" cellspacing=\"1\" class=\"tablesorter\">\n"
+            break
+    
+    if replace_braces:
+        for i in range(len(lines)):
+            lines[i] = lines[i].replace('&lt;', '<').replace('&gt;', '>')
+            
+    fp = open(output, 'w')
+    fp.writelines(lines)
+    fp.close()
+    
+            
 def Table(filename, format=None, *args, **kwargs):
     
     if not os.path.exists(filename):

@@ -914,6 +914,14 @@ def medfilt(xarr, N=3, AVERAGE=False):
             out[i] = np.median(xarr[i-half:i])
         
     return out
+
+def diff(xarr):
+    """
+    Like np diff but make same size as input array filling first element
+    with diff[0]
+    """    
+    d = np.diff(xarr)
+    return np.append(d[0], d)
     
 def xyrot(xin, yin, theta, x0=0., y0=0., radians=False, ccw=False):
     """

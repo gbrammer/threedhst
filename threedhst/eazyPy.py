@@ -1357,6 +1357,21 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     
     return fnumbers, lc, offsets
 
+def log_hist(z, r0=(0,4), dz=0.002, plot=False, *args, **kwargs):
+    """
+    Make a histogram of redshifts with uniform spacing in dz/(1+z)
+    """
+    ran = [np.log10(1+r0[0]), np.log10(1+r0[1])]
+    yh, xh = np.histogram(np.log10(1+z), range=ran, bins=int((ran[1]-ran[0])*1./dz*np.log(10)))
+    lx = 10**xh-1
+    
+    if plot:
+        plt.plot(lx[1:], np.maximum(yh, 0.0001), linestyle='steps-post', *args, **kwargs)
+    
+    return lx, yh
+    
+    
+    
 def loop_zeropoints(root='cosmos', tfile='zphot.translate.cosmos',  zfile='zphot.zeropoint.cosmos', fix_filter={}, ref_filter=None, init_filter={}, ignore_initial=[], ignore_all=[], toler=0.005, PATH='./OUTPUT/', fix_zspec=False, check_uvj=False, use_tweaked_templates=True, MAXITER=15):
     """
     Wrapper around `show_fit_residuals` to allow iterative fitting
