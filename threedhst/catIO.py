@@ -9,6 +9,7 @@ except:
 
 try:
     from astropy.table import Table as table_base
+    from astropy.table import Column
 except:
     print 'Couldn\'t run "from astropy.table import Table".  catIO.Table won\'t work' 
     table_base = list
@@ -17,142 +18,304 @@ import numpy as np
 
 import threedhst
 
-def SortableHTML(t, output="table.html", replace_braces=True):
+#import astropy.table
+
+def Table(filename, format=None, check_FITS=True, save_FITS=False, *args, **kwargs):
     """
-    Make an HTML table with sortable columns
+    Helper function around catIO.gTable
     """
-    t.write(output)
-    lines = open(output).readlines()
+    t = gTable()
+    return t.helper_read(filename, format=None, check_FITS=check_FITS, save_FITS=save_FITS, *args, **kwargs)
     
-    header = """
-    <link rel="stylesheet" href="http://localhost:8888/map_scripts/table_style.css" type="text/css" id="" media="print, projection, screen" /> 
-
-        <script type="text/javascript" src="http://localhost:8888/map_scripts/jquery-1.4.2.min.js"></script>
-
-        <script type="text/javascript" src="http://localhost:8888/map_scripts/jquery.tablesorter.min.js"></script> 
-
-        <script type="text/javascript" id="js">
-
-        // Add ability to sort the table
-        $(document).ready(function() {
-            $.tablesorter.defaults.sortList = [[2,2]]; 
-            $("table").tablesorter({
-                    // pass the headers argument and assing a object
-                    headers: {
-                    }
-            });        
-        });
-        </script>
+class gTable(table_base):
     """
-    for i in range(len(lines)):
-        if "<head>" in lines[i]:
-            lines.insert(i+1, header)
+    Add some functionality to astropy.table.Table
+    """
+    def helper_read(self, filename, format=None, check_FITS=True, save_FITS=False, *args, **kwargs):
+        """
+        Wrapper around `astropy.table.Table.read() for better
+        auto-sensing of ascii table formats
+        """
+        if not os.path.exists(filename):
+            threedhst.showMessage('File %s not found.' %(filename), warn=True)
+            return False
         
-        if "<table>" in lines[i]:
-            lines[i] = "    <table id=\"myTable\" cellspacing=\"1\" class=\"tablesorter\">\n"
-            break
-    
-    if replace_braces:
-        for i in range(len(lines)):
-            lines[i] = lines[i].replace('&lt;', '<').replace('&gt;', '>')
-            
-    fp = open(output, 'w')
-    fp.writelines(lines)
-    fp.close()
-    
-            
-def Table(filename, format=None, *args, **kwargs):
-    
-    if not os.path.exists(filename):
-        threedhst.showMessage('File %s not found.' %(filename), warn=True)
-        return False
-        
-    if format is not None:
-        data = table_base.read(filename, format=format, *args, **kwargs)
-        data.input_format = {'format':format}
-        data.filename = filename
-        return data
-        
-    if 'fits' in filename.lower():
-        format = 'fits'
-    else:
-        if format is None:
-            try:
-                t = pyfits.open(filename)
-                format = 'fits'
-            except:
-                print 'Try ascii:'
-                line = open(filename).readline()
-                if line.strip().startswith('#'):
-                    if line.split()[1].isdigit():
-                        format='ascii.sextractor'
+        if format is not None:
+            data = table_base.read(filename, format=format, *args, **kwargs)
+            data.input_format = {'format':format}
+            data.filename = filename
+            return data
+
+        if 'fits' in filename.lower():
+            format = 'fits'
+        else:
+            ### Try to read the ".FITS" version first
+            if check_FITS:
+                threedhst.showMessage('read', warn=True)
+                status = self.load_FITS(filename)
+                if status:
+                    return status
+                    
+            if format is None:
+                try:
+                    t = pyfits.open(filename)
+                    format = 'fits'
+                except:
+                    print 'Try ascii:'
+                    line = open(filename).readline()
+                    if line.strip().startswith('#'):
+                        if line.split()[1].isdigit():
+                            format='ascii.sextractor'
+                        else:
+                            format='ascii.commented_header'
                     else:
-                        format='ascii.commented_header'
-                else:
-                    format='ascii.basic'
-    
-                data = table_base.read(filename, format=format, *args, **kwargs)
-                data.input_format = {'format':format}
-    
-    if format == 'fits':
-        t = pyfits.open(filename)
-        if t[0].header['EXTEND']:
-            if 'EXTNAME' in t[1].header:
-                if t[1].header['EXTNAME'] == 'LDAC_IMHEAD':
-                    hdu = 2
+                        format='ascii.basic'
+
+                    data = self.read(filename, format=format, *args, **kwargs)
+                    data.input_format = {'format':format}
+                    data.filename = filename
+                    
+                    if save_FITS:
+                        threedhst.showMessage('write', warn=True)
+                        data.write_FITS()
+                        
+        if format == 'fits':
+            t = pyfits.open(filename)
+            if t[0].header['EXTEND']:
+                if 'EXTNAME' in t[1].header:
+                    if t[1].header['EXTNAME'] == 'LDAC_IMHEAD':
+                        hdu = 2
+                    else:
+                        hdu = 1
                 else:
                     hdu = 1
             else:
-                hdu = 1
-        else:
-            hdu = 0
+                hdu = 0
+
+            data = self.read(filename, format='fits', hdu=hdu, *args, **kwargs)            
+            data.input_format = {'format':'fits','HDU':hdu}
+
+        data.filename = filename
+        return data
+    
+    def write_FITS(self, clobber=True):
+        """
+        Save the ascii catalog data into a FITS bintable with filename 
         
-        data = table_base.read(filename, format='fits', hdu=hdu, *args, **kwargs)            
-        data.input_format = {'format':'fits','HDU':hdu}
+            self.filename + '.FITS'
+        
+        The modification date of the ascii catalog is saved in the 'MODTIME'
+        keyword of the FITS file
+        """
+        import time
+        
+        if os.path.exists(self.filename+'.FITS') & clobber:
+            os.remove(self.filename + '.FITS')
+            
+        self.write(self.filename + '.FITS')
+        
+        t = pyfits.open(self.filename + '.FITS', mode='update')
+        
+        #### Add modification time of "infile" to FITS header
+        infile_mod_time = time.strftime("%m/%d/%Y %I:%M:%S %p",
+                          time.localtime(os.path.getmtime(self.filename)))
+        
+        t[1].header.update('MODTIME',infile_mod_time)
+        t.flush()
+                
+    def load_FITS(self, filename):
+        """
+        Read the FITS bintable version of the catalog.   
+        
+        If the modification date of the ascii file is different than that
+        founc in the FITS file, return a status of False and re-read the
+        file generating the FITS file again, if "save_fits" is set during
+        __init__
+        """
+        import time
+        if not os.path.exists(filename+'.FITS'):
+            return False
+        
+        infile_mod_time = time.strftime("%m/%d/%Y %I:%M:%S %p",
+                            time.localtime(os.path.getmtime(filename)))
+        
+        im = pyfits.open(filename+'.FITS')[1]
+        
+        if infile_mod_time > im.header['MODTIME']:
+            print('%s has changed.  Re-generating FITS file...' %(filename))
+            return False
+        
+        t = self.helper_read(filename+'.FITS', check_FITS=False)
+        t.filename = filename
                     
-    data.filename = filename
-    return data
+        return t
     
-def region_from_cat(cat, filename='ds9.reg', x='ra', y='dec', extra=None, radius=None, style=None, type='fk5'):
-    
-    if radius is None:
-        if type == 'fk5':
-            radius = '0.5"'
-        else:
-            radius = '5'
+    def __add__(self, newcat, prepend='x_'):
+        """
+        Append columns of 'newcat' gTable object to the table.  Add the 
+        "prepend" string to column names that already exist in the table.
+        """
+        if len(self) != len(newcat):
+            threedhst.showMessage('Number of elements in %s and %s don\'t match.' %(self.filename, newcat.filename))
+        
+        cnew = self.copy()
+        for column in newcat.columns:
+            col = newcat[column]
+            if column in cnew.columns:
+                col.name = prepend + col.name
             
-    if ('X_WORLD' in cat.columns) & (x not in cat.columns):
-        print 'Assume SExtractor'
-        ra='X_WORLD'
-        dec='Y_WORLD'
+            cnew.add_column(col)
         
-    if (x not in cat.columns):
-        print 'Column "%s" not in the table.' %(x)
-        return False
+        return cnew
         
-    if (y not in cat.columns):
-        print 'Column "%s" not in the table.' %(y)
-        return False
+    def regions_from_coords(self, filename='ds9.reg', x='ra', y='dec', extra=None, radius=None, style=None, type='fk5'):
+        """
+        Make ds9 region file from catalog coordinate columns
+        """
+        if radius is None:
+            if type == 'fk5':
+                radius = '0.5"'
+            else:
+                radius = '5'
+            
+        if ('X_WORLD' in self.columns) & (x not in self.columns):
+            print 'Assume SExtractor'
+            x='X_WORLD'
+            y='Y_WORLD'
         
-    if extra:
-        if (extra not in cat.columns):
-            print 'Extra column "%s" not in the table.' %(extra)
-    
-    N = len(cat)
-    lines = ['%s\n' %(type)]
-    for i in range(N):
-        item = 'circle(%.6f, %.6f, %s) #' %(cat[x][i], cat[y][i], radius)
+        if (x not in self.columns):
+            print 'Column "%s" not in the table.' %(x)
+            return False
+        
+        if (y not in self.columns):
+            print 'Column "%s" not in the table.' %(y)
+            return False
+        
         if extra:
-            item += ' text={%s}' %(str(cat[extra][i]))
-        
-        if style:
-            item += ' ' + style
-            
-        lines.append(item+'\n')
+            if (extra not in self.columns):
+                print 'Extra column "%s" not in the table.' %(extra)
     
-    fp = open(filename, 'w')
-    fp.writelines(lines)
-    fp.close()
+        N = len(self)
+        lines = ['%s\n' %(type)]
+        for i in range(N):
+            item = 'circle(%.6f, %.6f, %s) #' %(self[x][i], self[y][i], radius)
+            if extra:
+                item += ' text={%s}' %(str(self[extra][i]))
+        
+            if style:
+                item += ' ' + style
+            
+            lines.append(item+'\n')
+    
+        fp = open(filename, 'w')
+        fp.writelines(lines)
+        fp.close()
+    
+    def write_sortable_HTML(self, output="table.html", replace_braces=True, localhost=False):
+        """
+        Make an HTML table with jquery/tablesorter sortable columns
+        """
+        self.write(output)
+        lines = open(output).readlines()
+
+        if localhost:
+            header = """
+            <link rel="stylesheet" href="http://localhost:8888/map_scripts/table_style.css" type="text/css" id="" media="print, projection, screen" /> 
+
+                <script type="text/javascript" src="http://localhost:8888/map_scripts/jquery-1.4.2.min.js"></script>
+
+                <script type="text/javascript" src="http://localhost:8888/map_scripts/jquery.tablesorter.min.js"></script> """
+        else:
+            header = """
+        <link rel="stylesheet" href="http://tablesorter.com/themes/blue/style.css" type="text/css" id="" media="print, projection, screen" /> 
+
+            <script type="text/javascript" src="http://www.stsci.edu/~brammer/scripts/jquery-1.4.2.min.js"></script>
+
+            <script type="text/javascript" src="http://www.stsci.edu/~brammer/scripts/jquery.tablesorter.min.js"></script> """
+        
+        header += """
+            <script type="text/javascript" id="js">
+
+            // Add ability to sort the table
+            $(document).ready(function() {
+                $.tablesorter.defaults.sortList = [[0,1]]; 
+                $("table").tablesorter({
+                        widgets: ['zebra'],
+                        // pass the headers argument and assing a object
+                        headers: {
+                        }
+                });        
+            });
+            </script>
+        """
+        for i in range(len(lines)):
+            if "<head>" in lines[i]:
+                lines.insert(i+1, header)
+
+            if "<table>" in lines[i]:
+                lines[i] = "    <table id=\"myTable\" cellspacing=\"1\" class=\"tablesorter\">\n"
+                break
+
+        if replace_braces:
+            for i in range(len(lines)):
+                lines[i] = lines[i].replace('&lt;', '<').replace('&gt;', '>')
+
+        fp = open(output, 'w')
+        fp.writelines(lines)
+        fp.close()
+    
+# def Table(filename, format=None, *args, **kwargs):
+#     
+#     if not os.path.exists(filename):
+#         threedhst.showMessage('File %s not found.' %(filename), warn=True)
+#         return False
+#         
+#     if format is not None:
+#         data = table_base.read(filename, format=format, *args, **kwargs)
+#         data.input_format = {'format':format}
+#         data.filename = filename
+#         return data
+#         
+#     if 'fits' in filename.lower():
+#         format = 'fits'
+#     else:
+#         if format is None:
+#             try:
+#                 t = pyfits.open(filename)
+#                 format = 'fits'
+#             except:
+#                 print 'Try ascii:'
+#                 line = open(filename).readline()
+#                 if line.strip().startswith('#'):
+#                     if line.split()[1].isdigit():
+#                         format='ascii.sextractor'
+#                     else:
+#                         format='ascii.commented_header'
+#                 else:
+#                     format='ascii.basic'
+#     
+#                 data = table_base.read(filename, format=format, *args, **kwargs)
+#                 data.input_format = {'format':format}
+#     
+#     if format == 'fits':
+#         t = pyfits.open(filename)
+#         if t[0].header['EXTEND']:
+#             if 'EXTNAME' in t[1].header:
+#                 if t[1].header['EXTNAME'] == 'LDAC_IMHEAD':
+#                     hdu = 2
+#                 else:
+#                     hdu = 1
+#             else:
+#                 hdu = 1
+#         else:
+#             hdu = 0
+#         
+#         data = table_base.read(filename, format='fits', hdu=hdu, *args, **kwargs)            
+#         data.input_format = {'format':'fits','HDU':hdu}
+#                     
+#     data.filename = filename
+#     return data
+    
         
 def columnFormat(colname):
     """
