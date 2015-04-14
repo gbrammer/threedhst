@@ -1525,7 +1525,123 @@ def gethead(image, ext=0, keys=['EXPTIME'], parse_dtype=True, make_dict=False):
         return d
     else:
         return result
+#
+def pointing_region(ra=177.400395109, dec=22.4054119338, orient=291, name='', optimal_grism=False):
+    """
+    Make region file for arbitrary coords / ORIENT
+    """
+    
+    #### GOODS-S 03 as reference
+    # import stwcs.wcsutil
+    # wfc3 = pyfits.open('ibhj03xmq_flt.fits')
+    # wcs = stwcs.wcsutil.HSTWCS(wfc3, ext=('SCI',1))
+    # footprint = wcs.calc_footprint()
+    # ### Optimal grism offset to the left from the center pixel
+    # rd0 = wcs.wcs_pix2world([507-91], [507],1)
+    
+    footprint = np.array([[ 53.12761393, -27.67010485],
+           [ 53.13000295, -27.70407857],
+           [ 53.17346751, -27.70126514],
+           [ 53.16999254, -27.66736672]])
+    
+    wx, wy = footprint[:,0], footprint[:,1]
+    x0, y0 = 53.15022231714418, -27.68537223320745  ## RA_APER / DEC_APER
+    if optimal_grism:
+        x0, y0 = 53.14636648, -27.68562166
         
+    ## ACS
+    # import stwcs.wcsutil
+    # acs = pyfits.open('jbhj03xnq_flc.fits')
+    # wcs = stwcs.wcsutil.HSTWCS(acs, ext=('SCI',2))
+    #footprint = wcs.calc_footprint()
+    
+    footprint = np.array([[ 53.2032301 , -27.78275401],
+           [ 53.1781686 , -27.7653409 ],
+           [ 53.13469503, -27.80643922],
+           [ 53.15993549, -27.82475767]])
+    
+    ax1, ay1 = footprint[:,0], footprint[:,1]
+    
+    footprint = np.array([[ 53.17757919, -27.76486217],
+           [ 53.15311246, -27.7482801 ],
+           [ 53.10962477, -27.78829072],
+           [ 53.13406647, -27.80594152]])
+    
+    ax2, ay2 = footprint[:,0], footprint[:,1]
+    
+    wx = (wx-x0)*np.cos(y0/180*np.pi); wy = (wy-y0)
+    ax1 = (ax1-x0)*np.cos(y0/180*np.pi); ay1 = (ay1-y0)
+    ax2 = (ax2-x0)*np.cos(y0/180*np.pi); ay2 = (ay2-y0)
+    x0, y0 = 0, 0
+    
+    # ### Reference is taken from COSMOS-28 actual images
+    # stri = '150.083305,  2.419194,150.100164,  2.389610,150.133522,  2.409058,150.115843,  2.438157'
+    # wx = np.cast[float](stri.split(',')[0::2])                
+    # wy = np.cast[float](stri.split(',')[1::2])
+    # 
+    # 
+    # stri = '150.193030,  2.347347,150.165445,  2.353287,150.148879,  2.299487,150.176995,  2.292809'
+    # ax1 = np.cast[float](stri.split(',')[0::2])                
+    # ay1 = np.cast[float](stri.split(',')[1::2])
+    # 
+    # stri = '150.16557,2.3535789,150.13799,2.3595173,150.12142,2.3057169,150.14954,2.2990394'
+    # ax2 = np.cast[float](stri.split(',')[0::2])                
+    # ay2 = np.cast[float](stri.split(',')[1::2])
+    
+    # plt.plot(wx, wy)
+    # plt.plot(ax1,ay1)
+    # plt.plot(ax2,ay2)
+
+    #x0 = np.mean(wx); y0 = np.mean(wy)
+    #x0 = 150.110890833; y0 = 2.41361111
+    ax1 -= x0; ay1 -= y0
+    ax2 -= x0; ay2 -= y0
+    wx -= x0; wy -= y0
+    
+    wx = np.append(wx, wx[0]); wy = np.append(wy, wy[0])
+    ax1 = np.append(ax1, ax1[0]); ay1 = np.append(ay1, ay1[0])
+    ax2 = np.append(ax2, ax2[0]); ay2 = np.append(ay2, ay2[0])
+    
+    angle = orient-311
+    
+    wx, wy = xyrot(wx, wy, angle)
+    ax1, ay1 = xyrot(ax1, ay1, angle)
+    ax2, ay2 = xyrot(ax2, ay2, angle)
+    
+    wx = wx/np.cos(dec/360*2*np.pi)+ra; wy += dec
+    ax1 = ax1/np.cos(dec/360*2*np.pi)+ra; ay1 += dec
+    ax2 = ax2/np.cos(dec/360*2*np.pi)+ra; ay2 += dec
+    
+    wfc = 'polygon('
+    a1 = 'polygon('
+    a2 = 'polygon('
+    for i in range(4):
+        if i < 3:
+            com = ','
+        else:
+            com = ')'
+        
+        wfc += '%f,%f' %(wx[i],wy[i]) + com
+        a1 += '%f,%f' %(ax1[i],ay1[i]) + com
+        a2 += '%f,%f' %(ax2[i],ay2[i]) + com
+    
+    #if (pi.status == 'Archived') | (pi.status == 'Executed'):
+    dash = ''
+    font='helvetica 9 bold roman'
+    acs_color="cyan"
+    wfc_color="magenta"
+                
+    out = """fk5
+%s # color=%s width=2 %s
+%s # color=%s width=2 %s
+%s # color=%s width=2 %s
+""" %(wfc, wfc_color, dash, a1, acs_color, dash, a2, acs_color, dash)
+    
+    if name != '':
+        out += "# text(%f,%f) %s font=\"%s\" color=%s" %( ra, dec, name_label, font, wfc_color)
+        
+    return out
+            
 def roll2(array, dx, dy):
     """
     `numpy.roll` on both x & y axes

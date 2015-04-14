@@ -1210,22 +1210,22 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     
     ax.plot(xmfull, ymfull, color='black', alpha=0.75, linewidth=2)
     
-    if os.path.exists('tweak/tweak.dat'):
-        tx, ty = np.loadtxt('tweak/tweak.dat', unpack=True)
+    if os.path.exists('tweak_%s/tweak.dat' %(root)):
+        tx, ty = np.loadtxt('tweak_%s/tweak.dat' %(root), unpack=True)
         ty_int = np.interp(xmfull, tx, ty, left=1, right=1)
     else:
         ty_int = xmfull*0.+1
     
     ax.plot(xmfull, ymfull*ty_int, color='black', alpha=0.3, linewidth=2)
-    np.savetxt('tweak/tweak.dat', np.array([xmfull, ymfull*ty_int]).T, fmt='%.5e')
+    np.savetxt('tweak_%s/tweak.dat' %(root), np.array([xmfull, ymfull*ty_int]).T, fmt='%.5e')
     
     NT = len(param.templates)
-    fp = open('tweak/spectra.param','w')
+    fp = open('tweak_%s/spectra.param' %(root),'w')
     for i in range(NT):
         wt, ft = np.loadtxt(param.templates[i], unpack=True)
         ft /= np.interp(wt, xmfull, ymfull, left=1, right=1)
-        np.savetxt('tweak/%s' %(os.path.basename(param.templates[i])), np.array([wt, ft]).T, fmt='%.5e')
-        fp.write('%d tweak/%s 1.0 0 1.0\n' %(i+1, os.path.basename(param.templates[i])))
+        np.savetxt('tweak_%s/%s' %(root, os.path.basename(param.templates[i])), np.array([wt, ft]).T, fmt='%.5e')
+        fp.write('%d tweak_%s/%s 1.0 0 1.0\n' %(i+1, root, os.path.basename(param.templates[i])))
     #
     fp.close()
     
@@ -1312,8 +1312,8 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     font = np.minimum(9*28./NF, 14)
     
     for ci, i in enumerate(np.argsort(lc)):
-        ax.text(0.99, 0.99-0.04*ci*28./NF, '%s %.3f' %(os.path.basename(param.filters[i].name).replace('_','_'), offsets[i]/ref_offset), transform = ax.transAxes, color='0.5', horizontalalignment='right', va='top', fontsize=font)
-        ax.text(0.99, 0.99-0.04*ci*28./NF, '%s %.3f' %(os.path.basename(param.filters[i].name).replace('_','_'), offsets[i]/ref_offset), transform = ax.transAxes, color=colors[i], alpha=0.8, horizontalalignment='right', va='top', fontsize=font)
+        ax.text(0.99, 0.99-0.04*ci*28./NF, '%s %3d %.3f' %(os.path.basename(param.filters[i].name).replace('_','_'), param.filters[i].fnumber, offsets[i]/ref_offset), transform = ax.transAxes, color='0.5', horizontalalignment='right', va='top', fontsize=font)
+        ax.text(0.99, 0.99-0.04*ci*28./NF, '%s %3d %.3f' %(os.path.basename(param.filters[i].name).replace('_','_'), param.filters[i].fnumber, offsets[i]/ref_offset), transform = ax.transAxes, color=colors[i], alpha=0.8, horizontalalignment='right', va='top', fontsize=font)
 
     #### Add zphot zspec plot
     ax = fig.add_axes((0.67, 0.12, 0.32, 0.86))
@@ -1454,32 +1454,37 @@ def loop_zeropoints(root='cosmos', tfile='zphot.translate.cosmos',  zfile='zphot
     #
     fp.close()
     
-    clean_files = [os.path.join(PATH, root)+'.zeropoint', 'tweak/tweak.dat']
+    try:
+        os.mkdir('tweak_%s' %(root))
+    except:
+        pass
+        
+    clean_files = [os.path.join(PATH, root)+'.zeropoint', 'tweak_%s/tweak.dat' %(root)]
     for file in clean_files:
         if os.path.exists(file):
             os.remove(file)
     #
     NT = len(param.templates)
-    fp = open('tweak/spectra.param','w')
+    fp = open('tweak_%s/spectra.param' %(root),'w')
     for i in range(NT):
         wt, ft = np.loadtxt(param.templates[i], unpack=True)
-        np.savetxt('tweak/%s' %(os.path.basename(param.templates[i])), np.array([wt, ft]).T, fmt='%.5e')
-        fp.write('%d tweak/%s 1.0 0 1.0\n' %(i+1, os.path.basename(param.templates[i])))
+        np.savetxt('tweak_%s/%s' %(root, os.path.basename(param.templates[i])), np.array([wt, ft]).T, fmt='%.5e')
+        fp.write('%d tweak_%s/%s 1.0 0 1.0\n' %(i+1, root, os.path.basename(param.templates[i])))
     
     fp.close()
     
     param.params['GET_ZP_OFFSETS'] = True
     param.params['FIX_ZSPEC'] = fix_zspec
     
-    param.write('zphot.param.iter')
+    param.write('zphot.param.iter.%s' %(root))
     
     #### Scale huge errors for first step
     for filter in ignore_initial:
         tf.change_error(filter, 1.e6)
     
-    tf.write('zphot.translate.iter')
+    tf.write('zphot.translate.iter.%s' %(root))
     
-    os.system('eazy -p zphot.param.iter -t zphot.translate.iter -z %s' %(zfile))
+    os.system('eazy -p zphot.param.iter.%s -t zphot.translate.iter.%s -z %s' %(root, root, zfile))
     
     fnumbers, lc_i, delta_i = eazy.show_fit_residuals(root=root, fix_filter=fix_filter, ref_filter=ref_filter, adjust_zeropoints=zfile, savefig='%s_iter_%03d.png' %(root, 0))
     
@@ -1488,11 +1493,11 @@ def loop_zeropoints(root='cosmos', tfile='zphot.translate.cosmos',  zfile='zphot
         for color in ['153,155', '155,161']:
             param.params['REST_FILTERS'] = color
             param.params['READ_ZBIN'] = 'y'
-            param.write('zphot.param.iter')
-            os.system('eazy -p zphot.param.iter -t zphot.translate.iter -z %s' %(zfile))
+            param.write('zphot.param.iter.%s' %(root))
+            os.system('eazy -p zphot.param.iter.%s -t zphot.translate.iter.%s -z %s' %(root, root, zfile))
         #
         param.params['READ_ZBIN'] = 'n'
-        param.write('zphot.param.iter')
+        param.write('zphot.param.iter.%s' %(root))
         unicorn.zp.diagnostic_UVJ(root=root, ext='UVJ_%04d' %(0))
         
     fp = open('%s_iter.log' %(root),'w')
@@ -1506,25 +1511,25 @@ def loop_zeropoints(root='cosmos', tfile='zphot.translate.cosmos',  zfile='zphot
     for filter in ignore_all:
         tf.change_error(filter, 1.e6)
     
-    tf.write('zphot.translate.iter')
+    tf.write('zphot.translate.iter.%s' %(root))
     
     param.params['GET_ZP_OFFSETS'] = True
-    param.write('zphot.param.iter')
+    param.write('zphot.param.iter.%s' %(root))
     
     for i in range(MAXITER):
         #### Use tweaked templates after two iterations
         if i == 0:
             try:
-                os.remove('tweak/tweak.dat')
+                os.remove('tweak_%s/tweak.dat' %(root))
             except:
                 pass
             #
         
         if (i == 1) & (use_tweaked_templates):
-            param.params['TEMPLATES_FILE'] = 'tweak/spectra.param'
-            param.write('zphot.param.iter')
+            param.params['TEMPLATES_FILE'] = 'tweak_%s/spectra.param' %(root)
+            param.write('zphot.param.iter.%s' %(root))
         
-        os.system('eazy -p zphot.param.iter -t zphot.translate.iter -z %s' %(zfile))
+        os.system('eazy -p zphot.param.iter.%s -t zphot.translate.iter.%s -z %s' %(root, root, zfile))
         fnumbers, lc_i, delta_i = eazy.show_fit_residuals(root=root, fix_filter=fix_filter, ref_filter=ref_filter, adjust_zeropoints=zfile, savefig='%s_iter_%03d.png' %(root, i+1))
         fp.write('\n\nIter #%d\n======\n' %(i))
         eazy.log_offsets(fp, fnumbers, lc_i, delta_i, toler)
@@ -2035,4 +2040,49 @@ def quadri_pairs(zoutfile='OUTPUT/cdfs.zout', catfile=''):
     err = np.sqrt(yhr)
     plt.fill_between(xhr[1:], yh-yhr*1./NEXTRA+err, yh-yhr*1./NEXTRA-err, color='blue', alpha=0.1)
     
+def spatial_offset(root='cosmos', PATH='OUTPUT./'):
+    """
+    Make a figure showing the *spatial* zeropoint residuals for each filter in a catalog
+    """
+    import threedhst.eazyPy as eazy
+    from threedhst import catIO
+    
+    obs_sed, fnu, signoise = eazy.show_fit_residuals(root=root, PATH=PATH, savefig=None, adjust_zeropoints='zphot.zeropoint.XX', fix_filter=None, ref_filter=None, get_resid=True, wclip=[1200, 3.e4])
+    
+    param = eazy.EazyParam(PARAM_FILE=PATH+'/'+root+'.param')
+    fnumbers = np.zeros(len(param.filters), dtype=np.int)
+    for i in range(len(fnumbers)):
+        fnumbers[i] = int(param.filters[i].fnumber)
+    
+    c = catIO.Table(param['CATALOG_FILE'])
+    NF = len(fnumbers)
+    NX = int(np.round(np.sqrt(NF)))
+    NY = int(np.ceil(NF*1./NX))
+
+    plt.ioff()
+    plt.gray()
+    fig = plt.figure(figsize=[12,12])
+    
+    for i in range(len(fnumbers)):
+        print param.filters[i].name
+        dmag = -2.5*np.log10((fnu/obs_sed)[i,:])
+        ok = np.isfinite(dmag) & (signoise[i,:] > 3)
+        ax = fig.add_subplot(NY, NX, i+1)
+        ax.scatter(c['ra'], c['dec'], c='black', vmin=-0.08, vmax=0.08, alpha=0.1, s=1, marker='.', edgecolor='None')
+        ax.scatter(c['ra'][ok], c['dec'][ok], c=dmag[ok], vmin=-0.08, vmax=0.08, alpha=0.2, s=10, marker='s', edgecolor='None')
+        sc = ax.scatter(c['ra'][ok][0], c['dec'][ok][0], c=dmag[ok][0], vmin=-0.08, vmax=0.08, alpha=1, s=10, marker='s', edgecolor='None')
+        #ax.set_xlabel('RA'); ax.set_ylabel('Dec')
+        ax.text(0.5, 0.95, '%s\n(%d)' %(param.filters[i].name, param.filters[i].fnumber), ha='center', va='top', fontsize=8, transform=ax.transAxes, color='red')
+        
+        ax.set_xticklabels([]); ax.set_yticklabels([])
+        ax.set_xlim(ax.get_xlim()[::-1])
+         
+    #cb = plt.colorbar(sc)
+    #cb.set_label(r'$\Delta$mag')
+    fig.tight_layout(pad=0.1)
+    fig.savefig('xyresid_%s.png' %(root))
+    plt.close()
+    plt.ion()
+        
+        
     

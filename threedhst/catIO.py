@@ -46,12 +46,12 @@ class gTable(table_base):
             data.filename = filename
             return data
 
-        if 'fits' in filename.lower():
+        if filename.lower().endswith('.fits'):
             format = 'fits'
         else:
             ### Try to read the ".FITS" version first
             if check_FITS:
-                threedhst.showMessage('read', warn=True)
+                #threedhst.showMessage('read', warn=True)
                 status = self.load_FITS(filename)
                 if status:
                     return status
@@ -76,7 +76,7 @@ class gTable(table_base):
                     data.filename = filename
                     
                     if save_FITS:
-                        threedhst.showMessage('write', warn=True)
+                        #threedhst.showMessage('write', warn=True)
                         data.write_FITS()
                         
         if format == 'fits':
