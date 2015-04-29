@@ -497,6 +497,17 @@ tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
         
     else:
         pz = None
+    
+    if False:
+        f = open(root+'.zbin','rb')
+        s = np.fromfile(file=f,dtype=np.int32, count=1)
+        NOBJ=s[0]
+        z_a = np.fromfile(file=f,dtype=np.double,count=NOBJ)
+        z_p = np.fromfile(file=f,dtype=np.double,count=NOBJ)
+        z_m1 = np.fromfile(file=f,dtype=np.double,count=NOBJ)
+        z_m2 = np.fromfile(file=f,dtype=np.double,count=NOBJ)
+        z_peak = np.fromfile(file=f,dtype=np.double,count=NOBJ)
+        f.close()
         
     ###### Done.    
     return tempfilt, coeffs, temp_sed, pz
@@ -608,7 +619,7 @@ def getAllPz(MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='
     
     return zz, full_pz
             
-def getEazyPz(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', binaries=None):
+def getEazyPz(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', binaries=None, get_prior=False):
     """
 zgrid, pz = getEazyPz(idx, \
                       MAIN_OUTPUT_FILE='photz', \
@@ -639,14 +650,17 @@ zgrid, pz = getEazyPz(idx, \
         prior = np.ones(pz['NZ'])
         
     ###### Convert Chi2 to p(z)
-    pzi = np.exp(-0.5*(pz['chi2fit'][:,idx]-min(pz['chi2fit'][:,idx])))*prior*(1+tempfilt['zgrid'])
+    pzi = np.exp(-0.5*(pz['chi2fit'][:,idx]-min(pz['chi2fit'][:,idx])))*prior#*(1+tempfilt['zgrid'])
     
     if np.sum(pzi) > 0:
         pzi/=np.trapz(pzi, tempfilt['zgrid'])
     
     ###### Done
-    return tempfilt['zgrid'], pzi
-    
+    if get_prior:
+        return tempfilt['zgrid'], pzi, prior
+    else:
+        return tempfilt['zgrid'], pzi
+        
 class TemplateError():
     """
     Make an easy (spline) interpolator for the template error function
@@ -2040,7 +2054,7 @@ def quadri_pairs(zoutfile='OUTPUT/cdfs.zout', catfile=''):
     err = np.sqrt(yhr)
     plt.fill_between(xhr[1:], yh-yhr*1./NEXTRA+err, yh-yhr*1./NEXTRA-err, color='blue', alpha=0.1)
     
-def spatial_offset(root='cosmos', PATH='OUTPUT./'):
+def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False):
     """
     Make a figure showing the *spatial* zeropoint residuals for each filter in a catalog
     """
@@ -2063,11 +2077,41 @@ def spatial_offset(root='cosmos', PATH='OUTPUT./'):
     plt.gray()
     fig = plt.figure(figsize=[12,12])
     
+    ###
+    trans = [line.split()[0] for line in open(PATH+'/'+root+'.translate').readlines()]
+    
+    cnames = []
+    for col in c.columns:
+        if col.startswith('f_') & (col in trans):
+            cnames.append(col)
+    
+    fitters = {}
+    translate = {}
+    
     for i in range(len(fnumbers)):
-        print param.filters[i].name
-        dmag = -2.5*np.log10((fnu/obs_sed)[i,:])
-        ok = np.isfinite(dmag) & (signoise[i,:] > 3)
         ax = fig.add_subplot(NY, NX, i+1)
+        print param.filters[i].name, cnames[i]
+        dmag = -2.5*np.log10((fnu/obs_sed)[i,:])
+        ok = np.isfinite(dmag) & (signoise[i,:] > 3) & (np.abs(dmag) < 0.1)
+        ratio = (fnu/obs_sed)[i,:]
+        
+        ### Interpolation
+        if param.filters[i].lambda_c < 3.e4:
+            from astropy.modeling import models, fitting
+            p_init = models.Polynomial2D(degree=8)
+            fit_p = fitting.LevMarLSQFitter()
+            #fit_p = fitting.LinearLSQFitter()
+            p = fit_p(p_init, c['x'][ok], c['y'][ok], ratio[ok]) #, weights=signoise[i,ok]**2)
+            dmag = -2.5*np.log10((fnu/p(c['x'], c['y'])/obs_sed)[i,:])
+        
+            ok = np.isfinite(dmag) & (signoise[i,:] > 3) & (np.abs(dmag) < 0.1)
+            if apply:
+                c[cnames[i]] /= p(c['x'], c['y'])
+                c[cnames[i].replace('f_', 'e_')] /= p(c['x'], c['y'])
+            
+            fitters[cnames[i]] = p
+            translate[cnames[i]] = param.filters[i].fnumber
+            
         ax.scatter(c['ra'], c['dec'], c='black', vmin=-0.08, vmax=0.08, alpha=0.1, s=1, marker='.', edgecolor='None')
         ax.scatter(c['ra'][ok], c['dec'][ok], c=dmag[ok], vmin=-0.08, vmax=0.08, alpha=0.2, s=10, marker='s', edgecolor='None')
         sc = ax.scatter(c['ra'][ok][0], c['dec'][ok][0], c=dmag[ok][0], vmin=-0.08, vmax=0.08, alpha=1, s=10, marker='s', edgecolor='None')
@@ -2076,13 +2120,21 @@ def spatial_offset(root='cosmos', PATH='OUTPUT./'):
         
         ax.set_xticklabels([]); ax.set_yticklabels([])
         ax.set_xlim(ax.get_xlim()[::-1])
-         
+    
+    if apply:
+        c.write('%s.spatial' %(c.filename.split('.spatial')[0]), format='ascii.commented_header')
+                
     #cb = plt.colorbar(sc)
     #cb.set_label(r'$\Delta$mag')
     fig.tight_layout(pad=0.1)
     fig.savefig('xyresid_%s.png' %(root))
     plt.close()
     plt.ion()
-        
-        
+    
+    import pickle
+    fp = open('%s.spatial.pkl' %(c.filename.split('.spatial')[0]),'wb')
+    pickle.dump(fitters, fp)
+    pickle.dump(translate, fp)
+    fp.close()
+    
     
