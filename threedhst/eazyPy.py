@@ -657,7 +657,7 @@ zgrid, pz = getEazyPz(idx, \
     
     ###### Done
     if get_prior:
-        return tempfilt['zgrid'], pzi, prior
+        return tempfilt['zgrid'], pzi, p
     else:
         return tempfilt['zgrid'], pzi
         
@@ -1138,8 +1138,9 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         
     zpfactors = np.dot(zpf.reshape(tempfilt['NFILT'],1), np.ones(tempfilt['NOBJ']).reshape(1,tempfilt['NOBJ']))
     
-    tempfilt['fnu'] *= zpfactors
-    tempfilt['efnu'] *= zpfactors
+    ok = (tempfilt['fnu'] > -90) & (tempfilt['efnu'] > 0)
+    tempfilt['fnu'][ok] *= zpfactors[ok]
+    tempfilt['efnu'][ok] *= zpfactors[ok]
     
     obs_sed = np.zeros((tempfilt['NFILT'], tempfilt['NOBJ']), dtype=np.float)
     for i in xrange(tempfilt['NOBJ']):
@@ -1149,11 +1150,13 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     lc = tempfilt['lc']
     offsets = lc*0.
     
+    lc_rest = np.dot(lc.reshape(-1,1), 1./(1+zi.reshape(1,-1)))
+    
     resid = (obs_sed-tempfilt['fnu']) / obs_sed + 1
     signoise = tempfilt['fnu']/np.sqrt(tempfilt['efnu']**2+(0.01*tempfilt['fnu'])**2)
     
     if get_resid:
-        return obs_sed, tempfilt['fnu'], signoise
+        return lc_rest, obs_sed, tempfilt['fnu'], signoise
         
     #### Plot colors
     colors = range(tempfilt['NFILT'])
@@ -1219,9 +1222,22 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         residfull.extend(resid[i,keep]/stats[i]['median'])
         
     xmfull, ymfull, ysfull, nnfull = threedhst.utils.runmed(np.array(lcfull), np.array(residfull), NBIN=np.maximum(int(len(residfull)/2000.), 10))
+    
     ymfull[xmfull > wclip[1]] = 1.
     ymfull[xmfull < wclip[0]] = 1.
     
+    #### XXX gaussians
+    try:
+        from astroML.sum_of_norms import sum_of_norms, norm    
+        n_gaussians = 30
+        w_best, rms, locs, widths = sum_of_norms(np.log10(xmfull), ymfull-1, n_gaussians, spacing='linear', full_output=True)
+        norms = w_best * norm(np.log10(xmfull)[:, None], locs, widths)
+        ymfull = norms.sum(1)+1
+    except:
+        pass
+        
+    #plt.plot(xmfull, norms.sum(1)+1, color='orange', linewidth=2, zorder=1000)
+        
     ax.plot(xmfull, ymfull, color='black', alpha=0.75, linewidth=2)
     
     if os.path.exists('tweak_%s/tweak.dat' %(root)):
@@ -1248,6 +1264,9 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         lcz = lc[i]/(1+zi)
         yint = np.interp(lcz, xmfull, ymfull, left=-99, right=-99)
         ok = keep & (yint > 0) & (resid[i,:] > 0) & (tempfilt['fnu'][i,:] > 0) #& (signoise[i,:] > 3)
+        #### ignore Lyman series absorption and IR
+        ok = ok & (lcz > 1500) & (lcz < 2.5e4)
+        #
         rfix = resid[i,:]/yint
         val = np.sum(rfix[ok]*signoise[i,ok]**2)/np.sum(signoise[i,ok]**2)
         stats[i] = {'mean':np.mean(rfix[ok]),
@@ -1371,6 +1390,75 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     
     return fnumbers, lc, offsets
 
+def x_get_template_error(root='cosmos', PATH='OUTPUT/', apply=False):
+
+    lc_rest, obs_sed, fnu, signoise = eazy.show_fit_residuals(root=root, PATH=PATH, savefig=None, adjust_zeropoints='zphot.zeropoint.XX', fix_filter=None, ref_filter=None, get_resid=True, wclip=[1200, 3.e4])
+    
+    resid = (obs_sed-fnu) / obs_sed + 1
+    err = np.sqrt((fnu/signoise)**2-(0.01*fnu)**2)    
+    full_err = np.sqrt(err**2) # + (0.05*fnu)**2) #
+    
+    deviate = (obs_sed - fnu) / full_err
+    ok = (fnu > 0) & (signoise > 20) & (obs_sed > 0) & (np.abs(deviate) < 10) & (err > 0)
+    xm, ym, ys, nn = threedhst.utils.runmed(lc_rest[ok], deviate[ok], NBIN=np.maximum(int(ok.sum()/500.), 8), use_nmad=True, use_median=True)
+    #plt.plot(xm, ym)
+    #plt.plot(xm, ys)
+    
+    #### Try to do it analytically
+    g2 = 1./obs_sed**2*((fnu-obs_sed)**2/0.455-err**2)
+    ok = ok & (g2 > 0)
+    xg, yg, ygs, nn = threedhst.utils.runmed(lc_rest[ok], np.sqrt(g2[ok]), NBIN=np.maximum(int(ok.sum()/500.), 8), use_nmad=True, use_median=False)
+    g_int = np.interp(lc_rest, xg, yg)
+    full_err = np.sqrt(err**2+ (g_int*obs_sed)**2) #
+    deviate = (obs_sed - fnu) / full_err
+    
+    xg = np.append(xg, 6.e4)
+    yg = np.append(yg, 0.3)
+
+    xg = np.append(xg, 800)
+    yg = np.append(yg, yg[0])
+    
+    so = np.argsort(xg)
+    xg, yg = xg[so], yg[so]
+    
+    from matplotlib import pyplot as plt
+    from astroML.datasets import fetch_vega_spectrum
+    from astroML.sum_of_norms import sum_of_norms, norm
+    
+    n_gaussians = 15
+    w_best, rms, locs, widths = sum_of_norms(np.log10(xg), yg, n_gaussians,
+                                             spacing='linear',
+                                             full_output=True)
+
+    tx, ty = np.loadtxt('templates/TEMPLATE_ERROR.eazy_v1.0', unpack=True)
+    xx = np.log10(tx)
+    #xx = np.log10(np.logspace(np.log10(800), np.log10(8.e4), 200))
+    norms = w_best * norm(xx[:, None], locs, widths)
+    plt.plot(xg, yg, color='black', linewidth=2, alpha=0.7)
+    plt.plot(10**xx, norms, ls='-', c='#FFAAAA', alpha=0.2)
+    #plt.plot(10**xx, norms.sum(1), '-r', label='sum of gaussians', alpha=0.8, linewidth=2)
+    plt.plot(tx, ty*0.5, color='green', linewidth=1, alpha=0.5, label='TE v1.0')
+    
+    plt.xlim(400, 9.e4); plt.semilogx()
+    
+    new_te = norms.sum(1)
+    new_te[tx >= 6.e4] = 0.3
+    new_te[tx <= 1000] = yg[0]
+    plt.plot(10**xx, new_te, '-r', label='sum of gaussians', alpha=0.8, linewidth=2)
+    
+    ttx, tty = np.loadtxt('TEMPLATE_ERROR.v2.x', unpack=True)
+    plt.plot(ttx, tty, color='orange')
+    
+    np.savetxt('TEMPLATE_ERROR.v2.x', np.array([tx, new_te]).T, fmt='%.3e')
+    
+    #plt.scatter(lc_rest[ok], deviate[ok], alpha=0.02)
+    # xm, ym, ys, nn = threedhst.utils.runmed(lc_rest[ok], deviate[ok], NBIN=np.maximum(int(ok.sum()/500.), 8), use_nmad=True, use_median=True)
+    # plt.plot(xm, ys)
+    # 
+    # tx, ty = np.loadtxt('templates/TEMPLATE_ERROR.eazy_v1.0', unpack=True)
+    # plt.plot(tx, ty/2.*5)
+    
+    
 def log_hist(z, r0=(0,4), dz=0.002, plot=False, *args, **kwargs):
     """
     Make a histogram of redshifts with uniform spacing in dz/(1+z)
@@ -1386,7 +1474,7 @@ def log_hist(z, r0=(0,4), dz=0.002, plot=False, *args, **kwargs):
     
     
     
-def loop_zeropoints(root='cosmos', tfile='zphot.translate.cosmos',  zfile='zphot.zeropoint.cosmos', fix_filter={}, ref_filter=None, init_filter={}, ignore_initial=[], ignore_all=[], toler=0.005, PATH='./OUTPUT/', fix_zspec=False, check_uvj=False, use_tweaked_templates=True, MAXITER=15):
+def loop_zeropoints(root='cosmos', tfile='zphot.translate.cosmos',  zfile='zphot.zeropoint.cosmos', fix_filter={}, ref_filter=None, init_filter={}, ignore_initial=[], ignore_all=[], toler=0.005, PATH='./OUTPUT/', fix_zspec=False, check_uvj=False, use_tweaked_templates=True, MAXITER=15, MIN_ITER=2, wclip=[1200, 3.e4]):
     """
     Wrapper around `show_fit_residuals` to allow iterative fitting
     of the zeropoint offsets.
@@ -1500,7 +1588,7 @@ def loop_zeropoints(root='cosmos', tfile='zphot.translate.cosmos',  zfile='zphot
     
     os.system('eazy -p zphot.param.iter.%s -t zphot.translate.iter.%s -z %s' %(root, root, zfile))
     
-    fnumbers, lc_i, delta_i = eazy.show_fit_residuals(root=root, fix_filter=fix_filter, ref_filter=ref_filter, adjust_zeropoints=zfile, savefig='%s_iter_%03d.png' %(root, 0))
+    fnumbers, lc_i, delta_i = eazy.show_fit_residuals(root=root, fix_filter=fix_filter, ref_filter=ref_filter, adjust_zeropoints=zfile, savefig='%s_iter_%03d.png' %(root, 0), wclip=wclip)
     
     #### Extract UVJ
     if check_uvj:
@@ -1544,7 +1632,7 @@ def loop_zeropoints(root='cosmos', tfile='zphot.translate.cosmos',  zfile='zphot
             param.write('zphot.param.iter.%s' %(root))
         
         os.system('eazy -p zphot.param.iter.%s -t zphot.translate.iter.%s -z %s' %(root, root, zfile))
-        fnumbers, lc_i, delta_i = eazy.show_fit_residuals(root=root, fix_filter=fix_filter, ref_filter=ref_filter, adjust_zeropoints=zfile, savefig='%s_iter_%03d.png' %(root, i+1))
+        fnumbers, lc_i, delta_i = eazy.show_fit_residuals(root=root, fix_filter=fix_filter, ref_filter=ref_filter, adjust_zeropoints=zfile, savefig='%s_iter_%03d.png' %(root, i+1), wclip=wclip)
         fp.write('\n\nIter #%d\n======\n' %(i))
         eazy.log_offsets(fp, fnumbers, lc_i, delta_i, toler)
         
@@ -1567,7 +1655,7 @@ def loop_zeropoints(root='cosmos', tfile='zphot.translate.cosmos',  zfile='zphot
         
         use_bands = (lc_i > 4500) & (lc_i < 2.5e4) & ~fixed_bands
         
-        if (np.abs(delta_i[use_bands]-1).max() < toler) & (i >= 1):
+        if (np.abs(delta_i[use_bands]-1).max() < toler) & (i >= MIN_ITER):
             break
     
     fp.close()
@@ -2061,7 +2149,7 @@ def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False):
     import threedhst.eazyPy as eazy
     from threedhst import catIO
     
-    obs_sed, fnu, signoise = eazy.show_fit_residuals(root=root, PATH=PATH, savefig=None, adjust_zeropoints='zphot.zeropoint.XX', fix_filter=None, ref_filter=None, get_resid=True, wclip=[1200, 3.e4])
+    lc_rest, obs_sed, fnu, signoise = eazy.show_fit_residuals(root=root, PATH=PATH, savefig=None, adjust_zeropoints='zphot.zeropoint.XX', fix_filter=None, ref_filter=None, get_resid=True, wclip=[1200, 3.e4])
     
     param = eazy.EazyParam(PARAM_FILE=PATH+'/'+root+'.param')
     fnumbers = np.zeros(len(param.filters), dtype=np.int)
@@ -2106,8 +2194,9 @@ def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False):
         
             ok = np.isfinite(dmag) & (signoise[i,:] > 3) & (np.abs(dmag) < 0.1)
             if apply:
-                c[cnames[i]] /= p(c['x'], c['y'])
-                c[cnames[i].replace('f_', 'e_')] /= p(c['x'], c['y'])
+                ok = c[cnames[i]] > -90
+                c[cnames[i]][ok] /= p(c['x'], c['y'])[ok]
+                c[cnames[i].replace('f_', 'e_')][ok] /= p(c['x'], c['y'])[ok]
             
             fitters[cnames[i]] = p
             translate[cnames[i]] = param.filters[i].fnumber
@@ -2136,5 +2225,34 @@ def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False):
     pickle.dump(fitters, fp)
     pickle.dump(translate, fp)
     fp.close()
+   
+def apply_spatial_offsets(cat='cdfs.v1.3.1.nzp.cat', pfile='cdfs.v1.3.1.nzp.cat.AB25.spatial.pkl'):
+    """
+    Apply 2D "zeropoint" residuals to the photometric catalogs
+    """
+    import pickle
+    import astropy.table
     
+    #### Read the catalog
+    c = astropy.table.Table.read(cat, format='ascii.commented_header')
+    
+    #### Read the 2D scalings
+    fp = open(pfile,'rb')
+    fitter = pickle.load(fp)
+    translate = pickle.load(fp)
+    fp.close()
+    
+    #### Fitter is a dictionary with keys equal to the column headings
+    #### and whose values are astropy.modeling.Polynomial2D models with 
+    #### coordinates 'x' and 'y' from the catalog
+    for col in fitter.keys():
+        print col, col in c.columns
+        ok = c[col] > -90
+        c[col][ok] *= 1./fitter[col](c['x'], c['y'])[ok]
+        c[col.replace('f_', 'e_')][ok] *= 1./fitter[col](c['x'], c['y'])[ok]
+        
+        c[col].format='%.5e'
+        c[col.replace('f_', 'e_')].format='%.5e'
+        
+    c.write('%s.spatial' %(cat), format='ascii.commented_header') 
     
