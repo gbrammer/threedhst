@@ -1401,8 +1401,14 @@ def x_get_template_error(root='cosmos', PATH='OUTPUT/', apply=False):
     deviate = (obs_sed - fnu) / full_err
     ok = (fnu > 0) & (signoise > 20) & (obs_sed > 0) & (np.abs(deviate) < 10) & (err > 0)
     xm, ym, ys, nn = threedhst.utils.runmed(lc_rest[ok], deviate[ok], NBIN=np.maximum(int(ok.sum()/500.), 8), use_nmad=True, use_median=True)
-    #plt.plot(xm, ym)
-    #plt.plot(xm, ys)
+
+    if False:
+        #plt.plot(xm, ym)
+        plt.plot(xm, ys, color='black')
+        for i in range(lc_rest.shape[0]):
+            ok_i = (fnu[i,:] > 0) & (signoise[i,:] > 20) & (obs_sed[i,:] > 0) & (np.abs(deviate[i,:]) < 10) & (err[i,:] > 0)
+            xmi, ymi, ysi, nni = threedhst.utils.runmed(lc_rest[i,ok_i], deviate[i,ok_i], NBIN=np.maximum(int(ok_i.sum()/500.), 8), use_nmad=True, use_median=True)
+            plt.plot(xmi, ysi, alpha=0.5)
     
     #### Try to do it analytically
     g2 = 1./obs_sed**2*((fnu-obs_sed)**2/0.455-err**2)
@@ -1446,7 +1452,7 @@ def x_get_template_error(root='cosmos', PATH='OUTPUT/', apply=False):
     new_te[tx <= 1000] = yg[0]
     plt.plot(10**xx, new_te, '-r', label='sum of gaussians', alpha=0.8, linewidth=2)
     
-    ttx, tty = np.loadtxt('TEMPLATE_ERROR.v2.x', unpack=True)
+    ttx, tty = np.loadtxt('templates/TEMPLATE_ERROR.v2.0.zfourge', unpack=True)
     plt.plot(ttx, tty, color='orange')
     
     np.savetxt('TEMPLATE_ERROR.v2.x', np.array([tx, new_te]).T, fmt='%.3e')
@@ -1582,6 +1588,9 @@ def loop_zeropoints(root='cosmos', tfile='zphot.translate.cosmos',  zfile='zphot
     
     #### Scale huge errors for first step
     for filter in ignore_initial:
+        tf.change_error(filter, 1.e6)
+    
+    for filter in ignore_all:
         tf.change_error(filter, 1.e6)
     
     tf.write('zphot.translate.iter.%s' %(root))
@@ -2142,7 +2151,7 @@ def quadri_pairs(zoutfile='OUTPUT/cdfs.zout', catfile=''):
     err = np.sqrt(yhr)
     plt.fill_between(xhr[1:], yh-yhr*1./NEXTRA+err, yh-yhr*1./NEXTRA-err, color='blue', alpha=0.1)
     
-def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False):
+def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False, candels=False):
     """
     Make a figure showing the *spatial* zeropoint residuals for each filter in a catalog
     """
@@ -2170,19 +2179,37 @@ def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False):
     
     cnames = []
     for col in c.columns:
-        if col.startswith('f_') & (col in trans):
-            cnames.append(col)
+        if candels:
+            if col.endswith('FLUX') & (col in trans):
+                cnames.append(col)
+        else:
+            if col.startswith('f_') & (col in trans):
+                cnames.append(col)
     
+    if candels:
+        c.rename_column('RA','ra')
+        c.rename_column('DEC','dec')
+        c.add_column(catIO.Column(name='x', data=(c['ra']-np.median(c['ra'])*3600.)))
+        c.add_column(catIO.Column(name='y', data=(c['dec']-np.median(c['dec'])*3600.)))
+            
+    print cnames
+        
     fitters = {}
     translate = {}
     
     for i in range(len(fnumbers)):
+        #print i, len(fnumbers), len(cnames)
+        
         ax = fig.add_subplot(NY, NX, i+1)
         print param.filters[i].name, cnames[i]
         dmag = -2.5*np.log10((fnu/obs_sed)[i,:])
         ok = np.isfinite(dmag) & (signoise[i,:] > 3) & (np.abs(dmag) < 0.1)
         ratio = (fnu/obs_sed)[i,:]
         
+        if ok.sum() == 0:
+            ax.set_xticklabels([]); ax.set_yticklabels([])
+            continue
+            
         ### Interpolation
         if param.filters[i].lambda_c < 3.e4:
             from astropy.modeling import models, fitting
@@ -2211,17 +2238,17 @@ def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False):
         ax.set_xlim(ax.get_xlim()[::-1])
     
     if apply:
-        c.write('%s.spatial' %(c.filename.split('.spatial')[0]), format='ascii.commented_header')
+        c.write('%s.spatial' %(c.filename), format='ascii.commented_header')
                 
     #cb = plt.colorbar(sc)
     #cb.set_label(r'$\Delta$mag')
     fig.tight_layout(pad=0.1)
-    fig.savefig('xyresid_%s.png' %(root))
+    fig.savefig('%s.spatial.png' %(c.filename))
     plt.close()
     plt.ion()
     
     import pickle
-    fp = open('%s.spatial.pkl' %(c.filename.split('.spatial')[0]),'wb')
+    fp = open('%s.spatial.pkl' %(c.filename),'wb')
     pickle.dump(fitters, fp)
     pickle.dump(translate, fp)
     fp.close()

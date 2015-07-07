@@ -62,7 +62,15 @@ except:
 import numpy as np
 
 import threedhst
-   
+
+try:
+    import drizzlepac
+    drizzle_function = drizzlepac.astrodrizzle.AstroDrizzle
+except:
+    import pyraf
+    from pyraf import iraf
+    drizzle_function = iraf.multidrizzle
+    
 def set_aXe_environment(grating='G141'):
     """
 set_aXe_environment(grating='G141')
@@ -279,11 +287,17 @@ Pipeline to process a set of grism/direct exposures.
 
         #threedhst.process_grism.multidrizzle_defaults(asn_direct_file)
         
-        status = iraf.multidrizzle(input=asn_direct_file, \
-           shiftfile=ROOT_DIRECT + '_shifts.txt', skysub=MDRIZ_SKYSUB, \
-           output = '', final_scale = threedhst.options['DRZSCALE'], 
-           final_pixfrac = threedhst.options['USED_PIXFRAC'], Stdout=1)
-
+        try:
+            status = drizzle_function(input=asn_direct_file, \
+            shiftfile=ROOT_DIRECT + '_shifts.txt', skysub=MDRIZ_SKYSUB, \
+            output = '', final_scale = threedhst.options['DRZSCALE'], 
+            final_pixfrac = threedhst.options['USED_PIXFRAC'], Stdout=1)
+        except:
+            status = drizzle_function(input=asn_direct_file, \
+            skysub=MDRIZ_SKYSUB, \
+            output = '', final_scale = threedhst.options['DRZSCALE'], 
+            final_pixfrac = threedhst.options['USED_PIXFRAC'], build=False)
+                
         ### Read the '.run' file output by MultiDrizzle
         #mdrzRun = threedhst.prep_flt_files.MultidrizzleRun(root=ROOT_DIRECT)
 
@@ -308,7 +322,7 @@ Pipeline to process a set of grism/direct exposures.
             
             threedhst.process_grism.multidrizzle_defaults(asn_direct_file)
             
-            status = iraf.multidrizzle(input=asn_direct_file, 
+            status = drizzle_function(input=asn_direct_file, 
                shiftfile=ROOT_DIRECT + '_shifts.txt', skysub=MDRIZ_SKYSUB, 
                output = '', final_scale = threedhst.options['DRZSCALE'],
                final_pixfrac = threedhst.options['USED_PIXFRAC'],
@@ -526,7 +540,7 @@ Pipeline to process a set of grism/direct exposures.
         threedhst.showMessage('Running MultiDrizzle on the grism exposures to flag cosmic rays\nand make grism mosaic.')
         
         if threedhst.options['PREFAB_DIRECT_IMAGE'] is None:
-            iraf.multidrizzle(input=asn_grism_file, 
+            drizzle_function(input=asn_grism_file, 
                           shiftfile=ROOT_GRISM + '_shifts.txt', 
                           output = '', 
                           final_scale = threedhst.options['DRZSCALE'], 
@@ -559,7 +573,7 @@ Pipeline to process a set of grism/direct exposures.
             #               static=BACKGR, updatewcs=BACKGR,
             #               driz_separate=BACKGR, median=BACKGR,
             #               blot=BACKGR, driz_cr=BACKGR)
-            iraf.multidrizzle(input=asn_grism_file, 
+            drizzle_function(input=asn_grism_file, 
                           shiftfile=ROOT_GRISM + '_shifts.txt', 
                           output = '', 
                           final_pixfrac = threedhst.options['USED_PIXFRAC'], 
@@ -636,7 +650,7 @@ Pipeline to process a set of grism/direct exposures.
         threedhst.showMessage('Second pass Multidrizzle on sky-subtracted grism exposures.')
         
         if threedhst.options['PREFAB_DIRECT_IMAGE'] is None:
-            status = iraf.multidrizzle(input=asn_grism_file, 
+            status = drizzle_function(input=asn_grism_file, 
                           shiftfile=ROOT_GRISM +  '_shifts.txt', 
                           output = '', 
                           final_scale = threedhst.options['DRZSCALE'], 
@@ -659,7 +673,7 @@ Pipeline to process a set of grism/direct exposures.
             # print 'NX NY RA DEC SCALE'
             # print '%d %d %13.6f %13.6f %6.3f' %(NX, NY, RA_CENTER, DEC_CENTER, SCALE)
             
-            # status = iraf.multidrizzle(input=asn_grism_file, 
+            # status = drizzle_function(input=asn_grism_file, 
             #               shiftfile=ROOT_GRISM +  '_shifts.txt', 
             #               output = '', final_scale = SCALE, 
             #               final_pixfrac = threedhst.options['USED_PIXFRAC'], 
@@ -669,7 +683,7 @@ Pipeline to process a set of grism/direct exposures.
             #               driz_separate=redo_second,median=redo_second, 
             #               blot=redo_second, driz_cr=redo_second,
             #               Stdout=1)
-            status = iraf.multidrizzle(input=asn_grism_file, 
+            status = drizzle_function(input=asn_grism_file, 
                           shiftfile=ROOT_GRISM +  '_shifts.txt', 
                           output = '',
                           final_pixfrac = threedhst.options['USED_PIXFRAC'], 
@@ -931,7 +945,7 @@ Pipeline to process a set of grism/direct exposures.
     flprMulti()
     
     if threedhst.options['PREFAB_DIRECT_IMAGE'] is None:
-        status = iraf.multidrizzle(input=ROOT_GRISM+'CONT_asn.fits', 
+        status = drizzle_function(input=ROOT_GRISM+'CONT_asn.fits', 
                       shiftfile=ROOT_GRISM +  '_shifts.txt', 
                       output = '', 
                       final_scale = threedhst.options['DRZSCALE'], 
@@ -964,7 +978,7 @@ Pipeline to process a set of grism/direct exposures.
         #               static=no, 
         #               driz_separate=no, median=no, blot=no, driz_cr=no)
 
-        iraf.multidrizzle(input=ROOT_GRISM+'CONT_asn.fits', 
+        drizzle_function(input=ROOT_GRISM+'CONT_asn.fits', 
                       shiftfile=ROOT_GRISM + '_shifts.txt', 
                       output = '', 
                       final_pixfrac = threedhst.options['USED_PIXFRAC'], 
@@ -1119,7 +1133,11 @@ def fresh_flt_files(asn_filename, from_path="../RAW", preserve_dq = False):
                 #### Add crosstalk to the pixel uncertainties
                 var = flt['ERR'].data**2 
                 xtalk = (flt['SCI'].data[::-1,:]/2000.)**2
-                xtalk_mask = (flt['SCI'].data*flt['TIME'].data)[::-1,:] > 2.e4
+                time = flt['TIME'].data
+                if time is None:
+                    time = flt['TIME'].header['PIXVALUE']
+                    
+                xtalk_mask = (flt['SCI'].data*time)[::-1,:] > 2.e4
                 var[xtalk_mask] += xtalk[xtalk_mask]
                 flt['ERR'].data = np.sqrt(var)
 
@@ -1128,7 +1146,7 @@ def fresh_flt_files(asn_filename, from_path="../RAW", preserve_dq = False):
         
         #### Apply DQ mask (.mask.reg), if it exists
         threedhst.regions.apply_dq_mask(os.path.basename(fits_file.split('.gz')[0]),
-                                        addval=2048)
+                                        addval=4096)
 
 def mask_IR_blobs(flt='ibsyb6q7q_flt.fits'):
     blobs = [[293.2,640],

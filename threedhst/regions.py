@@ -359,7 +359,7 @@ def parse_polygons(file='goods-s_ACSz.reg'):
     
     return regions
 
-def apply_dq_mask(flt_file, extension=3, mask_file=None, addval=2048, fk5=False, verbose=False):
+def apply_dq_mask(flt_file, extension=3, mask_file=None, addval=4096, fk5=False, verbose=False):
     """
 apply_dq_mask(flt_file, addval=2048)
 
@@ -405,7 +405,7 @@ apply_dq_mask(flt_file, addval=2048)
         os.remove(flt_file)
         os.system('gzip %s' %(flt_file.split('.gz')[0]))
 
-def apply_dq_mask_old(flt_file, extension=3, mask_file=None, addval=2048, fk5=False, verbose=False):
+def apply_dq_mask_old(flt_file, extension=3, mask_file=None, addval=4096, fk5=False, verbose=False):
     """
 apply_dq_mask(flt_file, addval=2048)
 

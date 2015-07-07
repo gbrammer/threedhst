@@ -77,6 +77,13 @@ def drzTweakReg(sci='goodss-34-F140W_drz_sci.fits', master_catalog='goodss_radec
     #c.dec = c['Y_WORLD']
     m = catIO.CoordinateMatcher(c, ra_column='X_WORLD', dec_column='Y_WORLD')
     r0, d0 = np.loadtxt(master_catalog, unpack=True)
+    
+    ### clip list to nearby objects
+    rmed, dmed = np.median(c['X_WORLD']), np.median(c['Y_WORLD'])
+    delta = np.sqrt((r0-rmed)**2/np.cos(dmed/180*np.pi)**2+(d0-dmed)**2)*60.
+    nearby = delta < 8 # arcmin
+    r0, d0 = r0[nearby], d0[nearby]
+    
     dr, idx = m.match_list(r0, d0)
     
     dx = (c['X_WORLD'][idx]-r0)*np.cos(d0/180*np.pi)*3600
@@ -227,9 +234,9 @@ def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_rad
         drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, preserve=False)
     else:
         if len(asn.exposures) == 1:
-            drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7', driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False) # , final_wcs=True, final_rot=0)
+            drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='8.0 5.0', driz_cr_scale = '2.5 0.7', driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False) # , final_wcs=True, final_rot=0)
         else:
-            drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') # , final_wcs=True, final_rot=0)
+            drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='8.0 5.0', driz_cr_scale = '2.5 0.7') # , final_wcs=True, final_rot=0)
         
     for exp in asn.exposures:
         files=glob.glob('%s*coo' %(exp))
@@ -553,6 +560,17 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
             
     sky_images = {'G141':['zodi_G141_clean.fits', 'excess_lo_G141_clean.fits', 'G141_scattered_light.fits'],
                   'G102':['zodi_G102_clean.fits', 'excess_G102_clean.fits']}
+    #
+    # sky_images = {'G141':['zodi_G141_clean.fits', 'excess_lo_G141_clean.fits', 'G141_scattered_light_v2.fits'],
+    #               'G102':['zodi_G102_clean.fits', 'excess_G102_clean.fits']}
+    
+    # ### Don't use scattered light
+    # sky_images = {'G141':['zodi_G141_clean.fits', 'excess_lo_G141_clean.fits'],
+    #               'G102':['zodi_G102_clean.fits', 'excess_G102_clean.fits']}
+    # 
+    # ## Use aXe images
+    # sky_images = {'G141':['WFC3.IR.G141.sky.V1.0.flat.fits', 'WFC3.IR.G141.sky.V1.0.flat.fits'],
+    #               'G102':['zodi_G102_clean.fits', 'excess_G102_clean.fits']}
     
     if first_run:
         ### Rough background subtraction
@@ -583,7 +601,7 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
             #templates = bg_flat[:, mask.flatten()]
         
         ### Run astrodrizzle to make DRZ mosaic, grism-SExtractor mask
-        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_combine=True, final_wcs=False, resetbits=4096, final_bits=576, driz_sep_bits=576, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7')
+        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_combine=True, final_wcs=False, resetbits=4096, final_bits=576, driz_sep_bits=576, driz_cr_snr='8.0 5.0', driz_cr_scale = '2.5 0.7')
                 
     else:
         flt = pyfits.open('%s_flt.fits' %(asn.exposures[0]))
