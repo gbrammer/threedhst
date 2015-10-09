@@ -1,0 +1,1 @@
+This is the data reduction pipeline for the 3D-HST project with the WFC3 G141 grism (GO12177 & 12328).  See the [GettingStarted](GettingStarted.md) Wiki page for information on how to download and install.
