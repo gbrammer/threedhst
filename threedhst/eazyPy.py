@@ -30,7 +30,7 @@ import pylab
 import threedhst.catIO as catIO
 
 class FilterDefinition:
-    def __init__(self):
+    def __init__(self, bp=None):
         """
         Placeholder for the filter definition information.
         """
@@ -38,6 +38,11 @@ class FilterDefinition:
         self.wavelength = None
         self.transmission = None
         
+        if bp is not None:
+            self.wavelength = np.cast[np.double](bp.wave)
+            self.transmission =  np.cast[np.double](bp.throughput)
+            self.name = bp.name
+            
     def extinction_correction(self, EBV, Rv=3.1, mag=True, source_lam=None, source_flux = None):
         """
         Get the MW extinction correction within the filter.  
@@ -678,11 +683,16 @@ class TemplateError():
         return self._spline(filter_wavelength/(1+z))
         
 class Template():
-    def __init__(self, file=None):
+    def __init__(self, sp=None, file=None):
         self.wavelength = None
         self.flux = None
         self.flux_fnu = None
         
+        if sp is not None:
+            self.wavelength = np.cast[np.double](sp.wave)
+            self.flux = np.cast[np.double](sp.flux)
+            self.flux_fnu = self.flux
+            
         if file is not None:
             self.wavelength, self.flux = np.loadtxt(file, unpack=True)
             self.set_fnu()
@@ -706,7 +716,8 @@ class Template():
             temp_filter = np.interp(filter.wavelength, self.wavelength*(1+z),
                                     self.flux_fnu)
             
-        temp_int = np.trapz(filter.transmission*temp_filter, 1./filter.wavelength) / np.trapz(filter.transmission, 1./filter.wavelength)
+        temp_int = np.trapz(filter.transmission*temp_filter/filter.wavelength, filter.wavelength) / np.trapz(filter.transmission/filter.wavelength, filter.wavelength)
+        #temp_int = np.trapz(filter.transmission*temp_filter, filter.wavelength) / np.trapz(filter.transmission, 1./filter.wavelength)
         return temp_int
         
 class TemplateInterpolator():
@@ -988,8 +999,13 @@ PlotSEDExample(idx=20)
         axp.set_xlabel(r'$z$')
         axp.set_ylabel(r'$p(z)$')
         
-    if writePNG & (axes is None):
-        fig.savefig('/tmp/test.pdf',dpi=100)
+    if (writePNG is not False) & (axes is None):
+        if isinstance(writePNG, str):
+            out=writePNG
+        else:
+            out='/tmp/test.pdf'
+            
+        fig.savefig(out,dpi=100)
 
     if axes is None:
         return [ax, axp]
@@ -1197,7 +1213,17 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         yy.append(ym)
         ss.append(ys)
         val = np.sum(resid[i,ok]*signoise[i,ok]**2)/np.sum(signoise[i,ok]**2)
-        stats[i] = {'mean':np.mean(resid[i,ok]),
+        #print lc[i], i, ok.sum()
+        if ok.sum() == 0:
+            stats[i] = {'mean':0,
+                      'median':0,
+                      'std':1,
+                      'stdmean':1,
+                      'p':[0,0,0,0,0],
+                      'pstd':0,
+                      'val':0}            
+        else:
+            stats[i] = {'mean':np.mean(resid[i,ok]),
                       'median':np.median(resid[i,ok]),
                       'std':np.std(resid[i,ok]),
                       'stdmean':np.std(resid[i,ok])/np.sqrt(ok.sum()),
@@ -1269,7 +1295,16 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         #
         rfix = resid[i,:]/yint
         val = np.sum(rfix[ok]*signoise[i,ok]**2)/np.sum(signoise[i,ok]**2)
-        stats[i] = {'mean':np.mean(rfix[ok]),
+        if ok.sum() == 0:
+            stats[i] = {'mean':0,
+                      'median':0,
+                      'std':1,
+                      'stdmean':1,
+                      'p':[0,0,0,0,0],
+                      'pstd':0,
+                      'val':0}            
+        else:
+            stats[i] = {'mean':np.mean(rfix[ok]),
                       'median':np.median(rfix[ok]),
                       'std':np.std(rfix[ok]),
                       'stdmean':np.std(rfix[ok])/np.sqrt(ok.sum()),
@@ -2171,7 +2206,8 @@ def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False, candels=False):
     NY = int(np.ceil(NF*1./NX))
 
     plt.ioff()
-    plt.gray()
+    #plt.gray()
+    plt.set_cmap('RdYlBu')
     fig = plt.figure(figsize=[12,12])
     
     ###
@@ -2240,9 +2276,9 @@ def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False, candels=False):
     if apply:
         c.write('%s.spatial' %(c.filename), format='ascii.commented_header')
                 
-    #cb = plt.colorbar(sc)
-    #cb.set_label(r'$\Delta$mag')
     fig.tight_layout(pad=0.1)
+    cb = plt.colorbar(sc)
+    cb.set_label(r'$\Delta$mag')
     fig.savefig('%s.spatial.png' %(c.filename))
     plt.close()
     plt.ion()
@@ -2282,4 +2318,56 @@ def apply_spatial_offsets(cat='cdfs.v1.3.1.nzp.cat', pfile='cdfs.v1.3.1.nzp.cat.
         c[col.replace('f_', 'e_')].format='%.5e'
         
     c.write('%s.spatial' %(cat), format='ascii.commented_header') 
+
+def template_contributions(root='photz', wave=15418.99, PATH='OUTPUT', CACHE_FILE='Same'):
+    """
+    Get template contributions to the full fit, normalized at the filter closest to the
+    specified rest-frame wavelength (default is F160W)
+    """
+    from collections import OrderedDict
+    tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='%s' %(root), OUTPUT_DIRECTORY=PATH, CACHE_FILE=CACHE_FILE)
     
+    dl = np.abs(tempfilt['lc']-wave)
+    ix = np.argmin(dl)
+    
+    renorm = tempfilt['tempfilt'][ix,:,0]    
+    coeffs_h = coeffs['coeffs']*np.dot(renorm.reshape(-1,1), np.ones((1,coeffs['NOBJ'])))
+    coeffs_total = np.sum(coeffs_h, axis=0)
+    coeffs_h /= coeffs_total
+    
+    out = OrderedDict()
+    out['quiescent'] = coeffs_h[[0,3,4,6], :].sum(axis=0)
+    out['dusty_old'] = coeffs_h[7, :]
+    out['dusty_young'] = coeffs_h[5, :]
+    out['dusty_total'] = coeffs_h[5, :] + coeffs_h[7, :]
+    out['young'] = coeffs_h[1, :]
+    out['mid'] = coeffs_h[2, :]
+    if tempfilt['NTEMP'] == 9:
+        out['young'] += coeffs_h[8, :]
+    
+    return out
+    
+    
+def anneal_pz(zgrid, pz, level=0.68):
+    """
+    "anneal" method for computing confidence intervals.
+    
+    Start at peak probability and step down in probability density until you get the 
+    desired integrated probability
+    
+    """
+    
+    pznorm = pz/np.trapz(pz, zgrid)
+    zmax = np.argmax(pznorm)
+    dz = np.diff(zgrid)
+    pzmax = pznorm.max()
+    probs = np.sort(np.unique(pznorm))[::-1]
+    out = np.zeros((len(pz)-1, len(probs)))
+    for i in range(len(probs)):
+        ok = pznorm[1:] >= probs[i]
+        out[:,i] = pznorm[1:]*dz*ok
+        
+    ix_level = int(np.round(np.interp(level, out.sum(axis=0), np.arange(len(probs)))))
+    z_level = zgrid[1:]*(out[:,ix_level] > 0) 
+    
+    return out, z_level, np.min(z_level[z_level > 0]), np.max(z_level[z_level > 0])

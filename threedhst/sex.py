@@ -9,10 +9,10 @@ reason.
 Also added similar SWarp class wrapper around SWarp.
 """
 
-__version__ = "$Rev$"
-# $URL$
-# $Author$
-# $Date$
+__version__ = "$Rev: 449 $"
+# $URL: https://threedhst.googlecode.com/svn/threedhst/sex.py $
+# $Author: gbrammer@gmail.com $
+# $Date: 2015-01-19 14:13:55 -0500 (Mon, 19 Jan 2015) $
 
 try:
     import astropy.io.fits as pyfits
@@ -183,6 +183,8 @@ SExtractor()
         opts = dict(SExtractor._defaultopts)
         pars = dict([(k,False) for k in  SExtractor._parinfo])
             
+        self.executable = 'sex'
+        
         if sexfile:
             #with open(sexfile) as f:
             f =  open(sexfile) #gbb
@@ -391,18 +393,18 @@ SExtractor()
         self._saveFiles(fnbase)
         
         if analysisImage:
-            clstr = 'sex %s %s -c %s' %(detectionImage,
+            clstr = '%s %s %s -c %s' %(self.executable, detectionImage,
                      analysisImage,self.name+'.sex')
         else:
             # clstr = 'sex {0} -c {1}'.format(detectionImage,self.name+'.sex')
-            clstr = 'sex %s -c %s' %(detectionImage,self.name+'.sex')
+            clstr = '%s %s -c %s' %(self.executable, detectionImage,self.name+'.sex')
         
         print 'THREEDHST/sex: %s' %clstr
         
         if mode == 'waiterror' or mode =='wait':
             
             fp = open('sex_stderr','w')
-            proc = Popen(clstr.split(),executable='sex', stdout=PIPE,stderr=fp)
+            proc = Popen(clstr.split(),executable=self.executable, stdout=PIPE,stderr=fp)
             res = proc.wait()
             fp.close()
             
@@ -423,7 +425,7 @@ SExtractor()
             self._fix_ascii_head()
             return res
         elif mode == 'proc':
-            proc = Popen(clstr.split(),executable='sex',stdout=PIPE,stderr=PIPE)
+            proc = Popen(clstr.split(),executable=self.executable,stdout=PIPE,stderr=PIPE)
 
             self._fix_ascii_head()
             return proc

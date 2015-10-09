@@ -75,6 +75,35 @@ class gTable(table_base):
                     data.input_format = {'format':format}
                     data.filename = filename
                     
+                    #### Split "APER" columns
+                    if format == 'ascii.sextractor':
+                        combine_columns = ['FLUX_APER', 'FLUXERR_APER', 'MAG_APER', 'MAGERR_APER', 'FLUX_RADIUS']
+                        for base_col in combine_columns:
+                            if '%s2'  %(base_col) in data.colnames:
+                                continue
+                            
+                            ncol = 0
+                            for col in data.colnames:
+                                if base_col in col:
+                                    ncol += 1
+                            
+                            if ncol == 0:
+                                continue
+                                
+                            dtype = data[base_col].dtype
+                            out = np.zeros((len(data), ncol), dtype=dtype)
+                            for i in range(ncol):
+                                if i == 0:
+                                    incol = base_col
+                                else:
+                                    incol = '%s_%d' %(base_col, i)
+                                
+                                out[:,i] = data[incol]
+                                data.remove_column(incol)
+                            
+                            #data.remove_column(base_col)
+                            data.add_column(Column(name=base_col, data=out))
+                            
                     if save_FITS:
                         #threedhst.showMessage('write', warn=True)
                         data.write_FITS()

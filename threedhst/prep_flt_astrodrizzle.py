@@ -20,14 +20,17 @@ import scipy.ndimage as nd
 import stsci.convolve
 
 import threedhst
+from threedhst import catIO
 
-def clean_wcsname(flt='ibhj15wyq_flt.fits', wcsname='TWEAK', ACS=False):
+def clean_wcsname(flt='ibhj15wyq_flt.fits', wcsname='TWEAK', ACS=False, WFPC2=False):
     """
     Workaround for annoying TweakReg feature of not overwriting WCS solns
     """
     im = pyfits.open(flt, mode='update')
     if ACS:
         exts = [1,4]
+    elif WFPC2:
+        exts = [1,2,3,4]
     else:
         exts = [1]
     
@@ -38,7 +41,7 @@ def clean_wcsname(flt='ibhj15wyq_flt.fits', wcsname='TWEAK', ACS=False):
                 if header[key] == wcsname:
                     wcs_ext = key[-1]
                     if key == 'WCSNAME':
-                        header[key] = wcsname+'X'
+                        header[key] = 'X' + wcsname+'X'
                         #im.flush()
         #
         for key in ['WCSNAME', 'WCSAXES', 'CRPIX1', 'CRPIX2', 'CDELT1', 'CDELT2', 'CUNIT1', 'CUNIT2', 'CTYPE1', 'CTYPE2', 'CRVAL1', 'CRVAL2', 'LONPOLE', 'LATPOLE', 'CRDER1', 'CRDER2', 'CD1_1', 'CD1_2', 'CD2_1', 'CD2_2', 'FITNAME', 'NMATCH', 'RMS_RA', 'RMS_DEC']:
@@ -54,7 +57,6 @@ def drzTweakReg(sci='goodss-34-F140W_drz_sci.fits', master_catalog='goodss_radec
     import drizzlepac
     from drizzlepac import tweakback
     from stwcs import updatewcs
-    from threedhst import catIO
     
     se = threedhst.sex.SExtractor()
     se.options['WEIGHT_IMAGE'] = sci.replace('sci','wht')
@@ -136,7 +138,7 @@ def drzTweakReg(sci='goodss-34-F140W_drz_sci.fits', master_catalog='goodss_radec
         
     #return rshift, dshift
     
-def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_radec.dat', final_scale=0.06, ACS=False, threshold=5):
+def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_radec.dat', final_scale=0.06, ACS=False, threshold=5, WFPC2=False):
     """
     Wrapper around tweakreg, generating source catalogs separately from 
     `findpars`.
@@ -164,7 +166,7 @@ def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_rad
         wht_ext = [2]
         ext = 'flt'
         dext = 'flt'
-        
+    
     ### Generate CRCLEAN images
     for exp in asn.exposures:
         updatewcs.updatewcs('%s_%s.fits' %(exp, ext))
@@ -205,7 +207,14 @@ def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_rad
     asn_root = asn_file.split('_asn')[0]
     catfile = '%s.catfile' %(asn_root)
     fp = open(catfile,'w')
+    ncat = 0
     for exp in asn.exposures:
+        c = catIO.Table('%s_%s_%d.cat' %(exp, ext, sci_ext[i]))
+        if len(c) < 40:
+            continue
+        else:
+            ncat += 1
+            
         line = '%s_%s.fits' %(exp, ext)
         for i in range(NCHIP):
             line += ' %s_%s_%d.cat' %(exp, ext, sci_ext[i])
@@ -227,7 +236,8 @@ def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_rad
     else:
         refimage = '%s_drz_sci.fits' %(asn_root)
         
-    tweakreg.TweakReg(asn_file, refimage=refimage, updatehdr=True, updatewcs=True, catfile=catfile, xcol=2, ycol=3, xyunits='pixels', refcat=master_catalog, refxcol=1, refycol=2, refxyunits='degrees', shiftfile=True, outshifts='%s_shifts.txt' %(asn_root), outwcs='%s_wcs.fits' %(asn_root), searchrad=5, tolerance=12, wcsname='TWEAK', interactive=False, residplot='No plot', see2dplot=False, clean=True, headerlet=True, clobber=True)
+    if ncat >= 2:
+        tweakreg.TweakReg(asn_file, refimage=refimage, updatehdr=True, updatewcs=True, catfile=catfile, xcol=2, ycol=3, xyunits='pixels', refcat=master_catalog, refxcol=1, refycol=2, refxyunits='degrees', shiftfile=True, outshifts='%s_shifts.txt' %(asn_root), outwcs='%s_wcs.fits' %(asn_root), searchrad=5, tolerance=12, wcsname='TWEAK', interactive=False, residplot='No plot', see2dplot=False, clean=True, headerlet=True, clobber=True)
     
     #### Run AstroDrizzle again
     if ACS:
@@ -777,7 +787,7 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
         else:
             if get_shift:
                 prep.runTweakReg(asn_file=direct_asn, master_catalog=radec, final_scale=None, ACS=ACS, threshold=align_threshold)
-    
+        
         #### Subtract background of direct ACS images
         if ACS:
             for exp in asn.exposures:
