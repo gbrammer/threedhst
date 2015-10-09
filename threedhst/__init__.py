@@ -6,10 +6,8 @@ from the 3D-HST large program.
 
 """
 
-__version__ = "$Rev$"
-# $URL$
-# $Author$
-# $Date$
+__version__ = "1.0"
+
 
 #### Package imports
 from . import utils
