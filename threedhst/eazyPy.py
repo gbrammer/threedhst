@@ -2334,14 +2334,21 @@ def template_contributions(root='photz', wave=15418.99, PATH='OUTPUT', CACHE_FIL
     coeffs_h = coeffs['coeffs']*np.dot(renorm.reshape(-1,1), np.ones((1,coeffs['NOBJ'])))
     coeffs_total = np.sum(coeffs_h, axis=0)
     coeffs_h /= coeffs_total
-    
+        
     out = OrderedDict()
     out['quiescent'] = coeffs_h[[0,3,4,6], :].sum(axis=0)
-    out['dusty_old'] = coeffs_h[7, :]
+    
+    if tempfilt['NTEMP'] > 7:
+        out['dusty_old'] = coeffs_h[7, :]
+    else:
+        out['dusty_old'] = out['quiescent']*0.
+        
     out['dusty_young'] = coeffs_h[5, :]
-    out['dusty_total'] = coeffs_h[5, :] + coeffs_h[7, :]
+    out['dusty_total'] = out['dusty_young'] + out['dusty_old']
     out['young'] = coeffs_h[1, :]
     out['mid'] = coeffs_h[2, :]
+    
+    ### Additional Erb 2010 template
     if tempfilt['NTEMP'] == 9:
         out['young'] += coeffs_h[8, :]
     

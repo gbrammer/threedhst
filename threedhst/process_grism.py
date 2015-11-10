@@ -1146,7 +1146,7 @@ def fresh_flt_files(asn_filename, from_path="../RAW", preserve_dq = False):
         
         #### Apply DQ mask (.mask.reg), if it exists
         threedhst.regions.apply_dq_mask(os.path.basename(fits_file.split('.gz')[0]),
-                                        addval=4096)
+                                        addval=4)
 
 def mask_IR_blobs(flt='ibsyb6q7q_flt.fits'):
     blobs = [[293.2,640],

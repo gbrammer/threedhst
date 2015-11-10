@@ -210,7 +210,7 @@ def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_rad
     ncat = 0
     for exp in asn.exposures:
         c = catIO.Table('%s_%s_%d.cat' %(exp, ext, sci_ext[i]))
-        if len(c) < 40:
+        if len(c) < 20:
             continue
         else:
             ncat += 1
@@ -442,7 +442,7 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False, se
         
     return models
     
-def copy_adriz_headerlets(direct_asn='GOODS-S-15-F140W_asn.fits', grism_asn='GOODS-S-15-G141_asn.fits', force=False, ACS=False):
+def copy_adriz_headerlets(direct_asn='GOODS-S-15-F140W_asn.fits', grism_asn='GOODS-S-15-G141_asn.fits', order=None, force=False, ACS=False):
     """
     Copy Tweaked WCS solution in direct image to the paired grism exposures.
     
@@ -470,6 +470,9 @@ def copy_adriz_headerlets(direct_asn='GOODS-S-15-F140W_asn.fits', grism_asn='GOO
         ext = 'flt'
         
     if Nd == Ng:
+        if order is None:
+            order = range(Nd)
+            
         for i in range(Nd):
             imd = pyfits.open('%s_%s.fits' %(direct.exposures[i], ext))
             #img = pyfits.open('%s_%s.fits' %(grism.exposures[i]))
@@ -478,7 +481,7 @@ def copy_adriz_headerlets(direct_asn='GOODS-S-15-F140W_asn.fits', grism_asn='GOO
                 #sci_ext=1
                 direct_WCS = stwcs.wcsutil.HSTWCS(imd, ext=sci)
                 #
-                drizzlepac.updatehdr.update_wcs('%s_%s.fits' %(grism.exposures[i], ext), sci, direct_WCS, verbose=True)    
+                drizzlepac.updatehdr.update_wcs('%s_%s.fits' %(grism.exposures[order[i]], ext), sci, direct_WCS, verbose=True)    
     else:
         #### Get overall shift from a shift-file and apply it to the 
         #### grism exposures
