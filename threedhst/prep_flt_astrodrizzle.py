@@ -236,7 +236,7 @@ def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_rad
     else:
         refimage = '%s_drz_sci.fits' %(asn_root)
         
-    if ncat >= 2:
+    if ncat >= 1:
         tweakreg.TweakReg(asn_file, refimage=refimage, updatehdr=True, updatewcs=True, catfile=catfile, xcol=2, ycol=3, xyunits='pixels', refcat=master_catalog, refxcol=1, refycol=2, refxyunits='degrees', shiftfile=True, outshifts='%s_shifts.txt' %(asn_root), outwcs='%s_wcs.fits' %(asn_root), searchrad=5, tolerance=12, wcsname='TWEAK', interactive=False, residplot='No plot', see2dplot=False, clean=True, headerlet=True, clobber=True)
     
     #### Run AstroDrizzle again
@@ -642,10 +642,11 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
     
     #### Blot segmentation map to FLT images for object mask
     ref = pyfits.open('%s_drz_sci.fits' %(root))
-    ref_wcs = stwcs.wcsutil.HSTWCS(ref, ext=0)
+    #ref_wcs = stwcs.wcsutil.HSTWCS(ref, ext=0)
 
     seg = pyfits.open('%s_drz_seg.fits' %(root))
     seg_data = np.cast[np.float32](seg[0].data)
+    ref_wcs = stwcs.wcsutil.HSTWCS(seg, ext=0)
             
     #### Loop through FLTs, blotting reference and segmentation
     threedhst.showMessage('%s: Blotting grism segmentation masks.' %(root))
@@ -786,7 +787,12 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
         
         #### Run TweakReg
         if (radec is None) & (not ACS):
-            drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, clean=True, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') # ,
+            print len(asn.exposures)
+            
+            if len(asn.exposures) > 1:
+                drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, clean=True, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') 
+            else:
+                drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, clean=True, final_scale=None, final_pixfrac=1, context=False, final_bits=576, preserve=False, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False, driz_combine=True) 
         else:
             if get_shift:
                 prep.runTweakReg(asn_file=direct_asn, master_catalog=radec, final_scale=None, ACS=ACS, threshold=align_threshold)
@@ -843,4 +849,72 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
     else:
         t1 = time.time()
         threedhst.showMessage('direct: %s\ngrism: %s\n\nDone (%d s).' %(direct_asn, grism_asn, int(t1-t0)))
+    
+def test():
+    import threedhst.prep_flt_astrodrizzle as prep
+    
+    asn_file = 'HOPS183B-10-140-G141_asn.fits'
+    #asn_file = 'HOPS183B-10-140-F160W_asn.fits'
+    
+    threedhst.process_grism.fresh_flt_files(asn_file, from_path='../RAW/', preserve_dq=False)
+
+    asn = threedhst.utils.ASNFile(asn_file)
+    for exp in asn.exposures:
+        prep.subtract_fixed_background(flt_file='%s_flt.fits' %(exp), path_to_raw='../RAW/')
+        
+def subtract_fixed_background(flt_file='ickw10upq_flt.fits', path_to_raw='../RAW/'):
+    
+    import astropy.io.fits as pyfits
+    from threedhst import catIO
+    import glob
+    
+    import mywfc3.zodi
+    
+    zodi_scl = mywfc3.zodi.flt_zodi(flt_file, verbose=False)
+    
+    grism_sky_images = {'G141':['zodi_G141_clean.fits', 'excess_lo_G141_clean.fits'],
+                        'G102':['zodi_G102_clean.fits', 'excess_G102_clean.fits']}
+    
+    grism_flat = {'G141':'uc721143i_pfl.fits',
+                  'G102':'uc72113oi_pfl.fits'}
+    
+    
+    bg = np.loadtxt(glob.glob('%s/%s*ramp.dat' %(path_to_raw, flt_file.split('_')[0][:-1]))[0])
+    
+    flt = pyfits.open(flt_file, mode='update')
+    if 'G1' in flt[0].header['FILTER']:
+
+        time = bg[:,0]
+        dt = np.append(time[0], np.diff(time))
+        
+        excess_scl = np.sum(dt*(bg[:,1]-bg[:,1].min()))/time[-1]
+        
+        flat = pyfits.open('%s/%s' %(os.getenv('iref'), grism_flat[flt[0].header['FILTER']]))
+        flt[1].data /= flat[1].data[5:-5,5:-5]
+        
+        zodi_file = grism_sky_images[flt[0].header['FILTER']][0]
+        zodi = pyfits.open('%s/%s' %(os.getenv('iref'), zodi_file))
+        flt[1].data -= zodi[0].data * zodi_scl
+        flt[0].header['GSKY01'] = (zodi_scl, 'Master sky: %s' %(zodi_file))
+        
+        excess_file = grism_sky_images[flt[0].header['FILTER']][1]
+        excess = pyfits.open('%s/%s' %(os.getenv('iref'), excess_file))
+        flt[1].data -= excess[0].data * excess_scl
+        flt[0].header['GSKY02'] = (excess_scl, 'Master sky: %s' %(excess_file))
+        
+        print '%s zodi: %.2f, excess: %.2f' %(flt[0].header['FILTER'], flt[0].header['GSKY01'], flt[0].header['GSKY02'])
+        
+        flt[1].header['MDRIZSKY'] = 0.
+        
+    else:
+        flt[1].header['MDRIZSKY'] = 0
+
+        flt[1].header['ZODISKY'] = zodi_scl
+        flt[1].data -= flt[1].header['ZODISKY']
+        flt.flush()
+        
+        print '%s zodi: %.2f' %(flt[0].header['FILTER'], flt[1].header['ZODISKY'])
+        
+    flt.flush()
+    
     
