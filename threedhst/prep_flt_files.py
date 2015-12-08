@@ -2289,8 +2289,15 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_
             im[3].data[my_bpm > 0] |= (100+4096)
             im[1].data += my_bpm*1000000 ## make new bad pixels obviously bad
             ##im[3].data[im[1].data > 1000000] |= 4096
+                            
+            MSG = 'extra BPM: ${iref}/flat_BPM_v0.1.fits\n'
             
-            MSG = 'extra BPM: flat_BPM_v0.1.fits\n'
+            if im[0].header['DATE-OBS'] > '2012-01-01':
+                more_bpm = pyfits.open('%s/badpix_spars200_Nov9.fits' %(os.environ['iref']))[0].data
+                im[3].data[more_bpm > 0] |= (100+4096)
+                im[1].data += my_bpm*1000000 ## make new bad pixels obviously bad
+                MSG += '           ${iref}/badpix_spars200_Nov9.fits\n'
+            
             # print 'BP flag 1', im[3].data[im[1].data > 1.e4].min()
             
         MSG += 'PFLAT, %s: Used= %s, Best= %s' %(file, USED_PFL, BEST_PFL)

@@ -240,6 +240,46 @@ class gTable(table_base):
         fp.writelines(lines)
         fp.close()
     
+    def write_sextractor(self, output='table_sex.cat'):
+        """
+        Write SExtractor format output file
+        
+        handle compound columns like "FLUX_RADIUS" that can have more than one value
+        """
+        combine_columns = ['FLUX_APER', 'FLUXERR_APER', 'MAG_APER', 'MAGERR_APER', 'FLUX_RADIUS']
+        new = self.copy()
+        for col in combine_columns:
+            if col in new.colnames:
+                sh = new[col].shape
+                idx = 0
+                while new.colnames[idx] != col:
+                    idx+=1
+                    continue
+                
+                for i in range(sh[1]):
+                    new.add_column(Column(data=new[col][:,i].flatten(), name='%s_%d' %(col, i)), index=idx+i)
+                #
+                new.remove_column(col)
+                new.rename_column('%s_0' %(col), col)
+                
+        fp = open(output, 'w')
+        for i, col in enumerate(new.colnames):
+            fp.write('# %3d %s\n' %(i+1, col))
+            if str(new[col][0]).isdigit():
+                new[col].format='%d'
+            else:
+                try:
+                    fl = float(new[col][0])
+                    if '_WORLD' in col:
+                        new[col].format='%.6f'
+                    else:
+                        new[col].format='%.4f'
+                except:
+                    pass
+                    
+        new.write(fp, format='ascii.no_header')
+        fp.close()
+        
     def write_sortable_HTML(self, output="table.html", replace_braces=True, localhost=False):
         """
         Make an HTML table with jquery/tablesorter sortable columns

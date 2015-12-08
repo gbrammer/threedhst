@@ -431,9 +431,100 @@ def remove_visit_sky(asn_file='GDN12-G102_asn.fits', list=['zodi_G102_clean.fits
     
     if column_average:
         #for iter in range(2):
-        grism_sky_column_average(asn_file=asn_file, mask_grow=mask_grow)
-        
         #grism_sky_column_average(asn_file=asn_file, mask_grow=mask_grow)
+        grism_sky_column_average_GP(asn_file=asn_file, mask_grow=mask_grow)
+
+def grism_sky_column_average_GP(asn_file='GDN12-G102_asn.fits', mask_grow=8):
+    """
+    Remove column-averaged residuals from grism exposures, smooth with Gaussian Processes
+    """
+    import scipy.ndimage as nd
+    import astropy.io.fits as pyfits
+    from sklearn.gaussian_process import GaussianProcess
+    
+    asn = threedhst.utils.ASNFile(asn_file)
+            
+    for k in range(len(asn.exposures)):
+        #### 1D column averages
+        flt = pyfits.open('%s_flt.fits' %(asn.exposures[k]), mode='update')
+        segfile = '%s_flt.seg.fits' %(asn.exposures[k])
+        seg = pyfits.open(segfile)[0].data
+        seg_mask = nd.maximum_filter((seg > 0), size=mask_grow) == 0
+        dq_ok = (flt[3].data & (4+32+16+512+2048+4096)) == 0
+        
+        mask = seg_mask & dq_ok & (flt[2].data > 0)
+        
+        threedhst.showMessage('Remove column average (GP): %s' %(asn.exposures[k]))
+        
+        #### Iterative clips on percentile
+        #mask &= (flt[1].data < np.percentile(flt[1].data[mask], 98)) & (flt[2].data > 0) & (flt[1].data > np.percentile(flt[1].data[mask], 2))
+        #mask &= (flt[1].data < np.percentile(flt[1].data[mask], 84)) & (flt[2].data > 0) & (flt[1].data > np.percentile(flt[1].data[mask], 16))
+                    
+        xmsk = np.arange(1014)
+
+        masked = flt[1].data*1
+        masked[~mask] = np.nan
+        yres = np.zeros(1014)
+        yrms = yres*0.
+        for i in range(1014):
+            # ymsk = mask[:,i]
+            # yres[i] = np.median(flt[1].data[ymsk,i])
+            ymsk = masked[:,i]
+            #ymsk = masked[:,np.maximum(i-10,0):i+10]
+            #yres[i] = np.median(ymsk[np.isfinite(ymsk)])
+            ok = np.isfinite(ymsk)
+            ymsk[(ymsk > np.percentile(ymsk[ok], 84)) | (ymsk < np.percentile(ymsk[ok], 16))] = np.nan
+            msk = np.isfinite(ymsk)
+            yres[i] = np.mean(ymsk[msk])
+            yrms[i] = np.std(ymsk[msk])/np.sqrt(msk.sum())
+            
+        #
+        yok = np.isfinite(yres)
+        if 'GSKY00' in flt[0].header.keys():
+            bg_sky = flt[0].header['GSKY00']
+        else:
+            bg_sky = 1
+            
+        gp = GaussianProcess(regr='constant', corr='squared_exponential', theta0=8,
+                             thetaL=7, thetaU=12,
+                             nugget=(yrms/bg_sky)[yok][::1]**2,
+                             random_start=10, verbose=True, normalize=True) #, optimizer='Welch')
+        #
+        gp.fit(np.atleast_2d(xmsk[yok][::1]).T, yres[yok][::1]+bg_sky)
+        y_pred, MSE = gp.predict(np.atleast_2d(xmsk).T, eval_MSE=True)
+        gp_sigma = np.sqrt(MSE)
+        
+        resid = threedhst.utils.medfilt(yres, 41)
+
+        flt[1].data -= y_pred-bg_sky
+        flt.flush()
+        
+        #flt.writeto(flt.filename(), clobber=True)
+        
+        #plt.plot(yres_sm)
+        
+        ### Make figure
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_agg import FigureCanvasAgg
+        
+        fig = Figure(figsize=[6,4], dpi=100)
+
+        fig.subplots_adjust(wspace=0.25,hspace=0.02,left=0.15,
+                            bottom=0.08,right=0.97,top=0.92)
+
+        ax = fig.add_subplot(111)
+        ax.set_title(flt.filename())
+
+        ax.plot(yres+bg_sky, color='black', alpha=0.3)
+        ax.plot(y_pred, color='red', linewidth=2, alpha=0.7)
+        ax.fill_between(xmsk, y_pred + gp_sigma, y_pred - gp_sigma, color='red', alpha=0.3)
+        
+        ax.set_xlim(0,1014)
+        ax.set_xlabel('x pix'); ax.set_ylabel('BG residual (e/s)')
+        fig.tight_layout(pad=0.2)
+        
+        canvas = FigureCanvasAgg(fig)
+        canvas.print_figure(flt.filename().split('.fits')[0] + '.column.png', dpi=100, transparent=False)
         
 def grism_sky_column_average(asn_file='GDN12-G102_asn.fits', iter=2, mask_grow=8):
     """
@@ -884,6 +975,50 @@ def make_G102_sky():
     
     old = pyfits.open('G102_master_flatcorr.fits')
     pyfits.writeto('G102_master_flatcorr.v2.fits', data=new_sky, header=old[0].header, clobber=True)
+    
+def show_asn_sky(asn_file='FIGS-GS1-1D-167-G102_asn.fits'):
+    """
+    Blot individual FLTs to a reference FLT and subtract, look for spatial differences
+    """
+    import matplotlib.pyplot as plt
+    import astropy.io.fits as pyfits
+    import scipy.ndimage as nd
+    
+    import stwcs
+    from drizzlepac import astrodrizzle
+
+    import threedhst
+    import unicorn
+    
+    asn = threedhst.utils.ASNFile(asn_file)
+    #flt_ref = pyfits.open('%s_flt.fits' %(asn.exposures[ref_exp]))
+    im_ref = pyfits.open(asn_file.replace('_asn', '_drz_sci'))
+    ref_wcs = stwcs.wcsutil.HSTWCS(im_ref, ext=0)
+    
+    N = len(asn.exposures)
+    plt.ioff()
+    plt.set_cmap('gray')
+    fig = plt.figure(figsize=[2*N/2, 4])
+    
+    for i in range(len(asn.exposures)):
+        flt = pyfits.open('%s_flt.fits' %(asn.exposures[i]))
+        flt_wcs = stwcs.wcsutil.HSTWCS(flt, ext=1)
+        
+        blotted = astrodrizzle.ablot.do_blot(im_ref[0].data+0, ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
+        
+        msk = flt['DQ'].data == 0
+        print asn.exposures[i]
+        ax = fig.add_subplot(2,N/2,1+i)
+        ax.imshow(nd.gaussian_filter((flt[1].data-blotted)*msk, 3), vmin=-0.02, vmax=0.02, interpolation='Gaussian', origin='lower')
+        #ds9.view((flt[1].data-blotted)*msk)
+        ax.set_xticklabels([]); ax.set_yticklabels([])
+        ax.text(0.03, 0.97, asn.exposures[i], fontsize=10, ha='left', va='top', transform=ax.transAxes, color='black')
+        
+    fig.tight_layout(pad=0.01)
+    fig.savefig('%s_background.png' %(asn_file.split('_asn.fits')[0]))
+    plt.close()
+
+    
     
 def cleanup():
     import glob
