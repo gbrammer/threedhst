@@ -179,10 +179,10 @@ def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_rad
     
     if not has_crclean: 
         if len(asn.exposures) == 1:
-            drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=False, context=False, preserve=False, skysub=True, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False, driz_combine=True)
+            drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output='', clean=False, context=False, preserve=False, skysub=True, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False, driz_combine=True)
             shutil.copy('%s_%s.fits' %(asn.exposures[0], ext), '%s_crclean.fits' %(asn.exposures[0]))
         else:
-            drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=False, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_cr_corr=True, driz_combine=True)
+            drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output='', clean=False, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_cr_corr=True, driz_combine=True)
         
     #### Make SExtractor source catalogs in *each* flt
     for exp in asn.exposures:
@@ -241,12 +241,12 @@ def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_rad
     
     #### Run AstroDrizzle again
     if ACS:
-        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, preserve=False)
+        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output='', clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, preserve=False)
     else:
         if len(asn.exposures) == 1:
-            drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='8.0 5.0', driz_cr_scale = '2.5 0.7', driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False) # , final_wcs=True, final_rot=0)
+            drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output='', clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='8.0 5.0', driz_cr_scale = '2.5 0.7', driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False) # , final_wcs=True, final_rot=0)
         else:
-            drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='8.0 5.0', driz_cr_scale = '2.5 0.7') # , final_wcs=True, final_rot=0)
+            drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output='', clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='8.0 5.0', driz_cr_scale = '2.5 0.7') # , final_wcs=True, final_rot=0)
         
     for exp in asn.exposures:
         files=glob.glob('%s*coo' %(exp))
@@ -315,9 +315,9 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False, se
 
     if not os.path.exists('%s_drz_sci.fits' %(root)):        
         if len(asn.exposures) == 1:
-            drizzlepac.astrodrizzle.AstroDrizzle(root+'_asn.fits', clean=False, context=False, preserve=False, skysub=True, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False, driz_combine=True)
+            drizzlepac.astrodrizzle.AstroDrizzle(root+'_asn.fits', output='', clean=False, context=False, preserve=False, skysub=True, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False, driz_combine=True)
         else:
-            drizzlepac.astrodrizzle.AstroDrizzle(root+'_asn.fits', clean=False, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_cr_corr=True, driz_combine=True)
+            drizzlepac.astrodrizzle.AstroDrizzle(root+'_asn.fits', output='', clean=False, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_cr_corr=True, driz_combine=True)
     
     se = threedhst.sex.SExtractor()
     se.options['WEIGHT_IMAGE'] = '%s_drz_wht.fits' %(root)
@@ -513,7 +513,7 @@ def subtract_acs_grism_background(asn_file='RXJ2248-08-G800L_asn.fits', final_sc
     import threedhst.prep_flt_astrodrizzle
     
     ### First pass to flag CRs and make crclean images
-    drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=False, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_cr_corr=True, driz_combine=True)
+    drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output='', clean=False, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_cr_corr=True, driz_combine=True)
     
     ### add mdrizsky back to values, fit on crclean but subtract from flc
     asn = threedhst.utils.ASNFile(asn_file)
@@ -550,7 +550,7 @@ def subtract_acs_grism_background(asn_file='RXJ2248-08-G800L_asn.fits', final_sc
         ### Write updates
         flt.flush()
     
-    drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, skysub=False, skyuser='MDRIZSKY', final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, preserve=False) # , final_wcs=True, final_rot=0)
+    drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output='', clean=True, skysub=False, skyuser='MDRIZSKY', final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, preserve=False) # , final_wcs=True, final_rot=0)
     
 def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW/', final_scale=0.06, visit_sky=True, column_average=True, mask_grow=18, first_run=True, sky_iter=1):
     """
@@ -614,7 +614,7 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
             #templates = bg_flat[:, mask.flatten()]
         
         ### Run astrodrizzle to make DRZ mosaic, grism-SExtractor mask
-        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_combine=True, final_wcs=False, resetbits=4096, final_bits=576, driz_sep_bits=576, driz_cr_snr='8.0 5.0', driz_cr_scale = '2.5 0.7')
+        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output='', clean=True, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_combine=True, final_wcs=False, resetbits=4096, final_bits=576, driz_sep_bits=576, driz_cr_snr='8.0 5.0', driz_cr_scale = '2.5 0.7')
                 
     else:
         flt = pyfits.open('%s_flt.fits' %(asn.exposures[0]))
@@ -677,7 +677,7 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
             threedhst.grism_sky.remove_grism_sky(flt='%s_flt.fits' %(exp), list=sky_images[GRISM],  path_to_sky = os.getenv('THREEDHST')+'/CONF/', out_path='./', verbose=False, plot=False, flat_correct=first_run, sky_subtract=True, second_pass=column_average, overall=True, combine_skies=False, sky_components=True, add_constant=False)
             
     ### Astrodrizzle again to reflag CRs and make cleaned mosaic
-    drizzlepac.astrodrizzle.AstroDrizzle(asn_file, clean=True, skysub=False, skyuser='MDRIZSKY', final_wcs=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='8.0 5.0', driz_cr_scale='2.5 0.7') # , final_wcs=True, final_rot=0)
+    drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output='', clean=True, skysub=False, skyuser='MDRIZSKY', final_wcs=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='8.0 5.0', driz_cr_scale='2.5 0.7') # , final_wcs=True, final_rot=0)
     
     
 def get_vizier_cat(image='RXJ2248-IR_sci.fits', ext=0, catalog="II/246"):
@@ -790,9 +790,9 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
             print len(asn.exposures)
             
             if len(asn.exposures) > 1:
-                drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, clean=True, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') 
+                drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, output='', clean=True, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') 
             else:
-                drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, clean=True, final_scale=None, final_pixfrac=1, context=False, final_bits=576, preserve=False, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False, driz_combine=True) 
+                drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, output='', clean=True, final_scale=None, final_pixfrac=1, context=False, final_bits=576, preserve=False, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False, driz_combine=True) 
         else:
             if get_shift:
                 prep.runTweakReg(asn_file=direct_asn, master_catalog=radec, final_scale=None, ACS=ACS, threshold=align_threshold)
@@ -841,7 +841,7 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
             if radec is not None:
                 prep.copy_adriz_headerlets(direct_asn=direct_asn, grism_asn=grism_asn, ACS=False)
                 #### Run CR rejection with final shifts
-                drizzlepac.astrodrizzle.AstroDrizzle(grism_asn, clean=True, skysub=False, final_wcs=True, final_scale=final_scale, final_pixfrac=0.8, context=False, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='8.0 5.0', driz_cr_scale='2.5 0.7') # driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7')
+                drizzlepac.astrodrizzle.AstroDrizzle(grism_asn, output='', clean=True, skysub=False, final_wcs=True, final_scale=final_scale, final_pixfrac=0.8, context=False, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='8.0 5.0', driz_cr_scale='2.5 0.7') # driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7')
                 
     if not grism_asn:
         t1 = time.time()

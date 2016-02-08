@@ -124,8 +124,8 @@ checkDQ(asn_direct_file='ib3704050_asn.fits',
         # maybe want to put ds9 outside of the method
         # to preserve state between subsequent ASN files
         self.ds9 = myDS9(wait_time=wait_time)
-        self.ds9.set('width %d' %(size))
-        self.ds9.set('height %d' %(size+200))
+        self.ds9.set('width %d' %(size+1000))
+        self.ds9.set('height %d' %(size+180))
         
         if SIMPLE_DS9:
             self.ds9.set('view panner no')

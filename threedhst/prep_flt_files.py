@@ -2285,7 +2285,7 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_
         
         MSG = ''
         if apply_BPM:
-            my_bpm = pyfits.open('%s/flat_BPM_v0.1.fits' %(os.environ['iref']))[0].data
+            my_bpm = pyfits.open(os.path.join(os.environ['iref'], 'flat_BPM_v0.1.fits'))[0].data
             im[3].data[my_bpm > 0] |= (100+4096)
             im[1].data += my_bpm*1000000 ## make new bad pixels obviously bad
             ##im[3].data[im[1].data > 1000000] |= 4096
