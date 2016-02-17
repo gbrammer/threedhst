@@ -89,6 +89,9 @@ defaultOptions()
     >>> threedhst.defaultOptions()
     >>> threedhst.showOptions()
     """    
+    import clear_tools
+    from clear_tools.set_paths import paths
+
     showMessage('Initializing THREEDHST parameters')
     #### Delete all keywords and reset
     for key in options.keys():
@@ -191,7 +194,7 @@ defaultOptions()
     options['WEB_IMAGE_FORMAT'] = 'png'
     
     #### Path to WFC3-IR Persistence files
-    options['FLT_PERSISTENCE_PATH'] = '/3DHST/Spectra/Work/PERSISTENCE/All'
+    options['FLT_PERSISTENCE_PATH'] = paths['path_to_PERSIST'] #'/3DHST/Spectra/Work/PERSISTENCE/All'
     options['FLT_PERSISTENCE_THRESH'] = 0.6
     options['FLT_PERSISTENCE_SUBTRACT'] = False
     options['FLT_PERSISTENCE_FILTER'] = 3
