@@ -315,9 +315,9 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False, se
 
     if not os.path.exists('%s_drz_sci.fits' %(root)):        
         if len(asn.exposures) == 1:
-            drizzlepac.astrodrizzle.AstroDrizzle(root+'_asn.fits', output='', clean=False, context=False, preserve=False, skysub=True, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False, driz_combine=True)
+            drizzlepac.astrodrizzle.AstroDrizzle(root+'_asn.fits', output=root, clean=False, context=False, preserve=False, skysub=True, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False, driz_combine=True)
         else:
-            drizzlepac.astrodrizzle.AstroDrizzle(root+'_asn.fits', output='', clean=False, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_cr_corr=True, driz_combine=True)
+            drizzlepac.astrodrizzle.AstroDrizzle(root+'_asn.fits', output=root, clean=False, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_cr_corr=True, driz_combine=True)
     
     se = threedhst.sex.SExtractor()
     se.options['WEIGHT_IMAGE'] = '%s_drz_wht.fits' %(root)
@@ -614,7 +614,7 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
             #templates = bg_flat[:, mask.flatten()]
         
         ### Run astrodrizzle to make DRZ mosaic, grism-SExtractor mask
-        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output='', clean=True, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_combine=True, final_wcs=False, resetbits=4096, final_bits=576, driz_sep_bits=576, driz_cr_snr='8.0 5.0', driz_cr_scale = '2.5 0.7')
+        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output=asn_file.split('_asn')[0], clean=True, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_combine=True, final_wcs=False, resetbits=4096, final_bits=576, driz_sep_bits=576, driz_cr_snr='8.0 5.0', driz_cr_scale = '2.5 0.7')
                 
     else:
         flt = pyfits.open('%s_flt.fits' %(asn.exposures[0]))
@@ -656,7 +656,7 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
         flt_wcs = stwcs.wcsutil.HSTWCS(flt, ext=1)
         ### segmentation
         #print 'Segmentation image: %s_blot.fits' %(exp)
-        blotted_seg = astrodrizzle.ablot.do_blot(seg_data, ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
+        blotted_seg = astrodrizzle.ablot.do_blot((seg_data)*int(1), ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
         seg_grow = nd.maximum_filter((blotted_seg > 0)*1, size=8)
         pyfits.writeto('%s_flt.seg.fits' %(exp), header=flt[1].header, data=seg_grow, clobber=True)
         
@@ -677,7 +677,7 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
             threedhst.grism_sky.remove_grism_sky(flt='%s_flt.fits' %(exp), list=sky_images[GRISM],  path_to_sky = os.getenv('THREEDHST')+'/CONF/', out_path='./', verbose=False, plot=False, flat_correct=first_run, sky_subtract=True, second_pass=column_average, overall=True, combine_skies=False, sky_components=True, add_constant=False)
             
     ### Astrodrizzle again to reflag CRs and make cleaned mosaic
-    drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output='', clean=True, skysub=False, skyuser='MDRIZSKY', final_wcs=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='8.0 5.0', driz_cr_scale='2.5 0.7') # , final_wcs=True, final_rot=0)
+    drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output=asn_file.split('_asn')[0], clean=True, skysub=False, skyuser='MDRIZSKY', final_wcs=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='8.0 5.0', driz_cr_scale='2.5 0.7') # , final_wcs=True, final_rot=0)
     
     
 def get_vizier_cat(image='RXJ2248-IR_sci.fits', ext=0, catalog="II/246"):
