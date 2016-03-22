@@ -12,7 +12,7 @@ acs=1
 
 
 echo "# FILE  TARGNAME  DATE-OBS        TIME-OBS   EXPSTART ${filter}  EXPTIME         PA_V3 RA_TARG DEC_TARG POSTARG1 POSTARG2" > files.info
-files=`ls ../RAW/*fl[tc].fits* |grep -v "\.reg"`
+files=`ls /astro/clear/cgosmeyer/RAW/*fl[tc].fits* |grep -v "\.reg"`
 
 for file in $files; do 
 	echo $file;
@@ -23,7 +23,7 @@ for file in $files; do
 	    line=`gunzip -c $file |dfits - |fitsort TARGNAME  DATE-OBS        TIME-OBS   EXPSTART  ${filter}  EXPTIME         PA_V3 RA_TARG DEC_TARG POSTARG1 POSTARG2 |tail -1`;
     fi
     
-    echo "${file}  ${line}" |sed "s/...RAW.//" >> files.info ;
+    echo "${file}  ${line}" |sed "s|/astro/clear/cgosmeyer/RAW/||" >> files.info ;
 done
 
 if [ "${acs}" == "1" ]; then
