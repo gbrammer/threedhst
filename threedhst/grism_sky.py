@@ -515,9 +515,9 @@ def grism_sky_column_average_GP(asn_file='GDN12-G102_asn.fits', mask_grow=8):
         ax = fig.add_subplot(111)
         ax.set_title(flt.filename())
 
-        ax.plot(yres+bg_sky, color='black', alpha=0.3)
-        ax.plot(y_pred, color='red', linewidth=2, alpha=0.7)
-        ax.fill_between(xmsk, y_pred + gp_sigma, y_pred - gp_sigma, color='red', alpha=0.3)
+        ax.plot(yres, color='black', alpha=0.3)
+        ax.plot(y_pred-bg_sky, color='red', linewidth=2, alpha=0.7)
+        ax.fill_between(xmsk, y_pred-bg_sky + gp_sigma, y_pred-bg_sky - gp_sigma, color='red', alpha=0.3)
         
         ax.set_xlim(0,1014)
         ax.set_xlabel('x pix'); ax.set_ylabel('BG residual (e/s)')

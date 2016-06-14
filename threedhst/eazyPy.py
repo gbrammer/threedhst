@@ -237,7 +237,8 @@ class EazyParam():
     '0.010'
 
     """    
-    def __init__(self, PARAM_FILE='zphot.param', READ_FILTERS=False):
+    def __init__(self, PARAM_FILE='zphot.param', READ_FILTERS=False,
+                 read_templates=False):
         self.filename = PARAM_FILE
         self.param_path = os.path.dirname(PARAM_FILE)
         
@@ -264,7 +265,42 @@ class EazyParam():
             for i in range(self.NFILT):
                 filters[i].wavelength = RES.filters[filters[i].fnumber-1].wavelength
                 filters[i].transmission = RES.filters[filters[i].fnumber-1].transmission
+        
+        if read_templates:
+            self.read_templates(templates_file=self.params['TEMPLATES_FILE'])
+            
+    def read_templates(self, templates_file=None):
+        
+            lines = open(templates_file).readlines()
+            self.templ = []
+            
+            for line in lines:
+                if line.strip().startswith('#'):
+                    continue
                 
+                template_file = line.split()[1]
+                templ = Template(file=template_file)
+                templ.wavelength *= float(line.split()[2])
+                templ.set_fnu()
+                self.templ.append(templ)
+    
+    def show_templates(self, interp_wave=None, ax=None, fnu=False):
+        if ax is None:
+            ax = plt
+        
+        for templ in self.templ:
+            if fnu:
+                flux = templ.flux_fnu
+            else:
+                flux = templ.flux
+                
+            if interp_wave is not None:
+                y0 = np.interp(interp_wave, templ.wavelength, flux)
+            else:
+                y0 = 1.
+            
+            plt.plot(templ.wavelength, flux / y0, label=templ.name)
+            
     def _process_params(self):
         params = {}
         formats = {}
@@ -569,7 +605,7 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
     # efobs = tempfilt['efnu'][:,idx]/(lci/5500.)**2*flam_factor
     ### Physical f_lambda fluxes, 10**-17 ergs / s / cm2 / A
     if scale_flambda:
-        flam_factor = 10**(-0.4*(params['PRIOR_ABZP']+48.6))*3.e18/1.e-17
+        flam_factor = 10**(-0.4*(params['PRIOR_ABZP']+48.6))*3.e18/scale_flambda
     else:
         flam_factor = 5500.**2
     
@@ -662,7 +698,7 @@ zgrid, pz = getEazyPz(idx, \
     
     ###### Done
     if get_prior:
-        return tempfilt['zgrid'], pzi, p
+        return tempfilt['zgrid'], pzi, prior
     else:
         return tempfilt['zgrid'], pzi
         
@@ -683,11 +719,17 @@ class TemplateError():
         return self._spline(filter_wavelength/(1+z))
         
 class Template():
-    def __init__(self, sp=None, file=None):
+    def __init__(self, sp=None, file=None, name=None):
         self.wavelength = None
         self.flux = None
         self.flux_fnu = None
-        
+        self.name = 'None'
+        if name is None:
+            if file is not None:
+                self.name = os.path.basename(file)
+        else:
+            self.name = name
+                
         if sp is not None:
             self.wavelength = np.cast[np.double](sp.wave)
             self.flux = np.cast[np.double](sp.flux)
@@ -896,7 +938,7 @@ def convert_chi_to_pdf(tempfilt, pz):
             
     return tempfilt['zgrid']*1., pdf
     
-def plotExampleSED(idx=20, writePNG=True, MAIN_OUTPUT_FILE = 'photz', OUTPUT_DIRECTORY = 'OUTPUT', CACHE_FILE = 'Same', lrange=[3000,8.e4], axes=None, individual_templates=False, fnu=False):
+def plotExampleSED(idx=20, writePNG=True, MAIN_OUTPUT_FILE = 'photz', OUTPUT_DIRECTORY = 'OUTPUT', CACHE_FILE = 'Same', lrange=[3000,8.e4], axes=None, individual_templates=False, fnu=False, show_pz=True, snlim=2, scale_flambda=1.e-17):
     """
 PlotSEDExample(idx=20)
 
@@ -912,7 +954,7 @@ PlotSEDExample(idx=20)
     lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
         getEazySED(qz[idx], MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, \
                           OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, \
-                          CACHE_FILE = CACHE_FILE, individual_templates=individual_templates, scale_flambda=True)
+                          CACHE_FILE = CACHE_FILE, individual_templates=individual_templates, scale_flambda=scale_flambda)
     
     zgrid, pz = getEazyPz(qz[idx], MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, \
                                    OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, \
@@ -968,7 +1010,7 @@ PlotSEDExample(idx=20)
     # ax.errorbar(lci, fobs, yerr=efobs, ecolor='black',
     #            color='black',fmt='o',alpha=alph, markeredgecolor='black', markerfacecolor='None', markeredgewidth=1.5, ms=8, zorder=1)
 
-    highsn = fobs/efobs > 2
+    highsn = fobs/efobs > snlim
     ax.errorbar(lci[highsn], fobs[highsn], yerr=efobs[highsn], ecolor='black',
                color='black',fmt='o',alpha=alph, markeredgecolor='black', markerfacecolor='None', markeredgewidth=1.5, ms=8, zorder=2)
     #
@@ -986,7 +1028,7 @@ PlotSEDExample(idx=20)
     ax.set_ylabel(r'$f_\lambda$')
     
     ##### P(z)
-    if pz is not None:            
+    if (pz is not None) & (show_pz):            
         axp.plot(zgrid, pz, linewidth=1.0, color='orange',alpha=alph)
         axp.fill_between(zgrid,pz,np.zeros(zgrid.size),color='yellow')
 
@@ -2186,6 +2228,84 @@ def quadri_pairs(zoutfile='OUTPUT/cdfs.zout', catfile=''):
     err = np.sqrt(yhr)
     plt.fill_between(xhr[1:], yh-yhr*1./NEXTRA+err, yh-yhr*1./NEXTRA-err, color='blue', alpha=0.1)
     
+def show_uncertainties(root='cosmos', PATH='OUTPUT/', candels=False):
+    
+    import threedhst.eazyPy as eazy
+    from threedhst import catIO
+    import threedhst
+    
+    lc_rest, obs_sed, fnu, signoise = eazy.show_fit_residuals(root=root, PATH=PATH, savefig=None, adjust_zeropoints='zphot.zeropoint.XX', fix_filter=None, ref_filter=None, get_resid=True, wclip=[1200, 3.e4])
+        
+    param = eazy.EazyParam(PARAM_FILE=PATH+'/'+root+'.param')
+    fnumbers = np.zeros(len(param.filters), dtype=np.int)
+    for i in range(len(fnumbers)):
+        fnumbers[i] = int(param.filters[i].fnumber)
+    
+    c = catIO.Table(param['CATALOG_FILE'])
+    xte, yte = np.loadtxt(param['TEMP_ERR_FILE'], unpack=True)
+    yte *= param['TEMP_ERR_A2']
+
+    NF = len(fnumbers)
+    NX = int(np.round(np.sqrt(NF)))
+    NY = int(np.ceil(NF*1./NX))
+
+    plt.ioff()
+    #plt.gray()
+    plt.set_cmap('RdYlBu')
+    
+    scl_noise = 1.
+    
+    noise = fnu/signoise
+    #noise = np.sqrt((scl_noise*noise)**2 + (0.02*fnu)**2)
+    
+    fig = plt.figure(figsize=[12,12])
+    
+    ###
+    trans = [line.split()[0] for line in open(PATH+'/'+root+'.translate').readlines()]
+    cnames = []
+    for col in c.columns:
+        if candels:
+            if col.endswith('FLUX') & (col in trans):
+                cnames.append(col)
+        else:
+            if col.startswith('f') & (col in trans):
+                cnames.append(col)
+    #
+    for i in range(len(fnumbers)):
+        #print i, len(fnumbers), len(cnames)
+        
+        ax = fig.add_subplot(NY, NX, i+1)
+        ax.set_title(cnames[i])
+        print param.filters[i].name, cnames[i]
+        ok = signoise[i,:] > 2
+        if ok.sum() == 0:
+            continue
+            
+        err_te = np.interp(lc_rest[i,:], xte, yte)
+        rms = noise[i,:]
+        resid = (fnu-obs_sed)[i,:]/rms
+
+        rms_te = np.sqrt(noise[i,:]**2+(err_te*fnu[i,:])**2)
+        resid_te = (fnu-obs_sed)[i,:]/rms_te
+        
+        step = np.maximum(1, ok.sum()/500)
+        
+        ax.scatter(signoise[i,ok][::step], resid_te[ok][::step], alpha=0.1, color='black')
+        xm, ym, ys, nn = threedhst.utils.runmed(signoise[i,:][ok], resid_te[ok], NBIN=np.maximum(int(ok.sum()/1000.), 8), use_nmad=True)
+        ax.plot(xm, ys, color='red', marker='o', linewidth=2, alpha=0.8)
+        ax.plot(xm, ys*0+1, color='orange', linestyle='--', linewidth=2, alpha=0.8)
+
+        xm, ym, ys, nn = threedhst.utils.runmed(signoise[i,:][ok], resid[ok], NBIN=np.maximum(int(ok.sum()/1000.), 8), use_nmad=True)
+        ax.plot(xm, ys, color='purple', marker='s', linewidth=2, alpha=0.7)
+
+        ax.grid()
+        ax.set_ylim(-3,3)
+        ax.set_xlim(1.8,xm.max()*1.5)
+        ax.semilogx()
+        
+    fig.tight_layout(pad=0.1)
+    fig.savefig('%s.rms.png' %(root))
+    
 def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False, candels=False):
     """
     Make a figure showing the *spatial* zeropoint residuals for each filter in a catalog
@@ -2219,7 +2339,7 @@ def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False, candels=False):
             if col.endswith('FLUX') & (col in trans):
                 cnames.append(col)
         else:
-            if col.startswith('f_') & (col in trans):
+            if col.startswith('f') & (col in trans):
                 cnames.append(col)
     
     if candels:
@@ -2247,9 +2367,14 @@ def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False, candels=False):
             continue
             
         ### Interpolation
+        if 'x' not in c.colnames:
+            c['x'] = -(c['ra']-np.median(c['ra']))*60
+            c['y'] = (c['dec']-np.median(c['dec']))*60
+
         if param.filters[i].lambda_c < 3.e4:
             from astropy.modeling import models, fitting
             p_init = models.Polynomial2D(degree=8)
+            #p_init = models.Polynomial2D(degree=12)
             fit_p = fitting.LevMarLSQFitter()
             #fit_p = fitting.LinearLSQFitter()
             p = fit_p(p_init, c['x'][ok], c['y'][ok], ratio[ok]) #, weights=signoise[i,ok]**2)
