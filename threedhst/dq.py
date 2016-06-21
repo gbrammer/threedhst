@@ -28,9 +28,12 @@ import threedhst
 try:
     import pysao
     threedhst.options['PYSAO_INSTALLED'] = True
-except:
-    print 'No pysao installation found.'
-    threedhst.options['PYSAO_INSTALLED'] = False
+except ImportError:
+    try:
+        import pyds9 as pysao
+    except:
+        print 'No pysao installation found.'
+        threedhst.options['PYSAO_INSTALLED'] = False
     
 class myDS9(pysao.ds9):
     """
