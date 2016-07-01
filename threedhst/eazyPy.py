@@ -554,7 +554,7 @@ tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
     return tempfilt, coeffs, temp_sed, pz
 
         
-def getEazySED(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', scale_flambda=True, verbose=False, individual_templates=False):
+def getEazySED(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', scale_flambda=1.e-17, verbose=False, individual_templates=False):
     """
 lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
      getEazySED(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same')
@@ -938,7 +938,7 @@ def convert_chi_to_pdf(tempfilt, pz):
             
     return tempfilt['zgrid']*1., pdf
     
-def plotExampleSED(idx=20, writePNG=True, MAIN_OUTPUT_FILE = 'photz', OUTPUT_DIRECTORY = 'OUTPUT', CACHE_FILE = 'Same', lrange=[3000,8.e4], axes=None, individual_templates=False, fnu=False, show_pz=True, snlim=2, scale_flambda=1.e-17):
+def plotExampleSED(idx=20, writePNG=True, MAIN_OUTPUT_FILE = 'photz', OUTPUT_DIRECTORY = 'OUTPUT', CACHE_FILE = 'Same', lrange=[3000,8.e4], axes=None, individual_templates=False, fnu=False, show_pz=True, snlim=2, scale_flambda=1.e-17, setrc=True):
     """
 PlotSEDExample(idx=20)
 
@@ -961,14 +961,15 @@ PlotSEDExample(idx=20)
                                    CACHE_FILE = CACHE_FILE)
     ##### plot defaults
     #rc('font',**{'family':'serif','serif':['Times']})
-    plt.rcParams['font.family'] = 'sans-serif'
-    plt.rcParams['font.serif'] = ['Helvetica']
-    #plt.rcParams['ps.useafm'] = True
-    plt.rcParams['patch.linewidth'] = 0.
-    plt.rcParams['patch.edgecolor'] = 'black'
-    #plt.rcParams['text.usetex'] = True
-    plt.rcParams['text.usetex'] = False
-    #plt.rcParams['text.latex.preamble'] = ''
+    if setrc:
+        plt.rcParams['font.family'] = 'sans-serif'
+        plt.rcParams['font.serif'] = ['Helvetica']
+        #plt.rcParams['ps.useafm'] = True
+        plt.rcParams['patch.linewidth'] = 0.
+        plt.rcParams['patch.edgecolor'] = 'black'
+        #plt.rcParams['text.usetex'] = True
+        plt.rcParams['text.usetex'] = False
+        #plt.rcParams['text.latex.preamble'] = ''
 
     ##### start plot
     if axes is None:
@@ -2270,6 +2271,9 @@ def show_uncertainties(root='cosmos', PATH='OUTPUT/', candels=False):
         else:
             if col.startswith('f') & (col in trans):
                 cnames.append(col)
+            elif (not col.startswith('e')) & (col in trans):
+                cnames.append(col)
+            
     #
     for i in range(len(fnumbers)):
         #print i, len(fnumbers), len(cnames)
