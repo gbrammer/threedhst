@@ -11,7 +11,7 @@ try:
     from astropy.table import Table as table_base
     from astropy.table import Column
 except:
-    print 'Couldn\'t run "from astropy.table import Table".  catIO.Table won\'t work' 
+    print('Couldn\'t run "from astropy.table import Table".  catIO.Table won\'t work')
     table_base = list
     
 import numpy as np
@@ -61,7 +61,7 @@ class gTable(table_base):
                     t = pyfits.open(filename)
                     format = 'fits'
                 except:
-                    print 'Try ascii:'
+                    print('Try ascii:')
                     line = open(filename).readline()
                     if line.strip().startswith('#'):
                         if line.split()[1].isdigit():
@@ -208,21 +208,21 @@ class gTable(table_base):
                 radius = '5'
             
         if ('X_WORLD' in self.columns) & (x not in self.columns):
-            print 'Assume SExtractor'
+            print('Assume SExtractor')
             x='X_WORLD'
             y='Y_WORLD'
         
         if (x not in self.columns):
-            print 'Column "%s" not in the table.' %(x)
+            print('Column "%s" not in the table.' %(x))
             return False
         
         if (y not in self.columns):
-            print 'Column "%s" not in the table.' %(y)
+            print('Column "%s" not in the table.' %(y))
             return False
         
         if extra:
             if (extra not in self.columns):
-                print 'Extra column "%s" not in the table.' %(extra)
+                print('Extra column "%s" not in the table.' %(extra))
     
         N = len(self)
         lines = ['%s\n' %(type)]
@@ -469,7 +469,7 @@ data, columns = ReadASCIICat(infile,comment='#', force=False, verbose=False)
     """
     
     if os.path.exists(infile) is False:
-        print ('File, %s, not found.' %(infile))
+        print('File, %s, not found.' %(infile))
         return -1
     
     fileExists = False
@@ -482,7 +482,7 @@ data, columns = ReadASCIICat(infile,comment='#', force=False, verbose=False)
     
     if (fileExists is False) or (force):
         if verbose:
-            print ('Running ASCIItoFITS: %s' %(infile))
+            print('Running ASCIItoFITS: %s' %(infile))
         data, columns = ASCIItoFITS(infile,comment=comment)
         if getColumns:
             return data, columns
@@ -491,7 +491,7 @@ data, columns = ReadASCIICat(infile,comment='#', force=False, verbose=False)
         #return ASCIItoFITS(infile,comment=comment)
     else:
         if verbose:
-            print ('Reading : %s' %(theFITSFile))
+            print('Reading : %s' %(theFITSFile))
         hdulist = pyfits.open(theFITSFile)
         data, header, columns = hdulist[1].data, hdulist[1].header, hdulist[1].columns
         hdulist.close()
@@ -622,7 +622,7 @@ class Readfile():
         dict = {}
         for i in range(NCOLUMNS):
             if verbose > 1:
-                print columns[i]
+                print(columns[i])
             col = columns[i].replace('-','_').replace('.','p')
             if force_lowercase:
                 col = col.lower()
@@ -656,7 +656,7 @@ class Readfile():
                     dict[columns[i]].append(spl[i])
         
         if verbose > 3:
-            print dict
+            print(dict)
             
         #### Convert data to numpy arrays and change data types from
         #### strings to int and float as necessary
@@ -862,7 +862,7 @@ class Readfile():
             return False
         
         if self.verbose:
-            print 'Read from: %s.FITS' %(self.filename)
+            print('Read from: %s.FITS' %(self.filename))
                    
         self.NCOLUMNS = len(im.data.names)
         self.columns = im.data.names
@@ -892,7 +892,7 @@ class Readfile():
         
         for i in range(Nlist):
             if verbose:
-                print noNewLine+'%d of %d' %(i+1, Nlist)
+                print(noNewLine+'%d of %d' %(i+1, Nlist))
             
             dist, ids = self.find_nearest(ra[i], dec[i], N=1+N)
             dr_match[i] = dist[N-1+MATCH_SELF]
@@ -936,7 +936,7 @@ class CoordinateMatcher():
                    
         for test in [ra_column, dec_column]:
             if test not in columns:
-                print 'Column %s not found in the input catalog' %(test)
+                print('Column %s not found in the input catalog' %(test))
                 self.status = False
                 return None
                 
@@ -1009,7 +1009,7 @@ class CoordinateMatcher():
         
         for i in range(Nlist):
             if verbose:
-                print noNewLine+'%d of %d' %(i+1, Nlist)
+                print(noNewLine+'%d of %d' %(i+1, Nlist))
             
             dist, ids = self.find_nearest(ra[i], dec[i], N=1+N)
             dr_match[i] = dist[N-1+MATCH_SELF]

@@ -77,7 +77,7 @@ class FilterDefinition:
             HAS_SPECUTILS = False
              
         if self.wave is None:
-            print 'Filter not defined.'
+            print('Filter not defined.')
             return False
         
         if source_flux is None:
@@ -106,7 +106,7 @@ class FilterDefinition:
         try:
             import pysynphot as S
         except:
-            print 'Failed to import "pysynphot"'
+            print('Failed to import "pysynphot"')
             return False
         
         vega=S.FileSpectrum(S.locations.VegaFile)
@@ -124,7 +124,7 @@ class FilterDefinition:
         try:
             import pysynphot as S
         except:
-            print 'Failed to import "pysynphot"'
+            print('Failed to import "pysynphot"')
             return False
             
         self.bp = S.ArrayBandpass(wave=self.wave, throughput=self.throughput, name='')
@@ -137,7 +137,7 @@ class FilterDefinition:
         try:
             import pysynphot as S
         except:
-            print 'Failed to import "pysynphot"'
+            print('Failed to import "pysynphot"')
             return False
             
         self.bp = S.ArrayBandpass(wave=self.wave, throughput=self.throughput, name='')
@@ -200,7 +200,7 @@ class FilterFile:
         """
         if verbose:
             for i in range(len(self.filters)):
-                print '%5d %s' %(i+1, self.filters[i].name)            
+                print('%5d %s' %(i+1, self.filters[i].name))
         else:
             string_list = ['%5d %s\n' %(i+1, self.filters[i].name) for i in range(len(self.filters))]
             return string_list
@@ -223,7 +223,7 @@ class FilterFile:
         fp.close()
         
         if verbose:
-            print 'Wrote <%s[.info]>' %(file)
+            print('Wrote <%s[.info]>' %(file))
             
     def search(self, search_string, case=True, verbose=True):
         """ 
@@ -244,7 +244,7 @@ class FilterFile:
                 
             if re.search(search_string, filt_name) is not None:
                 if verbose:
-                    print '%5d %s' %(i+1, self.filters[i].name)
+                    print('%5d %s' %(i+1, self.filters[i].name))
                 matched.append(i)
         
         return np.array(matched)
@@ -355,11 +355,11 @@ class EazyParam():
     
     def show_filters(self):
         for filter in self.filters:
-            print ' F%d, %s, lc=%f' %(filter.fnumber, filter.name, filter.lambda_c)
+            print(' F%d, %s, lc=%f' %(filter.fnumber, filter.name, filter.lambda_c))
     
     def write(self, file=None):
         if file == None:
-            print 'No output file specified...'
+            print('No output file specified...')
         else:
             fp = open(file,'w')
             for param in self.param_names:
@@ -381,7 +381,7 @@ class EazyParam():
 
         """
         if param_name not in self.param_names:
-            print ('Column %s not found.  Check `column_names` attribute.'
+            print('Column %s not found.  Check `column_names` attribute.'
                     %column_name)
             return None
         else:
@@ -428,7 +428,7 @@ class TranslateFile():
                     self.error[key] = value
                     return True
         
-        print 'Filter %s not found in list.' %(str(filter))
+        print('Filter %s not found in list.' %(str(filter)))
     
     def write(self, file=None, show_ones=False):
 
@@ -449,7 +449,7 @@ class TranslateFile():
             fp.close()
         else:
             for line in lines:
-                print line[:-1]
+                print(line[:-1])
 
 def readRFBinary(file='OUTPUT/test.153-155.coeff'):
     """
@@ -491,7 +491,7 @@ tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
         CACHE_FILE = root+'.tempfilt'
     
     if os.path.exists(CACHE_FILE) is False:
-        print ('File, %s, not found.' %(CACHE_FILE))
+        print('File, %s, not found.' %(CACHE_FILE))
         return -1,-1,-1,-1
     
     f = open(CACHE_FILE,'rb')
@@ -622,7 +622,7 @@ lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
                        np.ones(tempfilt['NOBJ']).reshape(1,tempfilt['NOBJ']))
 
     if verbose:
-        print zpf
+        print(zpf)
         
     tempfilt['fnu'] *= zpfactors
     tempfilt['efnu'] *= zpfactors
@@ -987,7 +987,7 @@ PlotSEDExample(idx=20)
     #zout = catIO.Readfile(OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.zout')
     zout = catIO.Table(OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.zout')    
     #qz = np.where(zout.z_spec > 0)[0]
-    print zout.filename
+    print(zout.filename)
     qz = np.arange(len(zout['id']))
     
     if show_rest:
@@ -1066,7 +1066,7 @@ PlotSEDExample(idx=20)
                color='black',fmt='o',alpha=alph, markeredgecolor='0.7', markerfacecolor='None', markeredgewidth=1.5, ms=8, zorder=1)
     
     for i in range(len(lci)):
-        print '%f %e %e %e' %(lci[i], obs_sed[i], fobs[i], efobs[i])
+        print('%f %e %e %e' %(lci[i], obs_sed[i], fobs[i], efobs[i]))
         
     #### Set axis range and titles
     ax.semilogx()
@@ -1141,7 +1141,7 @@ zPhot_zSpec(zoutfile="./OUTPUT/photz.zout', zmax=4)
     """
     #zout = '../COSMOS/OUTPUT/cat3.4_default_lines_zp33sspNoU.zout'
     if os.path.exists(zoutFile) is False:
-        print ('File, %s, not found.' %(zoutFile))
+        print('File, %s, not found.' %(zoutFile))
         return
         
     zout = catIO.Readfile(zoutFile)
@@ -1404,7 +1404,7 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         #
         offsets[i] = stats[i]['median']
         #
-        print '%s %d %.3f %.3f %.3f %.3f %d %.3f' %(param.filters[i].name, ok.sum(), stats[i]['median'], stats[i]['pstd'], stats[i]['p'][1], stats[i]['p'][-2], keep.sum(), val)
+        print('%s %d %.3f %.3f %.3f %.3f %d %.3f' %(param.filters[i].name, ok.sum(), stats[i]['median'], stats[i]['pstd'], stats[i]['p'][1], stats[i]['p'][-2], keep.sum(), val))
         
     if not os.path.exists(adjust_zeropoints):
         fp = open(adjust_zeropoints,'w')
@@ -1431,7 +1431,7 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         for ci, i in enumerate(np.argsort(lc)):
             if param.filters[i].fnumber == ref_filter:
                 offsets /= offsets[i]
-                print 'Norm to %s.' %(param.filters[i].name)
+                print('Norm to %s.' %(param.filters[i].name))
                 break
             
     ref_offset = 1.
@@ -1664,7 +1664,7 @@ def loop_zeropoints(root='cosmos', tfile='zphot.translate.cosmos',  zfile='zphot
         import unicorn.zp
     except ImportError:
         if check_uvj:
-            print "`unicorn` module not found.  Can't do check_uvj."
+            print("`unicorn` module not found.  Can't do check_uvj.")
             check_uvj = False
         
     if not PATH.endswith('/'):
@@ -1805,7 +1805,7 @@ def log_offsets(fp, fnumbers, lc_i, delta_i, toler):
         else:
             log = '  F%d  %.4f' %(fnumbers[j], delta_i[j])
         #
-        print log
+        print(log)
         fp.write(log+'\n')
 
 def compute_taylor_mass(root='photz', PATH='OUTPUT', gi=[157,159], ABZP=25):
@@ -1954,12 +1954,12 @@ def compute_template_line_fluxes():
     tempfilt, coeffs, temp_sed, pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE='aegis.dusty3', OUTPUT_DIRECTORY='OUTPUT', CACHE_FILE='Same')
     
     xx = []
-    print '# file UmV  lineV  HaV O3V O2V'
+    print('# file UmV  lineV  HaV O3V O2V')
     for i in range(6):
         no_V = no_lines[i].integrate_filter(res.filters[155-1])
         with_V = with_lines[i].integrate_filter(res.filters[155-1])
         with_U = with_lines[i].integrate_filter(res.filters[153-1])
-        print '%s %.3f' %(files[i], with_V)
+        print('%s %.3f' %(files[i], with_V))
         xx = np.append(xx, with_V)
         #
         #print '%s %.3f  %.3f' %(files[i], -2.5*np.log10(with_U/with_V), no_V / with_V)
@@ -1972,7 +1972,7 @@ def compute_template_line_fluxes():
             line_flux = np.trapz(line_only[wrange], with_lines[i].wave[wrange])
             line_flux_ratio[key] =  line_flux / with_V
         #
-        print '%s %.4f  %.3f  %.3e %.3e %.3e' %(files[i], -2.5*np.log10(with_U/with_V), no_V / with_V, line_flux_ratio['Ha'], line_flux_ratio['O3'], line_flux_ratio['O2'])
+        print('%s %.4f  %.3f  %.3e %.3e %.3e' %(files[i], -2.5*np.log10(with_U/with_V), no_V / with_V, line_flux_ratio['Ha'], line_flux_ratio['O3'], line_flux_ratio['O2']))
 
 def init_nmf(obj, iz, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', verbose=True):
     import threedhst.eazyPy as eazy
@@ -1991,7 +1991,7 @@ def init_nmf(obj, iz, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CAC
         eazy.NZ = eazy.tempfilt['NZ']
     except:
         if verbose:
-            print 'Read EAZY binary files (%s/%s)....' %(OUTPUT_DIRECTORY, MAIN_OUTPUT_FILE)
+            print('Read EAZY binary files (%s/%s)....' %(OUTPUT_DIRECTORY, MAIN_OUTPUT_FILE))
         eazy.tempfilt, eazy.coeffs, eazy.temp_sed, eazy.pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, CACHE_FILE=CACHE_FILE)
         eazy.werr, eazy.terr = np.loadtxt('templates/TEMPLATE_ERROR.eazy_v1.0', unpack=True)
     
@@ -2102,10 +2102,10 @@ def milkyway_extinction(lamb=None, Rv=3.1):
     #    raise ValueError('some wavelengths outside CCM 89 extinction curve range')
     #
     if any((10<x)):
-        print "\nWARNING: MW extinction curve extrapolated at lam < 1000 A\n"
+        print("\nWARNING: MW extinction curve extrapolated at lam < 1000 A\n")
     
     if any((0.3>x)):
-        print "\nWARNING: MW extinction curve extrapolated at lam > 3.3 micron\n"
+        print("\nWARNING: MW extinction curve extrapolated at lam > 3.3 micron\n")
     
     
     #irs=(0.3 <= x) & (x <= 1.1)
@@ -2212,7 +2212,7 @@ def add_filters():
         filt.wave = x_resamp*1
         filt.throughput = bp_resamp*1
         filt.name = '%s lambda_c= %.4e AB-Vega=%.3f' %(filter_name, filt.pivot(), filt.ABVega())
-        print filt.name
+        print(filt.name)
         res.filters.append(filt)
         res.NFILT += 1
     #
@@ -2242,7 +2242,7 @@ def quadri_pairs(zoutfile='OUTPUT/cdfs.zout', catfile=''):
     ## find pairs
     first, next, drs = [], [], []
     for i in range(c.N):
-        print unicorn.noNewLine+'%d/%d' %(i,c.N)
+        print(unicorn.noNewLine+'%d/%d' %(i,c.N))
         dr, idx = m.find_nearest(c.ra[i], c.dec[i], N=60, distance_upper_bound=30./3600.)
         ok = (dr > 0) & (dr < 30.)
         first.extend([i]*ok.sum())
@@ -2327,7 +2327,7 @@ def show_uncertainties(root='cosmos', PATH='OUTPUT/', candels=False):
         
         ax = fig.add_subplot(NY, NX, i+1)
         ax.set_title(cnames[i])
-        print param.filters[i].name, cnames[i]
+        print(param.filters[i].name, cnames[i])
         ok = signoise[i,:] > 2
         if ok.sum() == 0:
             continue
@@ -2399,7 +2399,7 @@ def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False, candels=False):
         c.add_column(catIO.Column(name='x', data=(c['ra']-np.median(c['ra'])*3600.)))
         c.add_column(catIO.Column(name='y', data=(c['dec']-np.median(c['dec'])*3600.)))
             
-    print cnames
+    print(cnames)
         
     fitters = {}
     translate = {}
@@ -2408,7 +2408,7 @@ def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False, candels=False):
         #print i, len(fnumbers), len(cnames)
         
         ax = fig.add_subplot(NY, NX, i+1)
-        print param.filters[i].name, cnames[i]
+        print(param.filters[i].name, cnames[i])
         dmag = -2.5*np.log10((fnu/obs_sed)[i,:])
         ok = np.isfinite(dmag) & (signoise[i,:] > 3) & (np.abs(dmag) < 0.1)
         ratio = (fnu/obs_sed)[i,:]
@@ -2485,7 +2485,7 @@ def apply_spatial_offsets(cat='cdfs.v1.3.1.nzp.cat', pfile='cdfs.v1.3.1.nzp.cat.
     #### and whose values are astropy.modeling.Polynomial2D models with 
     #### coordinates 'x' and 'y' from the catalog
     for col in fitter.keys():
-        print col, col in c.columns
+        print(col, col in c.columns)
         ok = c[col] > -90
         c[col][ok] *= 1./fitter[col](c['x'], c['y'])[ok]
         c[col.replace('f_', 'e_')][ok] *= 1./fitter[col](c['x'], c['y'])[ok]
@@ -2591,7 +2591,7 @@ def show_extinction_effect():
         
         ax.text(0.02, 0.98, os.path.basename(filter.name), ha='left', va='top', transform=ax.transAxes)
         ax.grid()
-        print filter.name
+        print(filter.name)
         
         if (ifilt % 4) != 0:
             ax.set_yticklabels([])
