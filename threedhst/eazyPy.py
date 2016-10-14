@@ -30,38 +30,69 @@ import pylab
 import threedhst.catIO as catIO
 
 class FilterDefinition:
-    def __init__(self, bp=None):
+    def __init__(self, bp=None, EBV=0, Rv=3.1):
         """
         Placeholder for the filter definition information.
         """
         self.name = None
-        self.wavelength = None
-        self.transmission = None
+        self.wave = None
+        self.throughput = None
+        self.Aflux = 1.
         
         if bp is not None:
-            self.wavelength = np.cast[np.double](bp.wave)
-            self.transmission =  np.cast[np.double](bp.throughput)
+            self.wave = np.cast[np.double](bp.wave)
+            self.throughput =  np.cast[np.double](bp.throughput)
             self.name = bp.name
             
+            self.get_extinction(EBV=EBV, Rv=Rv)
+            
+    def get_extinction(self, EBV=0, Rv=3.1):
+        try:
+            import specutils.extinction
+            import astropy.units as u
+            HAS_SPECUTILS = True
+        except:
+            HAS_SPECUTILS = False
+        
+        Av = EBV*Rv
+        if HAS_SPECUTILS:
+            f99 = specutils.extinction.ExtinctionF99(EBV*Rv)
+            self.Alambda = f99(self.wave*u.angstrom)
+        else:
+            self.Alambda = milkyway_extinction(lamb=self.wave, Rv=Rv)*Av
+        
+        self.Aflux = 10**(-0.4*self.Alambda)
+        
     def extinction_correction(self, EBV, Rv=3.1, mag=True, source_lam=None, source_flux = None):
         """
         Get the MW extinction correction within the filter.  
         
         Optionally supply a source spectrum.
         """
-        
-        if self.wavelength is None:
+        try:
+            import specutils.extinction
+            import astropy.units as u
+            HAS_SPECUTILS = True
+        except:
+            HAS_SPECUTILS = False
+             
+        if self.wave is None:
             print 'Filter not defined.'
             return False
         
         if source_flux is None:
-            source_flux = self.transmission*0.+1
+            source_flux = self.throughput*0.+1
         else:
-            source_flux = np.interp(self.wavelength, source_lam, source_flux, left=0, right=0)
+            source_flux = np.interp(self.wave, source_lam, source_flux, left=0, right=0)
             
         Av = EBV*Rv
-        Alambda = milkyway_extinction(lamb = self.wavelength, Rv=Rv)
-        delta = np.trapz(self.transmission*source_flux*10**(-0.4*Alambda*Av), self.wavelength) / np.trapz(self.transmission*source_flux, self.wavelength)
+        if HAS_SPECUTILS:
+            f99 = specutils.extinction.ExtinctionF99(EBV*3.1)
+            Alambda = f99(self.wave*u.angstrom)
+        else:
+            Alambda = milkyway_extinction(lamb = self.wave, Rv=Rv)*Av
+            
+        delta = np.trapz(self.throughput*source_flux*10**(-0.4*Alambda), self.wave) / np.trapz(self.throughput*source_flux, self.wave)
         
         if mag:
             return 2.5*np.log10(delta)
@@ -81,7 +112,7 @@ class FilterDefinition:
         vega=S.FileSpectrum(S.locations.VegaFile)
         abmag=S.FlatSpectrum(0,fluxunits='abmag')
         #xy, yy = np.loadtxt('hawki_y_ETC.dat', unpack=True)
-        bp = S.ArrayBandpass(wave=self.wavelength, throughput=self.transmission, name='')
+        bp = S.ArrayBandpass(wave=self.wave, throughput=self.throughput, name='')
         ovega = S.Observation(vega, bp)
         oab = S.Observation(abmag, bp)
         return -2.5*np.log10(ovega.integrate()/oab.integrate())
@@ -96,7 +127,7 @@ class FilterDefinition:
             print 'Failed to import "pysynphot"'
             return False
             
-        self.bp = S.ArrayBandpass(wave=self.wavelength, throughput=self.transmission, name='')
+        self.bp = S.ArrayBandpass(wave=self.wave, throughput=self.throughput, name='')
         return self.bp.pivot()
         
     def rectwidth(self):
@@ -109,7 +140,7 @@ class FilterDefinition:
             print 'Failed to import "pysynphot"'
             return False
             
-        self.bp = S.ArrayBandpass(wave=self.wavelength, throughput=self.transmission, name='')
+        self.bp = S.ArrayBandpass(wave=self.wave, throughput=self.throughput, name='')
         return self.bp.rectwidth()
 
     #
@@ -120,9 +151,9 @@ class FilterDefinition:
         
         """
         
-        dl = np.diff(self.wavelength)
-        filt = np.cumsum((self.wavelength*self.transmission)[1:]*dl)
-        ctw95 = np.interp([0.025, 0.975], filt/filt.max(), self.wavelength[1:])
+        dl = np.diff(self.wave)
+        filt = np.cumsum((self.wave*self.throughput)[1:]*dl)
+        ctw95 = np.interp([0.025, 0.975], filt/filt.max(), self.wave[1:])
         return np.diff(ctw95)
             
         
@@ -142,8 +173,8 @@ class FilterFile:
                 if len(wave) > 0:
                     new_filter = FilterDefinition()
                     new_filter.name = header
-                    new_filter.wavelength = np.cast[float](wave)
-                    new_filter.transmission = np.cast[float](trans)
+                    new_filter.wave = np.cast[float](wave)
+                    new_filter.throughput = np.cast[float](trans)
                     filters.append(new_filter)
                     
                 header = ' '.join(line.split()[1:])
@@ -156,8 +187,8 @@ class FilterFile:
         # last one
         new_filter = FilterDefinition()
         new_filter.name = header
-        new_filter.wavelength = np.cast[float](wave)
-        new_filter.transmission = np.cast[float](trans)
+        new_filter.wave = np.cast[float](wave)
+        new_filter.throughput = np.cast[float](trans)
         filters.append(new_filter)
            
         self.filters = filters
@@ -180,9 +211,9 @@ class FilterFile:
         """
         fp = open(file,'w')
         for filter in self.filters:
-            fp.write('%6d %s\n' %(len(filter.wavelength), filter.name))
-            for i in range(len(filter.wavelength)):
-                fp.write('%-6d %.5e %.5e\n' %(i+1, filter.wavelength[i], filter.transmission[i]))
+            fp.write('%6d %s\n' %(len(filter.wave), filter.name))
+            for i in range(len(filter.wave)):
+                fp.write('%-6d %.5e %.5e\n' %(i+1, filter.wave[i], filter.throughput[i]))
         
         fp.close()
         
@@ -263,8 +294,8 @@ class EazyParam():
         if READ_FILTERS:
             RES = FilterFile(self.params['FILTERS_RES'])
             for i in range(self.NFILT):
-                filters[i].wavelength = RES.filters[filters[i].fnumber-1].wavelength
-                filters[i].transmission = RES.filters[filters[i].fnumber-1].transmission
+                filters[i].wave = RES.filters[filters[i].fnumber-1].wave
+                filters[i].throughput = RES.filters[filters[i].fnumber-1].throughput
         
         if read_templates:
             self.read_templates(templates_file=self.params['TEMPLATES_FILE'])
@@ -280,7 +311,7 @@ class EazyParam():
                 
                 template_file = line.split()[1]
                 templ = Template(file=template_file)
-                templ.wavelength *= float(line.split()[2])
+                templ.wave *= float(line.split()[2])
                 templ.set_fnu()
                 self.templ.append(templ)
     
@@ -295,11 +326,11 @@ class EazyParam():
                 flux = templ.flux
                 
             if interp_wave is not None:
-                y0 = np.interp(interp_wave, templ.wavelength, flux)
+                y0 = np.interp(interp_wave, templ.wave, flux)
             else:
                 y0 = 1.
             
-            plt.plot(templ.wavelength, flux / y0, label=templ.name)
+            plt.plot(templ.wave, flux / y0, label=templ.name)
             
     def _process_params(self):
         params = {}
@@ -360,7 +391,7 @@ class EazyParam():
     
     def __setitem__(self, param_name, value):
         self.params[param_name] = value
-
+    
 class TranslateFile():
     def __init__(self, file='zphot.translate'):
         self.file=file
@@ -660,7 +691,7 @@ def getAllPz(MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='
     
     return zz, full_pz
             
-def getEazyPz(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', binaries=None, get_prior=False):
+def getEazyPz(idx, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', binaries=None, get_prior=False, get_chi2=False):
     """
 zgrid, pz = getEazyPz(idx, \
                       MAIN_OUTPUT_FILE='photz', \
@@ -689,7 +720,14 @@ zgrid, pz = getEazyPz(idx, \
         prior = pz['priorzk'][:,kidx]
     else:
         prior = np.ones(pz['NZ'])
-        
+    
+    if get_chi2:
+        if get_prior:
+            if get_prior:
+                return tempfilt['zgrid'], pz['chi2fit'][:,idx], prior
+            else:
+                return tempfilt['zgrid'], pz['chi2fit'][:,idx]
+            
     ###### Convert Chi2 to p(z)
     pzi = np.exp(-0.5*(pz['chi2fit'][:,idx]-min(pz['chi2fit'][:,idx])))*prior#*(1+tempfilt['zgrid'])
     
@@ -720,7 +758,7 @@ class TemplateError():
         
 class Template():
     def __init__(self, sp=None, file=None, name=None):
-        self.wavelength = None
+        self.wave = None
         self.flux = None
         self.flux_fnu = None
         self.name = 'None'
@@ -731,16 +769,16 @@ class Template():
             self.name = name
                 
         if sp is not None:
-            self.wavelength = np.cast[np.double](sp.wave)
+            self.wave = np.cast[np.double](sp.wave)
             self.flux = np.cast[np.double](sp.flux)
             self.flux_fnu = self.flux
             
         if file is not None:
-            self.wavelength, self.flux = np.loadtxt(file, unpack=True)
+            self.wave, self.flux = np.loadtxt(file, unpack=True)
             self.set_fnu()
     
     def set_fnu(self):
-        self.flux_fnu = self.flux * (self.wavelength/5500.)**2
+        self.flux_fnu = self.flux * (self.wave/5500.)**2
         
     def integrate_filter(self, filter, z=0):
         """
@@ -751,15 +789,15 @@ class Template():
         """
         try:
             import unicorn
-            temp_filter = unicorn.utils_c.interp_conserve_c(filter.wavelength, 
-                                     self.wavelength*(1+z), self.flux_fnu)
+            temp_filter = unicorn.utils_c.interp_conserve_c(filter.wave, 
+                                     self.wave*(1+z), self.flux_fnu)
         
         except ImportError:
-            temp_filter = np.interp(filter.wavelength, self.wavelength*(1+z),
+            temp_filter = np.interp(filter.wave, self.wave*(1+z),
                                     self.flux_fnu)
             
-        temp_int = np.trapz(filter.transmission*temp_filter/filter.wavelength, filter.wavelength) / np.trapz(filter.transmission/filter.wavelength, filter.wavelength)
-        #temp_int = np.trapz(filter.transmission*temp_filter, filter.wavelength) / np.trapz(filter.transmission, 1./filter.wavelength)
+        temp_int = np.trapz(filter.throughput*filter.Aflux*temp_filter/filter.wave, filter.wave) / np.trapz(filter.throughput*filter.Aflux/filter.wave, filter.wave)
+        #temp_int = np.trapz(filter.throughput*temp_filter, filter.wave) / np.trapz(filter.throughput, 1./filter.wave)
         return temp_int
         
 class TemplateInterpolator():
@@ -938,7 +976,7 @@ def convert_chi_to_pdf(tempfilt, pz):
             
     return tempfilt['zgrid']*1., pdf
     
-def plotExampleSED(idx=20, writePNG=True, MAIN_OUTPUT_FILE = 'photz', OUTPUT_DIRECTORY = 'OUTPUT', CACHE_FILE = 'Same', lrange=[3000,8.e4], axes=None, individual_templates=False, fnu=False, show_pz=True, snlim=2, scale_flambda=1.e-17, setrc=True):
+def plotExampleSED(idx=20, writePNG=True, MAIN_OUTPUT_FILE = 'photz', OUTPUT_DIRECTORY = 'OUTPUT', CACHE_FILE = 'Same', lrange=[3000,8.e4], axes=None, individual_templates=False, fnu=False, show_pz=True, snlim=2, scale_flambda=1.e-17, setrc=True, show_rest=False):
     """
 PlotSEDExample(idx=20)
 
@@ -946,11 +984,20 @@ PlotSEDExample(idx=20)
     """
 
     #zout = catIO.ReadASCIICat(OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.zout')
-    zout = catIO.Readfile(OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.zout')
+    #zout = catIO.Readfile(OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.zout')
+    zout = catIO.Table(OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.zout')    
     #qz = np.where(zout.z_spec > 0)[0]
     print zout.filename
-    qz = np.arange(len(zout.id))
+    qz = np.arange(len(zout['id']))
     
+    if show_rest:
+        z_peak = zout['z_peak'][idx]
+        xrest = 1+z_peak
+        rest_label = '_\mathrm{rest}'
+    else:
+        xrest = 1.
+        rest_label = ''
+        
     lambdaz, temp_sed, lci, obs_sed, fobs, efobs = \
         getEazySED(qz[idx], MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, \
                           OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, \
@@ -995,13 +1042,13 @@ PlotSEDExample(idx=20)
         axp = axes[1]
         
     if individual_templates:
-        ax.plot(lambdaz, temp_sed, linewidth=1.0, color='blue',alpha=0.4)
-        ax.plot(lambdaz, temp_sed.sum(axis=1), linewidth=1.0, color='blue',alpha=alph)
+        ax.plot(lambdaz/xrest, temp_sed, linewidth=1.0, color='blue',alpha=0.4)
+        ax.plot(lambdaz/xrest, temp_sed.sum(axis=1), linewidth=1.0, color='blue',alpha=alph)
     else:
-        ax.plot(lambdaz, temp_sed, linewidth=1.5, color='blue',alpha=alph*0.8, zorder=-3)
+        ax.plot(lambdaz/xrest, temp_sed, linewidth=1.5, color='blue',alpha=alph*0.8, zorder=-3)
     
     #### template fluxes integrated through the filters
-    ax.scatter(lci, obs_sed,
+    ax.scatter(lci/xrest, obs_sed,
                c='red',marker='o',s=plotsize,alpha=alph, zorder=-1)
 
     #### Observed fluxes w/ errors
@@ -1012,10 +1059,10 @@ PlotSEDExample(idx=20)
     #            color='black',fmt='o',alpha=alph, markeredgecolor='black', markerfacecolor='None', markeredgewidth=1.5, ms=8, zorder=1)
 
     highsn = fobs/efobs > snlim
-    ax.errorbar(lci[highsn], fobs[highsn], yerr=efobs[highsn], ecolor='black',
+    ax.errorbar(lci[highsn]/xrest, fobs[highsn], yerr=efobs[highsn], ecolor='black',
                color='black',fmt='o',alpha=alph, markeredgecolor='black', markerfacecolor='None', markeredgewidth=1.5, ms=8, zorder=2)
     #
-    ax.errorbar(lci[~highsn], fobs[~highsn], yerr=efobs[~highsn], ecolor='0.7',
+    ax.errorbar(lci[~highsn]/xrest, fobs[~highsn], yerr=efobs[~highsn], ecolor='0.7',
                color='black',fmt='o',alpha=alph, markeredgecolor='0.7', markerfacecolor='None', markeredgewidth=1.5, ms=8, zorder=1)
     
     for i in range(len(lci)):
@@ -1025,7 +1072,7 @@ PlotSEDExample(idx=20)
     ax.semilogx()
     ax.set_xlim(lrange[0],lrange[1])
     ax.set_ylim(-0.05*max(obs_sed),1.1*max(fobs))
-    ax.set_xlabel(r'$\lambda$ [$\AA$]')
+    ax.set_xlabel(r'$\lambda%s$ [$\AA$]' %(rest_label))
     ax.set_ylabel(r'$f_\lambda$')
     
     ##### P(z)
@@ -1033,7 +1080,7 @@ PlotSEDExample(idx=20)
         axp.plot(zgrid, pz, linewidth=1.0, color='orange',alpha=alph)
         axp.fill_between(zgrid,pz,np.zeros(zgrid.size),color='yellow')
 
-        if zout.z_spec[qz[idx]] > 0:
+        if zout['z_spec'][qz[idx]] > 0:
             axp.plot(zout.z_spec[qz[idx]]*np.ones(2), np.array([0,1e6]),color='red',alpha=0.4)
 
         #### Set axis range and titles
@@ -1051,7 +1098,7 @@ PlotSEDExample(idx=20)
         fig.savefig(out,dpi=100)
 
     if axes is None:
-        return [ax, axp]
+        return fig #[ax, axp]
     
 
 def nMAD(arr):
@@ -1900,8 +1947,8 @@ def compute_template_line_fluxes():
     #     v11_lines.append(eazy.Template(file))
     # for i in range(6):
     #     with_V = with_lines[i].integrate_filter(res.filters[161-1])
-    #     plt.plot(with_lines[i].wavelength, with_lines[i].flux/with_V)
-    #     plt.plot(v11_lines[i].wavelength, v11_lines[i].flux/with_V)
+    #     plt.plot(with_lines[i].wave, with_lines[i].flux/with_V)
+    #     plt.plot(v11_lines[i].wave, v11_lines[i].flux/with_V)
     
     x = eazy.readRFBinary(file='OUTPUT/aegis.dusty3.155.coeff')
     tempfilt, coeffs, temp_sed, pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE='aegis.dusty3', OUTPUT_DIRECTORY='OUTPUT', CACHE_FILE='Same')
@@ -1917,12 +1964,12 @@ def compute_template_line_fluxes():
         #
         #print '%s %.3f  %.3f' %(files[i], -2.5*np.log10(with_U/with_V), no_V / with_V)
         ### Integrate H-alpha flux
-        line_only = with_lines[i].flux - np.interp(with_lines[i].wavelength, no_lines[i].wavelength, no_lines[i].flux)
+        line_only = with_lines[i].flux - np.interp(with_lines[i].wave, no_lines[i].wave, no_lines[i].flux)
         limits = {'Ha':[6530,6590], 'O3':[4900, 5040], 'O2':[3690, 3760]}
         line_flux_ratio = {}
         for key in limits.keys():
-            wrange = (with_lines[i].wavelength >= limits[key][0]) & (with_lines[i].wavelength < limits[key][1])
-            line_flux = np.trapz(line_only[wrange], with_lines[i].wavelength[wrange])
+            wrange = (with_lines[i].wave >= limits[key][0]) & (with_lines[i].wave < limits[key][1])
+            line_flux = np.trapz(line_only[wrange], with_lines[i].wave[wrange])
             line_flux_ratio[key] =  line_flux / with_V
         #
         print '%s %.4f  %.3f  %.3e %.3e %.3e' %(files[i], -2.5*np.log10(with_U/with_V), no_V / with_V, line_flux_ratio['Ha'], line_flux_ratio['O3'], line_flux_ratio['O2'])
@@ -2136,7 +2183,7 @@ def add_filters():
     files, scale, apply_atm = np.loadtxt('add.list', unpack=True, skiprows=2, dtype=str)
     res = eazy.FilterFile('FILTER.RES.latest.mod')
     atm = catIO.Readfile('mktrans_zm_10_10.dat')
-    sp_atm = S.ArraySpectrum(wave=atm.wave*1.e4, flux=atm.transmission)
+    sp_atm = S.ArraySpectrum(wave=atm.wave*1.e4, flux=atm.throughput)
     
     N = len(files)
     for i in range(N):
@@ -2162,8 +2209,8 @@ def add_filters():
         #
         bp_resamp[x_resamp <= wf.min()] = 0.
         bp_resamp[x_resamp >= wf.max()] = 0.
-        filt.wavelength = x_resamp*1
-        filt.transmission = bp_resamp*1
+        filt.wave = x_resamp*1
+        filt.throughput = bp_resamp*1
         filt.name = '%s lambda_c= %.4e AB-Vega=%.3f' %(filter_name, filt.pivot(), filt.ABVega())
         print filt.name
         res.filters.append(filt)
@@ -2507,3 +2554,76 @@ def anneal_pz(zgrid, pz, level=0.68):
     z_level = zgrid[1:]*(out[:,ix_level] > 0) 
     
     return out, z_level, np.min(z_level[z_level > 0]), np.max(z_level[z_level > 0])
+
+def show_extinction_effect():
+    z = np.logspace(0,np.log10(4),100)-1
+    ebv = 0.0660
+    
+    par = eazy.EazyParam('zphot.param.m0416.uvista', READ_FILTERS=True, read_templates=True)
+    
+    filter = par.filters[0]
+    fig = plt.figure(figsize=(10,10))
+    
+    for ifilt in range(len(par.filters)):
+        filter = par.filters[ifilt]
+        NZ = len(z)
+        NT = len(par.templ)
+    
+        fluxes = np.zeros((NT, NZ))
+        red_fluxes = np.zeros((NT, NZ))
+    
+        filter.get_extinction(EBV=0)
+        for it in range(NT):
+            templ = par.templ[it]
+            for iz in range(NZ):
+                fluxes[it, iz] = templ.integrate_filter(filter, z=z[iz])
+    
+        filter.get_extinction(EBV=ebv)
+        for it in range(NT):
+            templ = par.templ[it]
+            for iz in range(NZ):
+                red_fluxes[it, iz] = templ.integrate_filter(filter, z=z[iz])
+    
+        ax = fig.add_subplot(4,4,ifilt+1)
+        ax.plot(z, (red_fluxes/fluxes).T, alpha=0.5)
+        ax.set_xlim(0.01,2.6)
+        ax.set_ylim(0.985, 1.055)
+        
+        ax.text(0.02, 0.98, os.path.basename(filter.name), ha='left', va='top', transform=ax.transAxes)
+        ax.grid()
+        print filter.name
+        
+        if (ifilt % 4) != 0:
+            ax.set_yticklabels([])
+        
+        if (ifilt < 12): 
+            ax.set_xticklabels([])
+            
+    for ax in fig.axes:
+        ax.set_xlim(0.01,2.8)
+        ax.set_ylim(0.985, 1.055)
+    
+    fig.axes[12].set_xlabel('z')
+    fig.axes[12].set_ylabel('flux ratio, corr / nominal')
+    
+    fig.tight_layout(pad=0.1)
+    
+    # Show transmission curves
+    fig = plt.figure(figsize=(10,10))
+    
+    for ifilt in range(len(par.filters)):
+        filter = par.filters[ifilt]
+        filter.get_extinction(EBV=ebv)
+        
+        ax = fig.add_subplot(4,4,ifilt+1)
+        ix = np.argmax(filter.throughput)
+        ax.plot(filter.wave/1.e4, filter.throughput/filter.throughput[ix], color='k', alpha=0.5)
+        ax.plot(filter.wave/1.e4, (filter.throughput*filter.Aflux)/(filter.throughput*filter.Aflux)[ix], color='b', alpha=0.8)
+        ax.plot(filter.wave/1.e4, filter.Aflux/filter.Aflux[ix], color='r', alpha=0.5)
+        ax.set_ylim(0, 1.3)
+        ax.text(0.02, 0.98, os.path.basename(filter.name), ha='left', va='top', transform=ax.transAxes)
+        
+    fig.tight_layout(pad=0.1)
+    
+        
+        
