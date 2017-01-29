@@ -1081,7 +1081,7 @@ PlotSEDExample(idx=20)
         axp.fill_between(zgrid,pz,np.zeros(zgrid.size),color='yellow')
 
         if zout['z_spec'][qz[idx]] > 0:
-            axp.plot(zout.z_spec[qz[idx]]*np.ones(2), np.array([0,1e6]),color='red',alpha=0.4)
+            axp.plot(zout['z_spec'][qz[idx]]*np.ones(2), np.array([0,1e6]),color='red',alpha=0.4)
 
         #### Set axis range and titles
         axp.set_xlim(0,np.ceil(np.max(zgrid)))
@@ -1171,15 +1171,15 @@ zPhot_zSpec(zoutfile="./OUTPUT/photz.zout', zmax=4)
     alph=alpha
     
     #### zphot - zspec
-    qz = np.where(zout.z_spec > 0)
+    qz = np.where(zout['z_spec'] > 0)
     ax = fig.add_subplot(111)
-    ax.scatter(zout.z_spec[qz],zout.z_peak[qz],
+    ax.scatter(zout['z_spec'][qz],zout['z_peak'][qz],
                c=color, marker=marker,s=plotsize,alpha=alph)
     ax.plot(np.array([0,zmax]),np.array([0,zmax]),alpha=0.2,color='white',linestyle='-',linewidth=2)
     ax.plot(np.array([0,zmax]),np.array([0,zmax]),alpha=0.7,color='red',linestyle='-',linewidth=1)
 
     #### Add labels
-    dz = (zout.z_peak[qz]-zout.z_spec[qz])/(1+zout.z_spec[qz])
+    dz = (zout['z_peak'][qz]-zout['z_spec'][qz])/(1+zout['z_spec'][qz])
 
     ax.text(0.1*zmax, 0.95*zmax, zoutFile.replace('_','\_'), \
             ha="left", va="center", size=6)
@@ -1477,14 +1477,14 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     ax = fig.add_axes((0.67, 0.12, 0.32, 0.86))
     zout = catIO.Readfile('%s/%s.zout' %(PATH, root))
     if 'z_peak' not in zout.columns:
-        zout.z_peak = zout.z_spec
+        zout['z_peak'] = zout['z_spec']
     
-    dz = (zout.z_peak-zout.z_spec)/(1+zout.z_spec)
-    keep = (zout.z_spec > 0)
+    dz = (zout['z_peak']-zout['z_spec'])/(1+zout['z_spec'])
+    keep = (zout['z_spec'] > 0)
     sigma = threedhst.utils.nmad(dz[keep])
     outlier = np.abs(dz[keep]) > 0.15
     
-    ax.plot(np.log10(1+zout.z_spec), np.log10(1+zout.z_peak), marker='.', alpha=0.1, linestyle='None')
+    ax.plot(np.log10(1+zout['z_spec']), np.log10(1+zout['z_peak']), marker='.', alpha=0.1, linestyle='None')
     ax.plot([0,10],[0,10], color='white', alpha=0.4, linewidth=3)
     ax.plot([0,10],[0,10], color='black', alpha=0.4, linewidth=1)
     ax.set_xticklabels([0,1,2,3,4])
