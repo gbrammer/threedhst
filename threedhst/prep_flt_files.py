@@ -113,24 +113,24 @@ setup_matrices()
             #### Cross terms
             while (pi > pow/2.):
                 self.A[count,:,:] = xi**pi*yi**(pow-pi)
-                print 'A[%d,:,:] = xi**%d*yi**%d' %(count,pi,pow-pi)
+                print('A[%d,:,:] = xi**%d*yi**%d' %(count,pi,pow-pi))
                 count+=1
                 self.A[count,:,:] = xi**(pow-pi)*yi**pi
-                print 'A[%d,:,:] = xi**%d*yi**%d' %(count,pow-pi,pi)
+                print('A[%d,:,:] = xi**%d*yi**%d' %(count,pow-pi,pi))
                 count+=1
                 pi-=1
             
             #### x**pow/2 * y**pow/2 term
             if (pow/2. == np.int(pow/2.)):
                 self.A[count,:,:] = xi**(pow/2)*yi**(pow/2)
-                print 'A[%d,:,:] = xi**%d*yi**%d' %(count,pow/2,pow/2)
+                print('A[%d,:,:] = xi**%d*yi**%d' %(count,pow/2,pow/2))
                 count+=1
             
             #### x**pow, y**pow terms
-            print 'A[%d,:,:] = xi**%d' %(count,pow)
+            print('A[%d,:,:] = xi**%d' %(count,pow))
             self.A[count,:,:] = xi**pow
             count+=1
-            print 'A[%d,:,:] = yi**%d' %(count,pow)
+            print('A[%d,:,:] = yi**%d' %(count,pow))
             self.A[count,:,:] = yi**pow
             count+=1
         
@@ -197,7 +197,7 @@ fit_image(self, root, A=None, overwrite=False, show=True)
         if len(segfile) == 0:
             seg = IMG*0.
         else:
-            print 'Segmentation image: %s' %segfile[0]
+            print('Segmentation image: %s' %segfile[0])
             fis = pyfits.open(segfile[0])
             seg = fis[0].data
         
@@ -219,15 +219,15 @@ fit_image(self, root, A=None, overwrite=False, show=True)
         #### Get fit parameters with least-sq. fit.
         p, resid, rank, s = scipy.linalg.lstsq(Aq,IMGq)
 
-        print p
+        print(p)
         
         #### Create the bg fit image from the fit parameters
         IMGout = IMG*0.
         for i in range(self.NPARAM):
             IMGout += A[i,:,:]*p[i]
-        print 'Done'
+        print('Done')
         
-        if 'SKY0' in fi[0].header.keys():
+        if 'SKY0' in list(fi[0].header.keys()):
             BG_LEVEL = fi[0].header['SKY0']
         else:
             BG_LEVEL = 0
@@ -274,7 +274,7 @@ fit_image(self, root, A=None, overwrite=False, show=True)
         #### bg-subtracted image to original FLT file if `overwrite` is True
         FIX = IMG-IMGout
         if overwrite:
-            print 'Overwrite: '+root
+            print('Overwrite: '+root)
             fi[1].data = FIX
             fi.flush()
         
@@ -292,10 +292,10 @@ def asn_grism_background_subtract(asn_file='ibhj42040_asn.fits', nbin=8, path='.
     
     asn = threedhst.utils.ASNFile(asn_file)
     if verbose:
-        print 'Background:'
+        print('Background:')
     for flt in asn.exposures:
         if verbose:
-            print '   %s' %flt
+            print('   %s' %flt)
         test = oned_grism_background_subtract(flt, nbin=nbin, verbose=verbose, savefig=savefig)
             
     
@@ -325,7 +325,7 @@ def oned_grism_background_subtract(flt_root, nbin=8, path='./', savefig=True, fo
     seg = pyfits.open(seg_file)
     
     #### Don't proceed if not a grism exposure
-    keys = flt[0].header.keys()
+    keys = list(flt[0].header.keys())
     IS_GRISM = False
     FILTER_STRING = ""
     for key in keys:
@@ -336,14 +336,14 @@ def oned_grism_background_subtract(flt_root, nbin=8, path='./', savefig=True, fo
                 
     if not IS_GRISM:
         if verbose:
-            print '%s is not a grism exposure (%s)' %(flt_root, FILTER_STRING)
+            print('%s is not a grism exposure (%s)' %(flt_root, FILTER_STRING))
         return False
         
     #### Don't proceed if already been done
-    if 'GRIS-BG' in flt[1].header.keys():
+    if 'GRIS-BG' in list(flt[1].header.keys()):
         if (flt[1].header['GRIS-BG'] == 1) | (force is False):
             if verbose:
-                print 'Background already subtracted from %s.' %(flt_root)
+                print('Background already subtracted from %s.' %(flt_root))
             return False
     
     #### Arrays     
@@ -756,7 +756,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
         #### Clean DRZ image 
         #asn_file='J000208-152314-F160W_asn.fits'
         if clean_drz:
-            print 'Clean_DRZ: clean bad pixels from DRZ mosaic'
+            print('Clean_DRZ: clean bad pixels from DRZ mosaic')
             try:
                 import scipy.ndimage as nd
                 drz = pyfits.open(asn_file.replace('asn','drz'), mode='update')
@@ -767,7 +767,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
                 drz[2].data[bad] = 0
                 drz.flush()
             except:
-                print 'Clean_DRZ failed.'
+                print('Clean_DRZ failed.')
                 pass
         
         for i,exp in enumerate(asn.exposures):
@@ -796,7 +796,7 @@ prep_flt(asn_file=None, get_shift=True, bg_only=False,
             #
             #### 1-D background, measured
             if oned_background:
-                print '\n Extract 1D background \n'
+                print('\n Extract 1D background \n')
                 test = oned_grism_background_subtract(exp, nbin=26, savefig=True, verbose=False)
         
         startMultidrizzle(asn_file, use_shiftfile=True, skysub=True,
@@ -1376,7 +1376,7 @@ def make_grism_subsets(root='GOODS-S', run_multidrizzle=True, single=None):
             list.append("%s-G141_asn.fits" %(targ))
         #
         out_root = root+'-%03d' %(angle)
-        print out_root
+        print(out_root)
         
         threedhst.utils.combine_asn_shifts(list, out_root=out_root,
                    path_to_FLT='./', run_multidrizzle=False)
@@ -1429,11 +1429,11 @@ def make_targname_asn(asn_file, newfile=True, use_filtname=True, path_to_flt='..
     
     #### 3D-HST translations
     translate = {'AEGIS-':'aegis-', 'COSMOS-':'cosmos-', 'GNGRISM':'goodsn-', 'GOODS-SOUTH-':'goodss-', 'UDS-':'uds-'}
-    for key in translate.keys():
+    for key in list(translate.keys()):
         target = target.replace(key, translate[key])
     
     ## pad i < 10 with zero
-    for key in translate.keys():
+    for key in list(translate.keys()):
         if translate[key] in target:
             spl = target.split('-')
             if int(spl[-1]) < 10:
@@ -1471,7 +1471,7 @@ def make_targname_asn(asn_file, newfile=True, use_filtname=True, path_to_flt='..
     #         target = target.replace('GOODS-N','GOODS-N2')
     
     product = target+'-'+type
-    print product
+    print(product)
 
     asn.product = product
     if newfile:
@@ -1510,7 +1510,7 @@ def process_3dhst_pair(asn_direct_file='ib3706050_asn.fits',
     if (asn_grism_file is not None) & adjust_targname:
         asn_grism_file = make_targname_asn(asn_grism_file)
     
-    print 'DIRECT: %s, GRISM: %s\n' %(asn_direct_file, asn_grism_file)
+    print('DIRECT: %s, GRISM: %s\n' %(asn_direct_file, asn_grism_file))
         
     ##### Direct images
     if not SKIP_DIRECT:
@@ -1856,11 +1856,11 @@ startMultidrizzle(root='ib3727050_asn.fits', use_shiftfile = True,
             ysh_str = "%.4f"  % p['ysh']
             rot_str = "%.5f"  % p['rot']
 
-            print("\ndrizzle "+p['data']+" "+p['outdata']+
+            print(("\ndrizzle "+p['data']+" "+p['outdata']+
                   " in_mask="+p['driz_mask']+" outweig="+p['outweight']+
                   " xsh="+xsh_str+" ysh="+ysh_str+" rot="+rot_str+
                   " coeffs='"+p['coeffs']+"' wt_scl='"+str(p['wt_scl'])+"'"+
-                  " xgeoim='"+p['xgeoim']+"' ygeoim='"+p['ygeoim']+"'\n")
+                  " xgeoim='"+p['xgeoim']+"' ygeoim='"+p['ygeoim']+"'\n"))
             
             runlog.write("drizzle "+p['data']+" "+p['outdata']+
                          " in_mask="+p['driz_mask']+" outweig="+p['outweight']+
@@ -2103,7 +2103,7 @@ class DRZFile(MultidrizzleRun):
         drz = pyfits.open(fitsfile)
         hdrz = drz[0].header
         self.count = 0
-        for key in hdrz.keys():
+        for key in list(hdrz.keys()):
             if key.startswith('D') & key.endswith('XSH'):
                 self.count+=1
         
@@ -2161,7 +2161,7 @@ jitter_info()
                dat.field('LimbAng')[-1], dat.field('BrightLimb')[-1],med))
             
             fp.write(str+'\n')
-            print str
+            print(str)
     
     fp.close()
 
@@ -2319,7 +2319,7 @@ def apply_best_flat(fits_file, verbose=False, use_cosmos_flat=True, use_candels_
             im.flush()
                     
         if verbose:
-            print MSG
+            print(MSG)
 
 def apply_persistence_mask(flt_file, limit_sigma=0.6, filter_size=3, persistence_path='/3DHST/Spectra/Work/PERSISTENCE/All', verbose=False):
     """
@@ -2331,7 +2331,7 @@ def apply_persistence_mask(flt_file, limit_sigma=0.6, filter_size=3, persistence
     
     if not os.path.exists(persist_file):
         if verbose:
-            print '%s not found, ignoring persistence.' %(persist_file)
+            print('%s not found, ignoring persistence.' %(persist_file))
         #
         return 
         
@@ -2354,7 +2354,7 @@ def apply_persistence_mask(flt_file, limit_sigma=0.6, filter_size=3, persistence
     flt.flush()
     
     if verbose:
-        print msg+'ersistence mask: %s, S/N > %.1f [%d masked pixels]' %(persist_file, limit_sigma, mask_grow.sum())
+        print(msg+'ersistence mask: %s, S/N > %.1f [%d masked pixels]' %(persist_file, limit_sigma, mask_grow.sum()))
     
 def find_best_flat(flt_fits, verbose=True): #, IREF='/research/HST/GRISM/IREF/'):
     """
@@ -2385,7 +2385,7 @@ def find_best_flat(flt_fits, verbose=True): #, IREF='/research/HST/GRISM/IREF/')
             latest = this_created
             
         if verbose:
-            print '%s %s %s' %(pfl, the_filter, time.ctime(latest))
+            print('%s %s %s' %(pfl, the_filter, time.ctime(latest)))
     
     return best_pfl #, the_filter, time.ctime(latest)
 
@@ -2414,19 +2414,19 @@ def prep_acs(root='jbhj01',force=False):
     
     #### Make a ../FIXED directory if it doesn't exist
     if not os.path.exists('../FIXED'):
-        print "Making output directory ../FIXED"
+        print("Making output directory ../FIXED")
         os.mkdir('../FIXED')
 
     files = glob.glob('%s*_flt.fits' %(root))
-    print files
+    print(files)
     for file in files:
         #epar acs_destripe # *flt.fits dstrp clobber+
         flt = pyfits.open(file)
-        if (not os.path.exists(file.replace('flt','flt_dstrp'))) & ('PCTEFILE' not in flt[0].header.keys()):
+        if (not os.path.exists(file.replace('flt','flt_dstrp'))) & ('PCTEFILE' not in list(flt[0].header.keys())):
             acs_destripe.clean(file,'dstrp',clobber=True)
         
     files=glob.glob('%s*dstrp*' %(root))
-    print files
+    print(files)
     for file in files:
         iraf.hedit(images=file+'[0]', fields='PCTEFILE',
             value='jref$pctefile_101109.fits', add=iraf.yes, verify=iraf.no, 
@@ -2442,6 +2442,6 @@ def prep_acs(root='jbhj01',force=False):
     ### Clean up dstrp files
     files=glob.glob('%s*dstrp*fits' %(root))
     for file in files:
-        print file
+        print(file)
         os.remove(file)
 

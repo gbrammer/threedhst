@@ -83,7 +83,7 @@ run_tweakshifts(asn_direct)
     
     if verbose:
         for line in status:
-            print line
+            print(line)
     
     return status
     
@@ -186,7 +186,7 @@ refine_shifts(ROOT_DIRECT='f160w',
     xsh = (xshift*np.cos(alpha)-yshift*np.sin(alpha))*np.float(run.scl)
     ysh = (xshift*np.sin(alpha)+yshift*np.cos(alpha))*np.float(run.scl)
 
-    print 'Final shift:', xsh, ysh, drz[1].header['PA_APER']
+    print('Final shift:', xsh, ysh, drz[1].header['PA_APER'])
     fp = open(ROOT_DIRECT+'_align.info','w')
     fp.write('%s %8.3f %8.3f %8.3f\n' %(ALIGN_IMAGE, xsh, ysh, rot)) 
     fp.close()
@@ -220,7 +220,7 @@ def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=True, ALIGN_EXTENS
     
     if os.path.exists(ROOT_DIRECT+'_align.fits') & (not force):
         if verbose:
-            print 'Image %s_align.fits exists.  Skipping SWarp.' %(ROOT_DIRECT)
+            print('Image %s_align.fits exists.  Skipping SWarp.' %(ROOT_DIRECT))
         skip_swarp = True
         
     if not skip_swarp:
@@ -230,7 +230,7 @@ def plot_shifts(ROOT_DIRECT, ALIGN_IMAGE, clean=True, verbose=True, ALIGN_EXTENS
             align_img_list = glob.glob(ALIGN_IMAGE)
             
         if not align_img_list:
-            print 'threedhst.shifts.align_to_reference: no alignment images overlap.'
+            print('threedhst.shifts.align_to_reference: no alignment images overlap.')
             return 0,0
         #
         try:
@@ -429,7 +429,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
     if not align_sdss_ds9:
         align_img_list = find_align_images_that_overlap(ROOT_DIRECT+'_drz.fits', ALIGN_IMAGE, ALIGN_EXTENSION=ALIGN_EXTENSION)
         if not align_img_list:
-            print 'threedhst.shifts.align_to_reference: no alignment images overlap.'
+            print('threedhst.shifts.align_to_reference: no alignment images overlap.')
             return 0,0
     
     #### Use swarp to combine the alignment images to the same image 
@@ -487,7 +487,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
             #### Use (unstable) astroquery Vizier search
             #### CFHTLS-Deep: 'Vizier.II/317'
             VIZIER_CAT = REFERENCE_CATALOG.split('Vizier.')[1]
-            print 'Align to Vizier catalog: http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=%s' %(VIZIER_CAT)
+            print('Align to Vizier catalog: http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=%s' %(VIZIER_CAT))
             
             import astroquery
             if astroquery.__version__ < '0.0.dev1078':
@@ -528,7 +528,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
                 
             #### Make a region file
             ra_list, dec_list = vt['RAJ2000'], vt['DEJ2000']
-            print 'Vizier, found %d objects.' %(len(ra_list))
+            print('Vizier, found %d objects.' %(len(ra_list)))
             fp = open('%s.vizier.reg' %(ROOT_DIRECT),'w')
             fp.write('# %s, r=%.1f\'\nfk5\n' %(VIZIER_CAT, corner_radius))
             for ra, dec in zip(ra_list, dec_list):
@@ -619,11 +619,11 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
                            tolerance=2**pow, separation=0, verbose=yes, Stdout=1)
             #
             nmatch = 0
-            for line in open('align.match').xreadlines(  ): nmatch += 1
+            for line in open('align.match'): nmatch += 1
             
         if verbose:
             for line in status1:
-                print line
+                print(line)
         
                 
         #### Compute shifts with iraf.geomap
@@ -641,7 +641,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
                     maxiter = 10, reject = 2.0, Stdout=1)
         if verbose:
             for line in status2:
-                print line
+                print(line)
         
         #fp = open(root+'.iraf.log','a')
         #fp.writelines(status1)
@@ -668,7 +668,7 @@ xshift, yshift, rot, scale, xrms, yrms = align_to_reference()
         fp.close()
         
         #os.system('wc align.match')
-        print 'Shift iteration #%d, xshift=%f, yshift=%f, rot=%f, scl=%f (rms: %5.2f,%5.2f)' %(IT, xshift, yshift, rot, scale, xrms, yrms)
+        print('Shift iteration #%d, xshift=%f, yshift=%f, rot=%f, scl=%f (rms: %5.2f,%5.2f)' %(IT, xshift, yshift, rot, scale, xrms, yrms))
     
     im = pyfits.open('SCI.fits')
         
@@ -847,7 +847,7 @@ checkShiftfile(asn_direct)
     for exp in asn.exposures:
         if exp+'_flt.fits' not in sf.images:
             flag=True
-            print 'Exposure, %s, not in %s' %(exp,sf_file)
+            print('Exposure, %s, not in %s' %(exp,sf_file))
             #print sf.nrows
             sf.append(exp+'_flt.fits')
             #print sf.nrows
@@ -855,7 +855,7 @@ checkShiftfile(asn_direct)
     #### Check if scales are zero in the shiftfile
     if 0.0 in sf.scale:
         flag = True
-        print 'Found scale=0 in the shiftfile, setting to default no shift/rotation\n'
+        print('Found scale=0 in the shiftfile, setting to default no shift/rotation\n')
         for i in range(len(sf.scale)):
             sf.xshift[i], sf.yshift[i], sf.rotate[i], sf.scale[i] = 0.0, 0.0, 0.0, 1.0
         

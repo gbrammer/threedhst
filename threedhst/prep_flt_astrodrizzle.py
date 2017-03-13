@@ -115,11 +115,11 @@ def drzTweakReg(sci='goodss-34-F140W_drz_sci.fits', master_catalog='goodss_radec
     threedhst.showMessage(''.join(lines))
     
     if not apply:
-        print 'Not applying shift.  Re-run with apply=true to apply them.'
+        print('Not applying shift.  Re-run with apply=true to apply them.')
         return rshift, dshift
         
     for fits in [sci.replace('sci','wht'), sci]:
-        print 'Update WCS: %s' %(fits)
+        print('Update WCS: %s' %(fits))
         im = pyfits.open(fits, mode='update')
         im[0].header['CRVAL1'] -= rshift
         im[0].header['CRVAL2'] -= dshift
@@ -128,7 +128,7 @@ def drzTweakReg(sci='goodss-34-F140W_drz_sci.fits', master_catalog='goodss_radec
     im = pyfits.open(sci)
     for i in range(im[0].header['NDRIZIM']):
         flt_im = im[0].header['D%03dDATA' %(i+1)].split('[')[0]
-        print 'Update WCS: %s' %(flt_im)
+        print('Update WCS: %s' %(flt_im))
         flt = pyfits.open(flt_im, mode='update')
         for ext in [1,2]:
             flt[ext].header['CRVAL1'] -= rshift
@@ -201,7 +201,7 @@ def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_rad
             se.options['ANALYSIS_THRESH'] = '%f' %(threshold)
             #
             se_img = '%s_%s.fits[%d]' %(exp, dext, sci_ext[i]) #-1)
-            print se_img
+            print(se_img)
             se.sextractImage(se_img)
             threedhst.sex.sexcatRegions('%s_%s_%d.cat' %(exp, ext, sci_ext[i]), '%s_%s_%d.reg' %(exp, ext, sci_ext[i]), format=1)
     
@@ -406,7 +406,7 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False, se
         flt_wcs = stwcs.wcsutil.HSTWCS(flt, ext=1)
         
         ### segmentation        
-        print 'Segmentation image: %s_blot.fits' %(exp)
+        print('Segmentation image: %s_blot.fits' %(exp))
         blotted_seg = astrodrizzle.ablot.do_blot(seg_data+0, ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
         
         blotted_bkg = 0.
@@ -429,7 +429,7 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False, se
         p0 = np.zeros(NCOMP)
         p0[0] = np.median(data)
         obj_fun = threedhst.grism_sky.obj_lstsq
-        print 'XXX: %d' %(mask.sum())
+        print('XXX: %d' %(mask.sum()))
         popt = scipy.optimize.leastsq(obj_fun, p0, args=(data, templates, wht), full_output=True, ftol=1.49e-8/1000., xtol=1.49e-8/1000.)
         xcoeff = popt[0]
         model = np.dot(xcoeff, bg_flat).reshape((1014,1014))
@@ -479,7 +479,7 @@ def copy_adriz_headerlets(direct_asn='GOODS-S-15-F140W_asn.fits', grism_asn='GOO
         
     if Nd == Ng:
         if order is None:
-            order = range(Nd)
+            order = list(range(Nd))
             
         for i in range(Nd):
             imd = pyfits.open('%s_%s.fits' %(direct.exposures[i], ext))
@@ -495,7 +495,7 @@ def copy_adriz_headerlets(direct_asn='GOODS-S-15-F140W_asn.fits', grism_asn='GOO
         #### grism exposures
         sf = threedhst.shifts.ShiftFile(direct_asn.replace('_asn.fits', '_shifts.txt'))
         imd = pyfits.open(direct_asn.replace('asn','wcs'))
-        print imd.filename()
+        print(imd.filename())
         direct_WCS = stwcs.wcsutil.HSTWCS(imd, ext='wcs')
         #
         for i in range(Ng):
@@ -553,7 +553,7 @@ def subtract_acs_grism_background(asn_file='RXJ2248-08-G800L_asn.fits', final_sc
             #
             flt['sci', j+1].data -= med2*exptime*skies[j][0].data     
             flt['sci', j+1].header['MDRIZSKY'] = 0. #.update('MDRIZSKY', med2*exptime)
-            print '%s chip%d: %.3f' %(exp, j+1, med2)
+            print('%s chip%d: %.3f' %(exp, j+1, med2))
         #
         ### Write updates
         flt.flush()
@@ -738,7 +738,7 @@ def get_vizier_cat(image='RXJ2248-IR_sci.fits', ext=0, catalog="II/246"):
             
     #### Make a region file
     ra_list, dec_list = vt['RAJ2000'], vt['DEJ2000']
-    print 'Vizier, found %d objects in %s.' %(len(ra_list), catalog)
+    print('Vizier, found %d objects in %s.' %(len(ra_list), catalog))
     
     fp = open('%s.vizier.radec' %(image.split('.fits')[0]), 'w')
     fpr = open('%s.vizier.reg' %(image.split('.fits')[0]), 'w')
@@ -782,7 +782,7 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
         asn = threedhst.utils.ASNFile(direct_asn)
         if ACS:
             for exp in asn.exposures:
-                print 'cp %s/%s_flc.fits.gz .' %(raw_path, exp)
+                print('cp %s/%s_flc.fits.gz .' %(raw_path, exp))
                 os.system('cp %s/%s_flc.fits.gz .' %(raw_path, exp))
                 os.system('gunzip -f %s_flc.fits.gz' %(exp))
                 
@@ -791,7 +791,7 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
                         import lacosmicx
                         status = True
                     except:
-                        print 'import lacosmicx failed!'
+                        print('import lacosmicx failed!')
                         status = False
                     
                     if status:
@@ -846,7 +846,7 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
         
         #### Run TweakReg
         if (radec is None) & (not ACS):
-            print len(asn.exposures)
+            print(len(asn.exposures))
             
             if len(asn.exposures) > 1:
                 drizzlepac.astrodrizzle.AstroDrizzle(direct_asn, clean=True, final_scale=None, final_pixfrac=0.8, context=False, final_bits=576, preserve=False, driz_cr_snr='5.0 4.0', driz_cr_scale = '2.5 0.7') 
@@ -887,7 +887,7 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
         asn = threedhst.utils.ASNFile(grism_asn)
         if ACS:
             for exp in asn.exposures:
-                print 'cp %s/%s_flc.fits.gz .' %(raw_path, exp)
+                print('cp %s/%s_flc.fits.gz .' %(raw_path, exp))
                 os.system('cp %s/%s_flc.fits.gz .' %(raw_path, exp))
                 os.system('gunzip -f %s_flc.fits.gz' %(exp))
                 updatewcs.updatewcs('%s_flc.fits' %(exp))
@@ -945,9 +945,9 @@ def subtract_fixed_background(flt_file='ickw10upq_flt.fits', path_to_raw='../RAW
         
     flt = pyfits.open(flt_file, mode='update')
     
-    if 'FIXEDBG' in flt[1].header.keys():
+    if 'FIXEDBG' in list(flt[1].header.keys()):
         if flt[1].header['FIXEDBG']:
-            print 'Background already subtracted!'
+            print('Background already subtracted!')
             return True
         
     if 'G1' in flt[0].header['FILTER']:
@@ -972,7 +972,7 @@ def subtract_fixed_background(flt_file='ickw10upq_flt.fits', path_to_raw='../RAW
         flt[1].data -= excess[0].data * excess_scl
         flt[0].header['GSKY02'] = (excess_scl, 'Master sky: %s' %(excess_file))
         
-        print '%s zodi: %.2f, excess: %.2f' %(flt[0].header['FILTER'], flt[0].header['GSKY01'], flt[0].header['GSKY02'])
+        print('%s zodi: %.2f, excess: %.2f' %(flt[0].header['FILTER'], flt[0].header['GSKY01'], flt[0].header['GSKY02']))
         
         flt[1].header['MDRIZSKY'] = 0.
         
@@ -983,7 +983,7 @@ def subtract_fixed_background(flt_file='ickw10upq_flt.fits', path_to_raw='../RAW
         flt[1].data -= flt[1].header['ZODISKY']
         flt.flush()
         
-        print '%s zodi: %.2f' %(flt[0].header['FILTER'], flt[1].header['ZODISKY'])
+        print('%s zodi: %.2f' %(flt[0].header['FILTER'], flt[1].header['ZODISKY']))
     
     flt[1].header['FIXEDBG'] = True
         

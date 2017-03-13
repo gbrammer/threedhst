@@ -171,7 +171,7 @@ class gTable(table_base):
         im = pyfits.open(filename+'.FITS')[1]
         
         if infile_mod_time > im.header['MODTIME']:
-            print('%s has changed.  Re-generating FITS file...' %(filename))
+            print(('%s has changed.  Re-generating FITS file...' %(filename)))
             return False
         
         t = self.helper_read(filename+'.FITS', check_FITS=False)
@@ -213,16 +213,16 @@ class gTable(table_base):
             y='Y_WORLD'
         
         if (x not in self.columns):
-            print('Column "%s" not in the table.' %(x))
+            print(('Column "%s" not in the table.' %(x)))
             return False
         
         if (y not in self.columns):
-            print('Column "%s" not in the table.' %(y))
+            print(('Column "%s" not in the table.' %(y)))
             return False
         
         if extra:
             if (extra not in self.columns):
-                print('Extra column "%s" not in the table.' %(extra))
+                print(('Extra column "%s" not in the table.' %(extra)))
     
         N = len(self)
         lines = ['%s\n' %(type)]
@@ -469,7 +469,7 @@ data, columns = ReadASCIICat(infile,comment='#', force=False, verbose=False)
     """
     
     if os.path.exists(infile) is False:
-        print('File, %s, not found.' %(infile))
+        print(('File, %s, not found.' %(infile)))
         return -1
     
     fileExists = False
@@ -482,7 +482,7 @@ data, columns = ReadASCIICat(infile,comment='#', force=False, verbose=False)
     
     if (fileExists is False) or (force):
         if verbose:
-            print('Running ASCIItoFITS: %s' %(infile))
+            print(('Running ASCIItoFITS: %s' %(infile)))
         data, columns = ASCIItoFITS(infile,comment=comment)
         if getColumns:
             return data, columns
@@ -491,7 +491,7 @@ data, columns = ReadASCIICat(infile,comment='#', force=False, verbose=False)
         #return ASCIItoFITS(infile,comment=comment)
     else:
         if verbose:
-            print('Reading : %s' %(theFITSFile))
+            print(('Reading : %s' %(theFITSFile)))
         hdulist = pyfits.open(theFITSFile)
         data, header, columns = hdulist[1].data, hdulist[1].header, hdulist[1].columns
         hdulist.close()
@@ -507,7 +507,7 @@ data, columns = ReadASCIICat(infile,comment='#', force=False, verbose=False)
                 return data
         else:
             if verbose:
-                print('%s has changed.  Re-generating FITS file...' %(infile))
+                print(('%s has changed.  Re-generating FITS file...' %(infile)))
             data, columns = ASCIItoFITS(infile,comment=comment)
             if getColumns:
                 return data, columns
@@ -553,10 +553,10 @@ class EmptyCat(dict):
         self.d[key] = value
         self.__setattr__(key, self.d[key])
         if self.N is None:
-            self.N = len(self.d[self.d.keys()[0]])
+            self.N = len(self.d[list(self.d.keys())[0]])
             
     def __getitem__(self, key):
-        if key not in self.d.keys():
+        if key not in list(self.d.keys()):
             self.__setitem__(key, self.__getattribute__(key))
         
         return self.d[key]
@@ -569,7 +569,7 @@ class EmptyCat(dict):
         
     @property
     def columns( self ):
-        return self.d.keys()
+        return list(self.d.keys())
                     
 #infile='AEGIS/OUTPUT/cat1.0_default_lines.rf'
 #data = ReadASCIIFile('AEGIS/OUTPUT/cat1.0_default_lines.rf', verbose=True)
@@ -622,7 +622,7 @@ class Readfile():
         dict = {}
         for i in range(NCOLUMNS):
             if verbose > 1:
-                print(columns[i])
+                print((columns[i]))
             col = columns[i].replace('-','_').replace('.','p')
             if force_lowercase:
                 col = col.lower()
@@ -807,7 +807,7 @@ class Readfile():
         for column in self.columns:
             dtype = str(self.__getitem__(column).dtype)
             #print column, dtype
-            if dtype in formats.keys():
+            if dtype in list(formats.keys()):
                 TFORM=formats[dtype]
             else:
                 if 'S' not in dtype:
@@ -858,11 +858,11 @@ class Readfile():
         im = pyfits.open(self.filename+'.FITS')[1]
         
         if infile_mod_time != im.header['MODTIME']:
-            print('%s has changed.  Re-generating FITS file...' %(self.filename))
+            print(('%s has changed.  Re-generating FITS file...' %(self.filename)))
             return False
         
         if self.verbose:
-            print('Read from: %s.FITS' %(self.filename))
+            print(('Read from: %s.FITS' %(self.filename)))
                    
         self.NCOLUMNS = len(im.data.names)
         self.columns = im.data.names
@@ -892,7 +892,7 @@ class Readfile():
         
         for i in range(Nlist):
             if verbose:
-                print(noNewLine+'%d of %d' %(i+1, Nlist))
+                print((noNewLine+'%d of %d' %(i+1, Nlist)))
             
             dist, ids = self.find_nearest(ra[i], dec[i], N=1+N)
             dr_match[i] = dist[N-1+MATCH_SELF]
@@ -932,11 +932,11 @@ class CoordinateMatcher():
         try:
             columns = cat.columns
         except:
-            columns = cat.keys()
+            columns = list(cat.keys())
                    
         for test in [ra_column, dec_column]:
             if test not in columns:
-                print('Column %s not found in the input catalog' %(test))
+                print(('Column %s not found in the input catalog' %(test)))
                 self.status = False
                 return None
                 
@@ -1009,7 +1009,7 @@ class CoordinateMatcher():
         
         for i in range(Nlist):
             if verbose:
-                print(noNewLine+'%d of %d' %(i+1, Nlist))
+                print((noNewLine+'%d of %d' %(i+1, Nlist)))
             
             dist, ids = self.find_nearest(ra[i], dec[i], N=1+N)
             dr_match[i] = dist[N-1+MATCH_SELF]

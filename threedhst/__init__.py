@@ -10,16 +10,16 @@ __version__ = "1.0"
 
 
 #### Package imports
-from . import utils
-from . import shifts
-from . import sex
-from . import process_grism
-from . import plotting
-from . import plotting
-from . import gmap
-from . import regions
-from . import spec1d   
-from . import TerminalController
+# from . import utils
+# from . import shifts
+# from . import sex
+# from . import process_grism
+# from . import plotting
+# from . import plotting
+# from . import gmap
+# from . import regions
+# from . import spec1d   
+# from . import TerminalController
 
 options = {}
 currentRun = {}
@@ -73,10 +73,10 @@ showMessage(msg)
         text_color = term.BLUE
         bg_color = term.BG_WHITE
         
-    print (bg_color+text_color+term.BOLD+'\n'+topbar+
+    print((bg_color+text_color+term.BOLD+'\n'+topbar+
            '\n'+substr+'\n'+topbar+'\n\n'+term.NORMAL+
            msg+'\n\n'+
-           bg_color+text_color+term.BOLD+botbar+'\n'+term.NORMAL)
+           bg_color+text_color+term.BOLD+botbar+'\n'+term.NORMAL))
 
 def defaultOptions():
     """
@@ -89,9 +89,9 @@ defaultOptions()
     >>> threedhst.defaultOptions()
     >>> threedhst.showOptions()
     """    
-    showMessage('Initializing THREEDHST parameters')
+    #showMessage('Initializing THREEDHST parameters')
     #### Delete all keywords and reset
-    for key in options.keys():
+    for key in list(options.keys()):
         pop = options.popitem()
     
     #### ACS rather than WFC3 grism
@@ -206,7 +206,7 @@ try:
     options['PYSAO_INSTALLED'] = True
 except:
     options['PYSAO_INSTALLED'] = False
-    print '\nWARNING: No pysao installation found.  `threedhst.dq` won\'t work\n but the reduction scripts should be OK.\n'
+    print('\nWARNING: No pysao installation found.  `threedhst.dq` won\'t work\n but the reduction scripts should be OK.\n')
 
 def showOptions(to_file=None):
     """
@@ -217,8 +217,8 @@ def showOptions(to_file=None):
     import time
     
     if to_file is None:
-        for key in options.keys():
-            print '%s = %s' %(key,str(options[key]))
+        for key in list(options.keys()):
+            print(('%s = %s' %(key,str(options[key]))))
     else:
         fp = open(to_file,"w")
         fp.write('#######################################\n')
@@ -228,7 +228,7 @@ def showOptions(to_file=None):
         fp.write('###    %s     ###\n' %time.asctime())
         fp.write('###                                 ###\n')
         fp.write('#######################################\n')
-        for key in options.keys():
+        for key in list(options.keys()):
             fp.write('%s = %s\n' %(key,str(options[key])))
         fp.close()
     

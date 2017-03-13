@@ -67,7 +67,7 @@ def redo_1dspec(ROOT_GRISM):
                     axe_drizzle_dir=os.environ['AXE_DRIZZLE_PATH'])
     
     threedhst.plotting.asciiSpec(SPC,root=ROOT_GRISM,path='../HTML/ascii')
-    print ''
+    print('')
     threedhst.plotting.makeSpec1dImages(SPC, path='../HTML/images/')
 
 def make_data_products(ROOT_DIRECT, ROOT_GRISM):
@@ -106,8 +106,8 @@ make_data_products()
     #############################################
     #### Direct image thumbnails
     #############################################
-    print '\nTHREEDHST.plotting.makeThumbs: Creating direct image ' + \
-          'thumbnails...\n\n'
+    print('\nTHREEDHST.plotting.makeThumbs: Creating direct image ' + \
+          'thumbnails...\n\n')
     threedhst.plotting.makeThumbs(SPC, sexCat, path='../HTML/images/')
     
     # 
@@ -123,19 +123,19 @@ make_data_products()
     #############################################
     #### 2D spectra images showing the Model, contamination, and G141 spectra
     #############################################
-    print '\nmakeSpec1dImages: Creating 2D spectra '+ \
-          'thumbnails...\n\n'
+    print('\nmakeSpec1dImages: Creating 2D spectra '+ \
+          'thumbnails...\n\n')
     threedhst.plotting.makeSpec2dImages(SPC, path='../HTML/images/')
 
     #### Make ASCII spectra from the SPC file
-    print '\n Making ASCII spectra in ../HTML/ascii/\n'
+    print('\n Making ASCII spectra in ../HTML/ascii/\n')
     threedhst.plotting.asciiSpec(SPC,root=ROOT_GRISM,path='../HTML/ascii')
 
     #############################################
     #### 1D spectra images
     #############################################
-    print '\nTHREEDHST.plotting.makeSpec1dImages: Creating 1D spectra '+ \
-          'thumbnails...\n\n'
+    print('\nTHREEDHST.plotting.makeSpec1dImages: Creating 1D spectra '+ \
+          'thumbnails...\n\n')
     threedhst.plotting.makeSpec1dImages(SPC, path='../HTML/images/')
     
     # fptar = tarfile.open('../HTML/images/'+ROOT_GRISM+'_2D.tar.gz','w|gz')
@@ -153,7 +153,7 @@ make_data_products()
     #############################################
     #### Make tiles for Google map layout   
     #############################################
-    print '\nMaking GMap tiles in ./HTML\n\n'
+    print('\nMaking GMap tiles in ./HTML\n\n')
     
     try:
         os.mkdir('../HTML/tiles')
@@ -173,7 +173,7 @@ make_data_products()
     mapParams['ZOOMLEVEL']=15
     #### Make the full HTML file
     out_web = '../HTML/'+ROOT_GRISM+'_index.html'
-    print '\nthreedhst.plotting.makeHTML: making webpage: %s\n' %out_web
+    print('\nthreedhst.plotting.makeHTML: making webpage: %s\n' %out_web)
     threedhst.plotting.makeHTML(SPC, sexCat, mapParams, output=out_web)
     threedhst.plotting.makeCSS()
     threedhst.plotting.makeJavascript()
@@ -200,8 +200,8 @@ def plotThumb(object_number, mySexCat, in_image = None, size = 20, scale=0.128,
             break
     
     if idx < 0:
-        print 'Object \'%s\' not found in SExtractor catalog, %s.\n' %(obj_str,
-                             mySexCat.filename)
+        print('Object \'%s\' not found in SExtractor catalog, %s.\n' %(obj_str,
+                             mySexCat.filename))
         return False
     
     ##### Figure out why X,Y are swapped in mySexCat.
@@ -277,8 +277,8 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
             break
     
     if idx < 0:
-        print 'Object \'%s\' not found in SExtractor catalog, %s.\n' %(obj_str,
-                             mySexCat.filename)
+        print('Object \'%s\' not found in SExtractor catalog, %s.\n' %(obj_str,
+                             mySexCat.filename))
         return False
     
     #### Match thumbnail size to size of 2D spectrum
@@ -427,7 +427,7 @@ def plotThumbNew(object_number, mySexCat, SPCFile,
     #### Sometimes imcopy/wdrizzle breaks.  Run from larger DRZ file
     #### directly if it does
     if wdrizzle_fail:
-        print 'Redo WDRIZZLE\n\n'
+        print('Redo WDRIZZLE\n\n')
         data_img = drz_image+'[1]'
         mask_img = drz_image+'[2]'
         try:
@@ -536,7 +536,7 @@ def makeThumbs(SPCFile, mySexCat, path='./HTML/'):
     ids.sort()
     for id in ids:
         idstr = '%05d' %id
-        print threedhst.noNewLine+'plotting.makeThumbs: %s_%s_thumb.png' %(root, idstr)
+        print(threedhst.noNewLine+'plotting.makeThumbs: %s_%s_thumb.png' %(root, idstr))
         plotThumbNew(id, mySexCat, SPCFile,
                   outfile=path+'/'+root+'_'+idstr+'_thumb.png',
                   close_window=True)
@@ -679,7 +679,7 @@ def makeSpec2dImages(SPCFile, path='./HTML/', add_FITS=True):
     ids.sort()
     for id in ids:
         idstr = '%05d' %id
-        print threedhst.noNewLine+'plotting.makeSpecImages: %s_%s_2D.png' %(root, idstr)
+        print(threedhst.noNewLine+'plotting.makeSpecImages: %s_%s_2D.png' %(root, idstr))
         plot2Dspec(SPCFile, id, outfile=path+'/'+root+'_'+idstr+'_2D.png',
                    close_window=True)
         
@@ -848,7 +848,7 @@ def plot1Dspec(SPCFile, object_number, outfile='/tmp/spec.png',
                 compare_lines = np.array([3727., 5007, 6563.])
                 if show_test_lines: 
                   for iz, z_test in enumerate(line.wave/compare_lines-1):
-                    print 'z: %5.2f' %z_test
+                    print('z: %5.2f' %z_test)
                     ygauss = lam*0.
                     gsigma = 60 ## Ang
                     for l in sdss_use:
@@ -977,7 +977,7 @@ def makeSpec1dImages(SPCFile, path='./HTML/'):
     fp.write('# id lambda sigma eqw snpeak\n# 4 parameters for each detected em. line\n')
     for id in ids:
         idstr = '%05d' %id
-        print threedhst.noNewLine+'plotting.makeSpec1dImages: %s_%s_1D.png' %(root, idstr)
+        print(threedhst.noNewLine+'plotting.makeSpec1dImages: %s_%s_1D.png' %(root, idstr))
         lines = plot1Dspec(SPCFile, id,
                    outfile=path+'/'+root+'_'+idstr+'_1D.png',
                    close_window=True)
@@ -1415,7 +1415,7 @@ asciiSpec(SPCFile, root="spec", path="../HTML/ascii")
         contam2 = sp1d['contam']
         
         out = root+'_%05d.dat' %id
-        print threedhst.noNewLine+out
+        print(threedhst.noNewLine+out)
         
         # fp = gzip.open(path+'/'+out+'.gz','wb')
         fp = open(path+'/'+out,'w')
@@ -1490,7 +1490,7 @@ __init__(filename='ib3721050_2_opt.SPC.fits',
             idx = np.where(self._ext_map == object_number)[0][0]
             return self.fits[idx+1].data
         else:
-            print "Object #%d not found in %s." %(object_number, self.filename)
+            print("Object #%d not found in %s." %(object_number, self.filename))
             return False
 
 def makeJavascript(path="../HTML/scripts"):

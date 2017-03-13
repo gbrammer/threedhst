@@ -75,7 +75,7 @@ __init__()
 append(lineSpecies)
         """
         if not isinstance(line, lineSpecies):
-            print 'Input line is not a `lineSpecies` object'
+            print('Input line is not a `lineSpecies` object')
             return None
         
         self.wave.append(line.wave)
@@ -108,8 +108,8 @@ lineSpecies(wave=0., gal_weight=0, qso_weight=0, species="")
         self.species = species
     
     def show(self):
-        print '%7.1f %d %d %s' %(self.wave, self.gal_weight, self.qso_weight, 
-                                self.species)
+        print('%7.1f %d %d %s' %(self.wave, self.gal_weight, self.qso_weight, 
+                                self.species))
                                 
 def findLines(SPCFile, idx=195, show=False, verbose=False, trim_abs=False):
     """
@@ -129,9 +129,9 @@ lines = findLines(SPCFile, idx=195, show=False, verbose=False, trim_abs=False)
         return None
     
     if verbose:
-        print '\nBefore: \n'
+        print('\nBefore: \n')
         for line in lines:
-            print line.wave, line.type, line.flag
+            print(line.wave, line.type, line.flag)
     
     waves = np.zeros(NLINE)
     for i in range(NLINE): waves[i] = lines[i].wave
@@ -144,7 +144,7 @@ lines = findLines(SPCFile, idx=195, show=False, verbose=False, trim_abs=False)
         for j in range(i+1,NLINE):
             if np.abs(waves[j]-waves[i]) < dup_toler:
                 kill[j] = 1
-    for i in reversed(range(NLINE)):
+    for i in reversed(list(range(NLINE))):
         if kill[i] > 0:
             out = lines.pop(i)
             NLINE-=1
@@ -163,9 +163,9 @@ lines = findLines(SPCFile, idx=195, show=False, verbose=False, trim_abs=False)
     NCONTAM = len(contam)
     if NCONTAM > 0:
         if verbose:
-            print '\nContam: \n'
+            print('\nContam: \n')
             for line in contam:
-                print line.wave, line.type, line.flag
+                print(line.wave, line.type, line.flag)
         contam_toler = 150
         for i in range(NLINE):
             for j in range(NCONTAM):
@@ -181,9 +181,9 @@ lines = findLines(SPCFile, idx=195, show=False, verbose=False, trim_abs=False)
         lines = lsave
         
     if verbose:
-        print '\nAfter: \n'
+        print('\nAfter: \n')
         for line in lines:
-            print line.wave, line.type, line.flag
+            print(line.wave, line.type, line.flag)
     
     return lines
 
@@ -279,7 +279,7 @@ lines = spWFindLines(SPCFile, idx=195, show=True, check_contam=False)
     sn = np.median(value/err)
     
     if (debug > 0):
-        print ("spWFindLines: mean s/n = %f\n" %sn)
+        print(("spWFindLines: mean s/n = %f\n" %sn))
     
     emLines = []
     
@@ -325,8 +325,8 @@ lines = spWFindLines(SPCFile, idx=195, show=True, check_contam=False)
         wmean /= npix
         wrms = np.sqrt(wrms/npix - wmean*wmean)
         if (debug > 0):
-            print ("mean, rms gaussian noise = %f %f\n" %(gmean, grms))
-            print ("mean, rms wavelet signal = %f %f\n" %(wmean, wrms))
+            print(("mean, rms gaussian noise = %f %f\n" %(gmean, grms)))
+            print(("mean, rms wavelet signal = %f %f\n" %(wmean, wrms)))
         
         ## Copy smoothed spec etc and set threshold ##
         value = ssmooth*1.
@@ -420,8 +420,8 @@ lines = spWFindLines(SPCFile, idx=195, show=True, check_contam=False)
                 
                 line.restWave = 0
                 if (debug > 0):
-                    print ("line centre %f, limits %f %f, height %f\n" 
-                              %(x[i], x[ilo], x[ihi], line.height))
+                    print(("line centre %f, limits %f %f, height %f\n" 
+                              %(x[i], x[ilo], x[ihi], line.height)))
                 
                 if show: 
                     pyplot.plot(line.wave*np.array([1,1]),np.array([-1,1]),

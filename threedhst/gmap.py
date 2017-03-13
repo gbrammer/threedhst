@@ -224,7 +224,7 @@ makeGMapTiles(fitsfile=None,outPath=None,tileroot='direct', extension=1,
                     linearRGB(subs[0], subs[1], subs[2], shape=None, filename=outfile)
                     
             if verbose: 
-                print 'threedhst.gmap: %s' %(outfile)
+                print('threedhst.gmap: %s' %(outfile))
             #print outfile
             
     return params
@@ -326,7 +326,7 @@ multiple times for each zoom level and image combination.
     
     ########### Prepare map tiles for different zoom levels:
     ########### 0.07 x [1,2,4,8] arcsec/pix
-    aper_list = range(13,17)
+    aper_list = list(range(13,17))
     if PARAM_ONLY:
         aper_list = [16]
         
@@ -462,7 +462,7 @@ makeCirclePNG(outfile=None)
         fp.write(PHPstring)
         fp.close()
     else:
-        print PHPstring
+        print(PHPstring)
 
 
 def data2image(data,zmin=-0.1,zmax=0.5):
@@ -520,7 +520,7 @@ def luptonRGB(imr, img, imb, Q=5, alpha=3, m0=-0.05, m1=1, shape=None, filename=
     M = m0 + np.sinh(Q*1.)/(alpha*Q)
     #ds9.v(fI, vmin=0, vmax=1)
     if verbose:
-        print 'min, max = %f, %f' %(m0, M)
+        print('min, max = %f, %f' %(m0, M))
         
     fI[I < m0] = 0
     R = np.maximum(imr-m0, 0)*fI/I
@@ -590,7 +590,7 @@ makeCatXML(catFile=None,xmlFile=None)
     import threedhst
     #catFile='ib3721050_drz.cat'
     if not catFile:
-        print 'makeCatXML: no `catFile` specified'
+        print('makeCatXML: no `catFile` specified')
         return None
     ### Read the catalog and get id, ra, and dec columns
     cat = threedhst.sex.mySexCat(catFile)
@@ -684,7 +684,7 @@ http://code.google.com/p/google-ajax-examples/source/browse/trunk/nonjslocalsear
     self.pixel_origo = []
     self.pixel_range = []
     self.pixels = TILE_SIZE
-    zoom_levels = range(0, zoom_levels)
+    zoom_levels = list(range(0, zoom_levels))
     for z in zoom_levels:
       origin = self.pixels / 2
       self.pixels_per_lon_degree.append(self.pixels / 360)
@@ -743,7 +743,7 @@ http://code.google.com/p/google-ajax-examples/source/browse/trunk/nonjslocalsear
     zmin = 0
     bottom_left = bounds[0]
     top_right = bounds[1]
-    backwards_range = range(zmin, zmax)
+    backwards_range = list(range(zmin, zmax))
     backwards_range.reverse()
     for z in backwards_range:
       bottom_left_pixel = self.FromLatLngToPixel(bottom_left, z)
@@ -818,9 +818,9 @@ def congrid(a, newdims, method='linear', centre=False, minusone=False):
     old = n.array( a.shape )
     ndims = len( a.shape )
     if len( newdims ) != ndims:
-        print "[congrid] dimensions error. " \
+        print("[congrid] dimensions error. " \
               "This routine currently only support " \
-              "rebinning to the same number of dimensions."
+              "rebinning to the same number of dimensions.")
         return None
     newdims = n.asarray( newdims, dtype=float )
     dimlist = []
@@ -847,7 +847,7 @@ def congrid(a, newdims, method='linear', centre=False, minusone=False):
         mint = scipy.interpolate.interp1d( olddims[-1], a, kind=method )
         newa = mint( dimlist[-1] )
 
-        trorder = [ndims - 1] + range( ndims - 1 )
+        trorder = [ndims - 1] + list(range( ndims - 1))
         for i in range( ndims - 2, -1, -1 ):
             newa = newa.transpose( trorder )
 
@@ -865,7 +865,7 @@ def congrid(a, newdims, method='linear', centre=False, minusone=False):
         nslices = [ slice(0,j) for j in list(newdims) ]
         newcoords = n.mgrid[nslices]
 
-        newcoords_dims = range(n.rank(newcoords))
+        newcoords_dims = list(range(n.rank(newcoords)))
         #make first index last
         newcoords_dims.append(newcoords_dims.pop(0))
         newcoords_tr = newcoords.transpose(newcoords_dims)
@@ -881,9 +881,9 @@ def congrid(a, newdims, method='linear', centre=False, minusone=False):
         newa = scipy.ndimage.map_coordinates(a, newcoords)
         return newa
     else:
-        print "Congrid error: Unrecognized interpolation type.\n", \
+        print("Congrid error: Unrecognized interpolation type.\n", \
               "Currently only \'neighbour\', \'nearest\',\'linear\',", \
-              "and \'spline\' are supported."
+              "and \'spline\' are supported.")
         return None
         
 #
@@ -952,7 +952,7 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
             roots = [tileroot]
     tileroot = roots
     
-    print tileroot
+    print(tileroot)
     
     #### Need to swarp the drz images to the correct pixel scale for 
     #### the pixel size of the google map tiles
@@ -988,7 +988,7 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
             imi, exti, scalei = parseImageString(FITS_IMAGES[i],
                                     default_extension=extension)
             
-            print imi, exti, scalei
+            print(imi, exti, scalei)
                 
             #### Direct
             # sw.swarpImage(ROOT_DIRECT.lower()+'_drz.fits[1]', mode='wait')
@@ -1001,7 +1001,7 @@ def makeImageMap(FITS_IMAGES, extension=1, zmin=-0.1, zmax=1, verbose=True,
                     im = pyfits.open('coadd.fits')
                     #if aper <= 15:
                     im[0].data /= 4.**(16-aper)
-                    print 'Scale: %f' %(4.**(16-aper))
+                    print('Scale: %f' %(4.**(16-aper)))
                     
                     im.writeto('ch_%s.fits' %(channels[ch]), clobber=True)
                 
@@ -1105,7 +1105,7 @@ def makePolygons(mapParams=None, polyregions=None, path='./', color='#00aa00', a
                 poly = np.cast[float](line.split('(')[1].split(')')[0].split(','))
                 NP = len(poly)/2
                 polystr = "\nvar polyL%d = new GPolyline([\n" %(counter)
-                list = range(NP)
+                list = list(range(NP))
                 list.append(0)
                 for j in list:
                     lat = poly[j*2+1]-center[0]

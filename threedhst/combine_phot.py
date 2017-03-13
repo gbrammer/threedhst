@@ -211,7 +211,7 @@ def check_FIREWORKS():
         fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.08,
                             bottom=0.145,right=0.99,top=0.93)
         
-        print '\n #%d \n' %i
+        print('\n #%d \n' %i)
         status = cp.phot_grism(phot_idx=phot_idx)
         if status:
             pp.savefig(fig)
@@ -243,7 +243,7 @@ def check_bright():
         fig.subplots_adjust(wspace=0.2,hspace=0.2,left=0.08,
                             bottom=0.145,right=0.99,top=0.93)
         
-        print '\n #%d \n' %i
+        print('\n #%d \n' %i)
         status = cp.phot_grism(grism_idx=grism_idx)
         if status:
             pp.savefig(fig)
@@ -273,11 +273,11 @@ phot_grism(grism_idx=None, phot_idx=None)
                                        cp.phot_cat.dec[phot_idx],
                                        cp.grism_cat.ra, cp.grism_cat.dec)
         else:
-            print 'Neither `grism_idx` nor `phot_idx` are set.'
+            print('Neither `grism_idx` nor `phot_idx` are set.')
             return False
     
     if dr > 1.5:
-        print 'dr = %6.2f' %dr
+        print('dr = %6.2f' %dr)
         return False
         
     phot_z = threedhst.utils.ReadASCIICat('FIREWORKS/FIREWORKS_redshift.cat')
@@ -286,7 +286,7 @@ phot_grism(grism_idx=None, phot_idx=None)
            cp.phot_cat.id[phot_idx],dr,
            phot_z.zsp[phot_idx], phot_z.zph_best[phot_idx])
     
-    print outstr
+    print(outstr)
     
     ### Get broad-band SED, grism spectrum
     lc, flux, err = cp.get_sed(phot_idx)
@@ -316,7 +316,7 @@ phot_grism(grism_idx=None, phot_idx=None)
                 str += r'$\mu\mathrm{m}$'
                 for mat in [3727, 5007, 6563.]:
                     str+='%6.3f' %(line.wave/mat-1)
-                print str
+                print(str)
                 outstr+=str+'\n'
                 
     use = np.where( (grism.LAMBDA > XMIN) & 

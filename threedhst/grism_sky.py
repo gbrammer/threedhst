@@ -64,7 +64,7 @@ def set_grism_flat(grism='G141', verbose=True):
         return True
     
     if verbose:
-        print 'Set flat for grism: %s' %(grism)
+        print('Set flat for grism: %s' %(grism))
     
     if grism == 'G141':
         flat_f140 = pyfits.open(IREF+'/uc721143i_pfl.fits')
@@ -138,7 +138,7 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
         #
         chi2_i = np.sum((ysky[ok]*a-yin[ok])**2)
         if verbose:
-            print sky, chi2_i
+            print(sky, chi2_i)
         #
         if chi2_i < chi2:
             chi2 = chi2_i*1
@@ -273,9 +273,9 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
             
             
         #### Update header keywords    
-        print 'Simultaneous sky components:'
+        print('Simultaneous sky components:')
         for i in range(len(skies)):
-            print '   %s %.3f' %(skies[i], xcoeff[i])
+            print('   %s %.3f' %(skies[i], xcoeff[i]))
             im[0].header.update('GSKY%02d' %(i+1), xcoeff[i], comment='Grism sky: %s' %(skies[i]))
             
     # #### Show the result
@@ -306,14 +306,14 @@ def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goo
     if overall:
         full_mean = threedhst.utils.biweight(im[1].data[mask], mean=True)
         im[1].data -= full_mean
-        print 'overall: %.4f' %(full_mean)
+        print('overall: %.4f' %(full_mean))
         
     #### Add a header keyword and write to the output image
     im[0].header.update('GRISMSKY',keep,comment='Image used for sky subtraction')
     im[0].header.update('SKYSCALE',sky_stats[0],comment='Scale factor of sky')
     
     #### Sky flat keyword
-    if 'SKYFLAT' in im[0].header.keys():
+    if 'SKYFLAT' in list(im[0].header.keys()):
         im[0].header['SKYFLAT'] = (flat_correct | im[0].header['SKYFLAT'], 'Direct image flat applied')
     else:
         im[0].header['SKYFLAT'] = (flat_correct, 'Direct image flat applied')
@@ -421,7 +421,7 @@ def remove_visit_sky(asn_file='GDN12-G102_asn.fits', list=['zodi_G102_clean.fits
                 flt[0].header['GSKY%02d' %(j)] = (coeff[j], 'Master sky: %s' %(skies[j]))
         #
         flt[1].header['MDRIZSKY'] = 0.
-        if 'SKYFLAT' in flt[0].header.keys():
+        if 'SKYFLAT' in list(flt[0].header.keys()):
             flt[0].header['SKYFLAT'] = (flat_correct | flt[0].header['SKYFLAT'], 'Direct image flat applied')
         else:
             flt[0].header['SKYFLAT'] = (flat_correct, 'Direct image flat applied')
@@ -480,7 +480,7 @@ def grism_sky_column_average_GP(asn_file='GDN12-G102_asn.fits', mask_grow=8):
             
         #
         yok = np.isfinite(yres)
-        if 'GSKY00' in flt[0].header.keys():
+        if 'GSKY00' in list(flt[0].header.keys()):
             bg_sky = flt[0].header['GSKY00']
         else:
             bg_sky = 1
@@ -689,7 +689,7 @@ def show_profile():
         if os.path.exists(flt+'.mask.reg'):
             continue
         #
-        print flt
+        print(flt)
         xi, yi = bg.profile(flt=PATH+flt+GZ)
         profiles[i,:] = yi
     
@@ -732,7 +732,7 @@ def show_profile():
         if os.path.exists(flt+'.mask.reg'):
             continue
         #
-        print flt
+        print(flt)
         xi, yi = bg.profile(flt=PATH+flt+GZ)
         profiles_g[i,:] = yi
     
@@ -776,7 +776,7 @@ def show_profile():
         if os.path.exists(flt+'.mask.reg'):
             continue
         #
-        print flt
+        print(flt)
         xi, yi = bg.profile(flt=PATH+flt+GZ)
         profiles_a[i,:] = yi
     
@@ -851,7 +851,7 @@ def make_bg(GZ='.gz'):
         if os.path.exists(fi+'.mask.reg'):
             continue
         #
-        print '%d %s' %(i, files[i])
+        print('%d %s' %(i, files[i]))
         flt = pyfits.open(PATH+fi+'.gz')
         flt[1].data *= flat
         ### Segmentation mask
@@ -1007,7 +1007,7 @@ def show_asn_sky(asn_file='FIGS-GS1-1D-167-G102_asn.fits'):
         blotted = astrodrizzle.ablot.do_blot(im_ref[0].data+0, ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
         
         msk = flt['DQ'].data == 0
-        print asn.exposures[i]
+        print(asn.exposures[i])
         ax = fig.add_subplot(2,N/2,1+i)
         ax.imshow(nd.gaussian_filter((flt[1].data-blotted)*msk, 3), vmin=-0.02, vmax=0.02, interpolation='Gaussian', origin='lower')
         #ds9.view((flt[1].data-blotted)*msk)

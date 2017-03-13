@@ -178,7 +178,7 @@ def trim_edge_objects(sexCat):
     kill = np.zeros(NOBJ)
     
     for idx in range(NOBJ):
-        print threedhst.noNewLine+'Trim edge objects: %d of %d' %(idx+1,NOBJ)
+        print(threedhst.noNewLine+'Trim edge objects: %d of %d' %(idx+1,NOBJ))
         
         rd0_drz = np.cast[float](np.array([[sexCat.X_WORLD[idx],
                                             sexCat.Y_WORLD[idx]]]))
@@ -246,8 +246,8 @@ will compute from header directly.
     try:
         sci = hdulist[extension].header
     except IndexError:
-        print 'ERROR 3D-HST/wcs_polygon:\n'+\
-              'Extension #%d out of range in %s' %(extension, fits_file)
+        print('ERROR 3D-HST/wcs_polygon:\n'+\
+              'Extension #%d out of range in %s' %(extension, fits_file))
         raise
     
     #### Try to use pywcs if it is installed
@@ -380,7 +380,7 @@ apply_dq_mask(flt_file, addval=2048)
     except:
         return None
     #
-    print 'Applying mask from %s.mask_reg' %(flt_file.split('.gz')[0])
+    print('Applying mask from %s.mask_reg' %(flt_file.split('.gz')[0]))
     regions = ''.join(fp.readlines())
     fp.close()
     
@@ -425,7 +425,7 @@ apply_dq_mask(flt_file, addval=2048)
     except:
         return None
     #
-    print 'Applying mask from %s.mask_reg' %(flt_file.split('.gz')[0])
+    print('Applying mask from %s.mask_reg' %(flt_file.split('.gz')[0]))
     regions = ''.join(fp.readlines())
     fp.close()
     
@@ -444,7 +444,7 @@ apply_dq_mask(flt_file, addval=2048)
             # 709.8,393.08,326.73333,210.56,461.93333,465.18667,
             # 552.06667,375.05333,552.06667,221.82667,509.25333)'
             if verbose:
-                print region
+                print(region)
             
             spl = np.float_(np.array(
                      region[region.find('(')+1:region.find(')')].split(',')
@@ -584,5 +584,5 @@ def test_intersect():
     for zfile in zfiles:
         qx, qy = wcs_polygon(zfile, extension=0)
         if threedhst.regions.polygons_intersect(px, py, qx, qy):
-            print zfile
+            print(zfile)
     

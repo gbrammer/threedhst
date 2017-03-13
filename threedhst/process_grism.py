@@ -86,17 +86,17 @@ CONF can be symlinked from e.g. /research/HST/GRISM/CONF
     
     """
     os.environ['AXE_IMAGE_PATH'] = './DATA/'
-    print '--> variable AXE_IMAGE_PATH   set to "./DATA"'
+    print('--> variable AXE_IMAGE_PATH   set to "./DATA"')
     
     os.environ['AXE_CONFIG_PATH'] = './CONF/'
-    print '--> variable AXE_CONFIG_PATH  set to "./CONF/"'
+    print('--> variable AXE_CONFIG_PATH  set to "./CONF/"')
      
     os.environ['AXE_OUTPUT_PATH'] = './OUTPUT_'+grating.upper()+'/'
-    print '--> variable AXE_OUTPUT_PATH  set to "./OUTPUT_'+grating.upper()+'/"'
+    print('--> variable AXE_OUTPUT_PATH  set to "./OUTPUT_'+grating.upper()+'/"')
     
     os.environ['AXE_DRIZZLE_PATH'] = './DRIZZLE_'+grating.upper()+'/'
-    print '--> variable AXE_DRIZZLE_PATH set to' + \
-               '"./DRIZZLE_'+grating.upper()+'/"'
+    print('--> variable AXE_DRIZZLE_PATH set to' + \
+               '"./DRIZZLE_'+grating.upper()+'/"')
 
 
 def check_3dhst_environment(makeDirs=False):
@@ -1036,7 +1036,7 @@ Pipeline to process a set of grism/direct exposures.
     #############################################
     os.chdir('../')
     logfile = ROOT_GRISM+'.threedhst.param'
-    print '\nthreedhst: Parameter log in <%s>.\n' %logfile
+    print('\nthreedhst: Parameter log in <%s>.\n' %logfile)
     
     threedhst.showOptions(to_file = logfile)
     if threedhst.options['MAKE_WEBPAGE']:
@@ -1058,7 +1058,7 @@ Pipeline to process a set of grism/direct exposures.
     #### Done!
     #############################################
     
-    print '\nthreedhst: cleaned up and Done!\n'
+    print('\nthreedhst: cleaned up and Done!\n')
     threedhst.currentRun['step'] = 'DONE'
 
 def safe_chdir(dir):
@@ -1105,7 +1105,7 @@ def fresh_flt_files(asn_filename, from_path="../RAW", preserve_dq = False):
         except:
             pass
         
-        print exp
+        print(exp)
         
         dq = fi[3]
         if preserve_dq:
@@ -1122,7 +1122,7 @@ def fresh_flt_files(asn_filename, from_path="../RAW", preserve_dq = False):
         #### Make sure most recent IDCTAB is used
         flt = pyfits.open(exp+'_flt.fits','update')
         head = flt[0].header
-        if ('INSTRUME' in head.keys()) & ('DETECTOR' in head.keys()):
+        if ('INSTRUME' in list(head.keys())) & ('DETECTOR' in list(head.keys())):
             if (head['INSTRUME'].strip() == 'WFC3') & (head['DETECTOR'].strip() == 'IR'):
                 #print 'IDCTAB %s -> iref$uab1537ci_idc.fits' %(head['IDCTAB'])
                 #head.update('IDCTAB','iref$uab1537ci_idc.fits')
@@ -1164,7 +1164,7 @@ def mask_IR_blobs(flt='ibsyb6q7q_flt.fits'):
         mask = (r < 30) & ((im['DQ'].data & 512) > 0)
         im['DQ'].data[mask] |= 4096
     #
-    print 'Masked IR blobs: %s.' %(flt)
+    print('Masked IR blobs: %s.' %(flt))
     im.flush()
     
 def swarpOtherBands():
@@ -1364,7 +1364,7 @@ die()
     Print lines to string that will make it easier to restart 
     at a particular place in the reduction script.
     """
-    print """
+    print("""
 # step: %s
 asn_grism_file = threedhst.currentRun['asn_grism_file']
 asn_direct_file = threedhst.currentRun['asn_direct_file']
@@ -1374,7 +1374,7 @@ sexCat = threedhst.sex.mySexCat(ROOT_GRISM+'_drz.cat')
 if 'conf' in threedhst.currentRun.keys():
     conf = threedhst.currentRun['conf']
 SPC = threedhst.plotting.SPCFile(ROOT_GRISM+'_2_opt.SPC.fits')
-""" %threedhst.currentRun['step']
+""" %threedhst.currentRun['step'])
     raise IOError
 
 def multidrizzle_defaults(asn_file):
@@ -1567,7 +1567,7 @@ class Conf(object):
                 spl = line.split(';')[0].split()
                 self.params[spl[0]] = ' '.join(spl[1:])
                 self._pline[spl[0]] = i
-        self.nkeys = self.params.keys().__len__()
+        self.nkeys = list(self.params.keys()).__len__()
         
     def _readLines(self):
         """
@@ -1595,13 +1595,13 @@ class Conf(object):
         
         Apply parameter values to self.lines
         """
-        for key in self.params.keys():
+        for key in list(self.params.keys()):
             param = self.params[key]
             if type(param) is not type('xxx'):
                 param = np.str(param)
             
             #### New parameter?
-            if self._pline.has_key(key):
+            if key in self._pline:
                 self.lines[self._pline[key]] = key + ' ' + param +'\n'
             else:
                 self.lines.append(key + ' ' + param +'\n')
@@ -1661,7 +1661,7 @@ def update_FLX_WCS(path_to_FLT='../RAW/'):
             
             head_flx.update('CRPIX1',head_flx.get('NAXIS1')/2.-5.*padding/200.)
         #
-        print 'Updating WCS header keywords: %s\n' %(flx_file)
+        print('Updating WCS header keywords: %s\n' %(flx_file))
         flx.flush()
             
 def update_catalogs(root='COSMOS-3-G141', HTML_DIR='./HTML/', DATA_DIR='./DATA/', CONT_LAM = 1.4e4, GRISM = 'G141'):

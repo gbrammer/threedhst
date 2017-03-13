@@ -220,7 +220,7 @@ SExtractor()
                         raise ValueError('param file has invalid parameter %s' 
                                          %k)
                     pars[k] = True
-        if not np.any(pars.values()):
+        if not np.any(list(pars.values())):
             #if no outputs provided, use defaults (from v 2.8.6)
             defs286 =['NUMBER','FLUX_ISO', 'FLUXERR_ISO', 'FLUX_AUTO',
                       'FLUXERR_AUTO', 'X_IMAGE', 'Y_IMAGE', 'FLAGS']
@@ -324,7 +324,7 @@ SExtractor()
                 ### Test if one of the parameters with optionally multiple inputs, 
                 ### like PHOT_FLUXFRAC or PHOT_APERTURES, has multiple values.  If so,
                 ### append the necessary (N) to the parameter, like FLUX_RADIUS
-                if p in multi_dict.keys():
+                if p in list(multi_dict.keys()):
                     optvalue = self.options[multi_dict[p]]
                     NOPT = len(optvalue.split(','))
                     if NOPT > 1:
@@ -399,7 +399,7 @@ SExtractor()
             # clstr = 'sex {0} -c {1}'.format(detectionImage,self.name+'.sex')
             clstr = '%s %s -c %s' %(self.executable, detectionImage,self.name+'.sex')
         
-        print 'THREEDHST/sex: %s' %clstr
+        print('THREEDHST/sex: %s' %clstr)
         
         if mode == 'waiterror' or mode =='wait':
             
@@ -419,7 +419,7 @@ SExtractor()
             self.lasterr = serr
             
             if res!=0 and mode == 'waiterror' :
-                print serr, sout
+                print(serr, sout)
                 raise SError(serr,sout)
             
             self._fix_ascii_head()
@@ -477,7 +477,7 @@ SExtractor()
                 #### Put a bit more info in the header, like the radius for
                 #### aperture photometry
                 pari = par.split('(')[0]
-                if pari in multi_dict.keys():
+                if pari in list(multi_dict.keys()):
                     optval = self.options[multi_dict[pari]]
                     line = cat_lines[ii]
                     sp1 = line.split('[')
@@ -521,7 +521,7 @@ sexcat_regions(sexcat, regfile, format=1)
     import aXe2html.sexcat.sextractcat
     
     if os.access(sexcat, os.R_OK) is False:
-        print "SExtractor catalog, %s, not found." %(sexcat)
+        print("SExtractor catalog, %s, not found." %(sexcat))
         return False
     cat = aXe2html.sexcat.sextractcat.SexCat(sexcat)
 
@@ -577,7 +577,7 @@ sexcat_regions(sexcat, regfile, format=1)
             fp.write(line)
     fp.close()
     
-    print '3D-HST / make_region_file: %s.\n' %regfile
+    print('3D-HST / make_region_file: %s.\n' %regfile)
 
 class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
     """
@@ -631,10 +631,10 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
         count = 0
         for nskip, idx, name, comment in zip(delta[skip], indexes[skip], names[skip], comments[skip]):
             if verbose:
-                print '# %d %s %s' %(idx, name, comment)
+                print('# %d %s %s' %(idx, name, comment))
             for j in range(1,nskip):
                 if verbose:
-                    print '# %d %s%d  %s' %(idx+j, name, j+1, comment)
+                    print('# %d %s%d  %s' %(idx+j, name, j+1, comment))
                 newname = '%s%d' %(name, j+1)
                 self.linelist.insert(idx+j-1, '#  %d %-21s  %s \n' %(idx+j, newname, comment) )
             
@@ -660,9 +660,9 @@ class mySexCat(aXe2html.sexcat.sextractcat.SexCat):
             ll = self.linelist.pop(idx+self.ncols)
             if verbose:
                 if verbose > 1:
-                    print lineOut
+                    print(lineOut)
                 else:
-                    print number
+                    print(number)
                     
         allheads    = self.makeheads(self.headerlines)
         self.ncols  = len(allheads)
@@ -754,8 +754,8 @@ __getitem__(column_name)
         """
         
         if column_name.upper() not in self.column_names:
-            print ('Column %s not found.  Check `column_names` attribute.'
-                    %column_name)
+            print(('Column %s not found.  Check `column_names` attribute.'
+                    %column_name))
             return None
         else:
             str_exec = 'first_item = self.%s[0]' %(column_name.upper())
@@ -795,11 +795,11 @@ makeRaDec()
         Add a column to a SExtractor catalog
         """
         if not isinstance(data, np.array(1).__class__):
-            print "ERROR: `data` is not a numpy array."
+            print("ERROR: `data` is not a numpy array.")
             return False
                 
         if data.shape != (self.nrows, ):
-            print "ERROR: `data` must have shape (%0d,); has" %(self.nrows), data.shape
+            print("ERROR: `data` must have shape (%0d,); has" %(self.nrows), data.shape)
             return False
         
         #### Data array checks out.
@@ -821,13 +821,13 @@ makeRaDec()
         self._easy_columns()
         
         if verbose:
-            print 'Added column, %s, with format, %s' %(name, format)
+            print('Added column, %s, with format, %s' %(name, format))
             
         return success == 0
     
     def renameColumn(self, original='X_IMAGE', new='X_NEW', verbose=True):
         if original not in self.column_names:
-            print 'Column %s not in the current catalog.' %(original)
+            print('Column %s not in the current catalog.' %(original))
             return False
         
         for i, line in enumerate(self.headerlines):
@@ -844,7 +844,7 @@ makeRaDec()
         self._easy_columns()
         
         if verbose:
-            print 'Renamed column %s -> %s' %(original, new)
+            print('Renamed column %s -> %s' %(original, new))
             
         return success == 0
         
@@ -1077,7 +1077,7 @@ class SWarp(object):
         head = im[extension].header
         
         #### pywcs incompatible with astrodrizzle lookup table distortion?
-        if 'CPDIS1' in head.keys():
+        if 'CPDIS1' in list(head.keys()):
             head['CPDIS1'] = 'SIP'
             head['CPDIS2'] = 'SIP'
             
@@ -1102,7 +1102,7 @@ class SWarp(object):
         #    self.options['PIXEL_SCALE'] = str(head['IDCSCALE'])
         #else:
         #    #self.options['PIXEL_SCALE'] = str(np.abs(head['CD1_1']*3600.))
-        if 'CD1_2' in head.keys():
+        if 'CD1_2' in list(head.keys()):
             CD1_2 = head['CD1_2']
         else:
             CD1_2 = 0.
@@ -1116,11 +1116,11 @@ class SWarp(object):
         self.NY = head['NAXIS2']
 
         if verbose:
-            print """
+            print("""
 SWarp.swarpMatchImage: PIXEL_SCALE=  %s
                         IMAGE_SIZE=  %s
                             CENTER= %s\n""" %(self.options['PIXEL_SCALE'],
-                            self.options['IMAGE_SIZE'],self.options['CENTER'])
+                            self.options['IMAGE_SIZE'],self.options['CENTER']))
     
     def swarpImage(self,inputImage, mode='direct', verbose=True):
         """
@@ -1185,7 +1185,7 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
             fp.close()
             
             if verbose: 
-                print 'Done.\n'
+                print('Done.\n')
             
             sout, serr = proc.communicate()
             
@@ -1236,11 +1236,11 @@ SWarp.swarpMatchImage: PIXEL_SCALE=  %s
             ra0 = coords[1] 
             de0 = coords[2]
             self.options['CENTER'] = ra0+', '+de0
-            print 'THREEDHST/Swarp.recenter: %s\n' %(self.options['CENTER'])
+            print('THREEDHST/Swarp.recenter: %s\n' %(self.options['CENTER']))
             self.overwrite = True
             #self.swarpImage(self.swarpInputImage)
         else:
-            print 'THREEDHST/Swarp.recenter: No SWarp output found\n'
+            print('THREEDHST/Swarp.recenter: No SWarp output found\n')
 
 def grow_segmentation_map(seg_file='MACS1149-IR_drz_seg.fits', cat_file='MACS1149-IR.cat', size=30, mag=20):
     import scipy.ndimage as nd
@@ -1259,10 +1259,10 @@ def grow_segmentation_map(seg_file='MACS1149-IR_drz_seg.fits', cat_file='MACS114
     so = np.argsort(cat['MAG_APER'][ok])
     idx = np.arange(len(cat))[ok][so]
     
-    print 'Grow masks:'
+    print('Grow masks:')
     for i in idx:
         id = cat['NUMBER'][i]
-        print '%5d (%.2f)' %(id, cat['MAG_APER'][i])
+        print('%5d (%.2f)' %(id, cat['MAG_APER'][i]))
         mask = (seg == id)*1
         grow_mask = nd.maximum_filter(mask, size=size*2)
         #grow_mask = nd.convolve(mask, np.ones((size, size)))
@@ -1271,7 +1271,7 @@ def grow_segmentation_map(seg_file='MACS1149-IR_drz_seg.fits', cat_file='MACS114
      
     reg_file = seg_file.replace('.fits', '_mask.reg')
     if os.path.exists(reg_file):
-        print 'Region mask: %s' %(reg_file)
+        print('Region mask: %s' %(reg_file))
         reg = pyregion.open(reg_file).as_imagecoord(seg_im[0].header)
         N = len(reg)
         for i in range(N):
@@ -1279,7 +1279,7 @@ def grow_segmentation_map(seg_file='MACS1149-IR_drz_seg.fits', cat_file='MACS114
                 continue
         
             id = int(reg[i].comment.strip('text={')[:-1])
-            print '%4d' %(id)
+            print('%4d' %(id))
             mask = reg[i:i+1].get_mask(seg_im[0])
             seg[seg == 0] += mask[seg == 0]*id
     

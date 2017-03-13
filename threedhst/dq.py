@@ -14,7 +14,7 @@ __version__ = "$Rev$"
 
 import os
 
-import Tkinter as tk
+import tkinter as tk
 
 try:
     import astropy.io.fits as pyfits
@@ -32,7 +32,7 @@ except ImportError:
     try:
         import pyds9 as pysao
     except:
-        print 'No pysao installation found.'
+        print('No pysao installation found.')
         threedhst.options['PYSAO_INSTALLED'] = False
     
 class myDS9(pysao.ds9):
@@ -83,12 +83,12 @@ delete_all_frames(self)
         import os
         coords = self.get('pan fk5 sexagesimal')
         if coords == ' 0 0 \n':
-            print 'No WCS information.  Load the image with a header.'
+            print('No WCS information.  Load the image with a header.')
             return False
             
         format='+'.join(coords.replace('+','%2B').replace('-','%2D').split())
         link="http://vizier.u-strasbg.fr/viz-bin/VizieR?-c=%s&-c.rs=%.1f" %(format, radius)
-        print coords
+        print(coords)
         os.system('open \"%s\"' %(link))
         
 class checkDQ:
@@ -136,9 +136,9 @@ checkDQ(asn_direct_file='ib3704050_asn.fits',
             
         self.asn_grism = threedhst.utils.ASNFile(asn_grism_file)
         self.asn_direct = threedhst.utils.ASNFile(asn_direct_file)
-        print '=== Grism ==='
+        print('=== Grism ===')
         self.asn_grism.showContents()
-        print '=== Direct ==='
+        print('=== Direct ===')
         self.asn_direct.showContents()
         
         self.nexp = len(self.asn_grism.exposures)
@@ -266,7 +266,7 @@ readMask(self)
             
             self.ds9.set('zoom to fit')
             self.ds9.set('regions shape polygon')
-            print 'Define region polygon(s) in DS9 and click again '
+            print('Define region polygon(s) in DS9 and click again ')
             
         else:
             self.busy = False
@@ -278,7 +278,7 @@ readMask(self)
                 fp = open(self.polyfile_root+'_flt.fits.mask.reg','w')
                 fp.write(regions)
                 fp.close()
-                print 'Wrote mask, %s_flt.fits.mask.reg' %self.polyfile_root
+                print('Wrote mask, %s_flt.fits.mask.reg' %self.polyfile_root)
             
             self.ds9.set('tile yes')
             self.ds9.frame(3)
@@ -377,7 +377,7 @@ checkAllDQ(clobber=False)
         for file in asn_files:
             if (clobber is True) | (not os.path.exists('../DATA/'+file)):
                 shutil.copy(file,old_pwd)
-                print 'Copy %s to %s' %(file, old_pwd)
+                print('Copy %s to %s' %(file, old_pwd))
             
         os.chdir(old_pwd)
     
@@ -386,7 +386,7 @@ checkAllDQ(clobber=False)
     direct_files = []
     grism_files = []
     for file in asn_files:
-        print file
+        print(file)
         asn = threedhst.utils.ASNFile(file)
         fits = threedhst.utils.find_fits_gz(path_to_flt+asn.exposures[0]+
                                             '_flt.fits')
@@ -398,10 +398,10 @@ checkAllDQ(clobber=False)
             grism_files.append(file)
     
     if len(direct_files) != len(grism_files):
-        print """
+        print("""
     checkAllDQ: Number of direct ASN files is not the same as the
                 number of grism ASN files!'
-            """
+            """)
         return None
     
     Npairs = len(direct_files)

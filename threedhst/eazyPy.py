@@ -200,7 +200,7 @@ class FilterFile:
         """
         if verbose:
             for i in range(len(self.filters)):
-                print('%5d %s' %(i+1, self.filters[i].name))
+                print(('%5d %s' %(i+1, self.filters[i].name)))
         else:
             string_list = ['%5d %s\n' %(i+1, self.filters[i].name) for i in range(len(self.filters))]
             return string_list
@@ -223,7 +223,7 @@ class FilterFile:
         fp.close()
         
         if verbose:
-            print('Wrote <%s[.info]>' %(file))
+            print(('Wrote <%s[.info]>' %(file)))
             
     def search(self, search_string, case=True, verbose=True):
         """ 
@@ -244,7 +244,7 @@ class FilterFile:
                 
             if re.search(search_string, filt_name) is not None:
                 if verbose:
-                    print('%5d %s' %(i+1, self.filters[i].name))
+                    print(('%5d %s' %(i+1, self.filters[i].name)))
                 matched.append(i)
         
         return np.array(matched)
@@ -355,7 +355,7 @@ class EazyParam():
     
     def show_filters(self):
         for filter in self.filters:
-            print(' F%d, %s, lc=%f' %(filter.fnumber, filter.name, filter.lambda_c))
+            print((' F%d, %s, lc=%f' %(filter.fnumber, filter.name, filter.lambda_c)))
     
     def write(self, file=None):
         if file == None:
@@ -381,8 +381,8 @@ class EazyParam():
 
         """
         if param_name not in self.param_names:
-            print('Column %s not found.  Check `column_names` attribute.'
-                    %column_name)
+            print(('Column %s not found.  Check `column_names` attribute.'
+                    %column_name))
             return None
         else:
             #str = 'out = self.%s*1' %column_name
@@ -423,12 +423,12 @@ class TranslateFile():
                 return True
         
         if isinstance(filter, int):
-            for key in self.trans.keys():
+            for key in list(self.trans.keys()):
                 if self.trans[key] == 'E%0d' %(filter):
                     self.error[key] = value
                     return True
         
-        print('Filter %s not found in list.' %(str(filter)))
+        print(('Filter %s not found in list.' %(str(filter))))
     
     def write(self, file=None, show_ones=False):
 
@@ -449,7 +449,7 @@ class TranslateFile():
             fp.close()
         else:
             for line in lines:
-                print(line[:-1])
+                print((line[:-1]))
 
 def readRFBinary(file='OUTPUT/test.153-155.coeff'):
     """
@@ -491,7 +491,7 @@ tempfilt, coeffs, temp_sed, pz = readEazyBinary(MAIN_OUTPUT_FILE='photz', \
         CACHE_FILE = root+'.tempfilt'
     
     if os.path.exists(CACHE_FILE) is False:
-        print('File, %s, not found.' %(CACHE_FILE))
+        print(('File, %s, not found.' %(CACHE_FILE)))
         return -1,-1,-1,-1
     
     f = open(CACHE_FILE,'rb')
@@ -684,7 +684,7 @@ def getAllPz(MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='
     tempfilt, coeffs, temp_seds, pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, CACHE_FILE = CACHE_FILE)
     
     full_pz = np.zeros((pz['NZ'], pz['NOBJ']))
-    for i in xrange(pz['NOBJ']):
+    for i in range(pz['NOBJ']):
         #print i
         zz, pzi = eazy.getEazyPz(i, MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, CACHE_FILE=CACHE_FILE, binaries=(tempfilt, pz))
         full_pz[:,i] = pzi
@@ -854,7 +854,7 @@ class TemplateInterpolator():
         self._spline_db = interpolate.InterpolatedUnivariateSpline(self.in_zgrid, temp_seds['db'])
         
         #### Make a 2D list of the spline interpolators
-        self._interpolators = [range(self.NTEMP) for i in range(self.NFILT)]                
+        self._interpolators = [list(range(self.NTEMP)) for i in range(self.NFILT)]                
         for i in range(self.NFILT):
             for j in range(self.NTEMP):
                 self._interpolators[i][j] = interpolate.InterpolatedUnivariateSpline(self.in_zgrid, self.tempfilt[i, j, :])
@@ -869,7 +869,7 @@ class TemplateInterpolator():
         
         The result is returned from the function and also stored in `self.output`.
         """               
-        output = [range(self.NTEMP) for i in range(self.NFILT)]                
+        output = [list(range(self.NTEMP)) for i in range(self.NFILT)]                
         for i in range(self.NFILT):
             for j in range(self.NTEMP):
                 output[i][j] = self._interpolators[i][j](zout)
@@ -987,7 +987,7 @@ PlotSEDExample(idx=20)
     #zout = catIO.Readfile(OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.zout')
     zout = catIO.Table(OUTPUT_DIRECTORY+'/'+MAIN_OUTPUT_FILE+'.zout')    
     #qz = np.where(zout.z_spec > 0)[0]
-    print(zout.filename)
+    print((zout.filename))
     qz = np.arange(len(zout['id']))
     
     if show_rest:
@@ -1066,7 +1066,7 @@ PlotSEDExample(idx=20)
                color='black',fmt='o',alpha=alph, markeredgecolor='0.7', markerfacecolor='None', markeredgewidth=1.5, ms=8, zorder=1)
     
     for i in range(len(lci)):
-        print('%f %e %e %e' %(lci[i], obs_sed[i], fobs[i], efobs[i]))
+        print(('%f %e %e %e' %(lci[i], obs_sed[i], fobs[i], efobs[i])))
         
     #### Set axis range and titles
     ax.semilogx()
@@ -1141,7 +1141,7 @@ zPhot_zSpec(zoutfile="./OUTPUT/photz.zout', zmax=4)
     """
     #zout = '../COSMOS/OUTPUT/cat3.4_default_lines_zp33sspNoU.zout'
     if os.path.exists(zoutFile) is False:
-        print('File, %s, not found.' %(zoutFile))
+        print(('File, %s, not found.' %(zoutFile)))
         return
         
     zout = catIO.Readfile(zoutFile)
@@ -1249,7 +1249,7 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     tempfilt['efnu'][ok] *= zpfactors[ok]
     
     obs_sed = np.zeros((tempfilt['NFILT'], tempfilt['NOBJ']), dtype=np.float)
-    for i in xrange(tempfilt['NOBJ']):
+    for i in range(tempfilt['NOBJ']):
         obs_sed[:,i] = np.dot(tempfilt['tempfilt'][:,:,coeffs['izbest'][i]], coeffs['coeffs'][:,i])
     
     zi = tempfilt['zgrid'][coeffs['izbest']]
@@ -1265,7 +1265,7 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         return lc_rest, obs_sed, tempfilt['fnu'], signoise
         
     #### Plot colors
-    colors = range(tempfilt['NFILT'])
+    colors = list(range(tempfilt['NFILT']))
     for ci, i in enumerate(np.argsort(lc)):
         colors[i] = threedhst.utils.color_table((ci+1.)/tempfilt['NFILT']*250, table='rainbow.rgb')
     
@@ -1276,7 +1276,7 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
     
     #### Plot the residuals
     xx, yy, ss = [], [], []
-    stats = range(len(lc))
+    stats = list(range(len(lc)))
     
     keep = np.isfinite(signoise[0,:])
     for i in np.argsort(lc):
@@ -1404,7 +1404,7 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         #
         offsets[i] = stats[i]['median']
         #
-        print('%s %d %.3f %.3f %.3f %.3f %d %.3f' %(param.filters[i].name, ok.sum(), stats[i]['median'], stats[i]['pstd'], stats[i]['p'][1], stats[i]['p'][-2], keep.sum(), val))
+        print(('%s %d %.3f %.3f %.3f %.3f %d %.3f' %(param.filters[i].name, ok.sum(), stats[i]['median'], stats[i]['pstd'], stats[i]['p'][1], stats[i]['p'][-2], keep.sum(), val)))
         
     if not os.path.exists(adjust_zeropoints):
         fp = open(adjust_zeropoints,'w')
@@ -1431,13 +1431,13 @@ def show_fit_residuals(root='photz_v1.7.fullz', PATH='./OUTPUT/', savefig=None, 
         for ci, i in enumerate(np.argsort(lc)):
             if param.filters[i].fnumber == ref_filter:
                 offsets /= offsets[i]
-                print('Norm to %s.' %(param.filters[i].name))
+                print(('Norm to %s.' %(param.filters[i].name)))
                 break
             
     ref_offset = 1.
     if isinstance(fix_filter, dict):
         for ci, i in enumerate(np.argsort(lc)):
-            if param.filters[i].fnumber in fix_filter.keys():
+            if param.filters[i].fnumber in list(fix_filter.keys()):
                 offsets[i] = fix_filter[param.filters[i].fnumber]
                 fstr = 'F%0d' %(param.filters[i].fnumber)
                 if fstr in zpfilt:
@@ -1677,10 +1677,10 @@ def loop_zeropoints(root='cosmos', tfile='zphot.translate.cosmos',  zfile='zphot
     ##### Make an empty zeropoint file
     fp = open(zfile,'w')
     for filter in param.filters:
-        if filter.fnumber in fix_filter.keys():
+        if filter.fnumber in list(fix_filter.keys()):
             fp.write('F%d  %s\n' %(filter.fnumber, fix_filter[filter.fnumber]))
         else:
-            if filter.fnumber in init_filter.keys():
+            if filter.fnumber in list(init_filter.keys()):
                 fp.write('F%d  %s\n' %(filter.fnumber, init_filter[filter.fnumber]))
             else:
                 fp.write('F%d  1.0\n' %(filter.fnumber))
@@ -1784,7 +1784,7 @@ def loop_zeropoints(root='cosmos', tfile='zphot.translate.cosmos',  zfile='zphot
         #     unicorn.zp.diagnostic_UVJ(root=root, ext='UVJ_%04d' %(i+1))
         
         fixed_bands = lc_i < 0
-        for fi in fix_filter.keys():
+        for fi in list(fix_filter.keys()):
             fixed_bands = fixed_bands | (fnumbers == fi)
         
         use_bands = (lc_i > 4500) & (lc_i < 2.5e4) & ~fixed_bands
@@ -1899,7 +1899,7 @@ def compute_eazy_lineflux(root='photz', PATH='OUTPUT', rf_file='153-155', V_filt
     
     line_flux = {}
     
-    for key in corr.keys():
+    for key in list(corr.keys()):
         line_ratio = corr[key]
         ### fill with zeros for missing templates
         if len(line_ratio) != tempfilt['NTEMP']:
@@ -1959,7 +1959,7 @@ def compute_template_line_fluxes():
         no_V = no_lines[i].integrate_filter(res.filters[155-1])
         with_V = with_lines[i].integrate_filter(res.filters[155-1])
         with_U = with_lines[i].integrate_filter(res.filters[153-1])
-        print('%s %.3f' %(files[i], with_V))
+        print(('%s %.3f' %(files[i], with_V)))
         xx = np.append(xx, with_V)
         #
         #print '%s %.3f  %.3f' %(files[i], -2.5*np.log10(with_U/with_V), no_V / with_V)
@@ -1967,12 +1967,12 @@ def compute_template_line_fluxes():
         line_only = with_lines[i].flux - np.interp(with_lines[i].wave, no_lines[i].wave, no_lines[i].flux)
         limits = {'Ha':[6530,6590], 'O3':[4900, 5040], 'O2':[3690, 3760]}
         line_flux_ratio = {}
-        for key in limits.keys():
+        for key in list(limits.keys()):
             wrange = (with_lines[i].wave >= limits[key][0]) & (with_lines[i].wave < limits[key][1])
             line_flux = np.trapz(line_only[wrange], with_lines[i].wave[wrange])
             line_flux_ratio[key] =  line_flux / with_V
         #
-        print('%s %.4f  %.3f  %.3e %.3e %.3e' %(files[i], -2.5*np.log10(with_U/with_V), no_V / with_V, line_flux_ratio['Ha'], line_flux_ratio['O3'], line_flux_ratio['O2']))
+        print(('%s %.4f  %.3f  %.3e %.3e %.3e' %(files[i], -2.5*np.log10(with_U/with_V), no_V / with_V, line_flux_ratio['Ha'], line_flux_ratio['O3'], line_flux_ratio['O2'])))
 
 def init_nmf(obj, iz, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CACHE_FILE='Same', verbose=True):
     import threedhst.eazyPy as eazy
@@ -1991,7 +1991,7 @@ def init_nmf(obj, iz, MAIN_OUTPUT_FILE='photz', OUTPUT_DIRECTORY='./OUTPUT', CAC
         eazy.NZ = eazy.tempfilt['NZ']
     except:
         if verbose:
-            print('Read EAZY binary files (%s/%s)....' %(OUTPUT_DIRECTORY, MAIN_OUTPUT_FILE))
+            print(('Read EAZY binary files (%s/%s)....' %(OUTPUT_DIRECTORY, MAIN_OUTPUT_FILE)))
         eazy.tempfilt, eazy.coeffs, eazy.temp_sed, eazy.pz = eazy.readEazyBinary(MAIN_OUTPUT_FILE=MAIN_OUTPUT_FILE, OUTPUT_DIRECTORY=OUTPUT_DIRECTORY, CACHE_FILE=CACHE_FILE)
         eazy.werr, eazy.terr = np.loadtxt('templates/TEMPLATE_ERROR.eazy_v1.0', unpack=True)
     
@@ -2212,7 +2212,7 @@ def add_filters():
         filt.wave = x_resamp*1
         filt.throughput = bp_resamp*1
         filt.name = '%s lambda_c= %.4e AB-Vega=%.3f' %(filter_name, filt.pivot(), filt.ABVega())
-        print(filt.name)
+        print((filt.name))
         res.filters.append(filt)
         res.NFILT += 1
     #
@@ -2242,7 +2242,7 @@ def quadri_pairs(zoutfile='OUTPUT/cdfs.zout', catfile=''):
     ## find pairs
     first, next, drs = [], [], []
     for i in range(c.N):
-        print(unicorn.noNewLine+'%d/%d' %(i,c.N))
+        print((unicorn.noNewLine+'%d/%d' %(i,c.N)))
         dr, idx = m.find_nearest(c.ra[i], c.dec[i], N=60, distance_upper_bound=30./3600.)
         ok = (dr > 0) & (dr < 30.)
         first.extend([i]*ok.sum())
@@ -2327,7 +2327,7 @@ def show_uncertainties(root='cosmos', PATH='OUTPUT/', candels=False):
         
         ax = fig.add_subplot(NY, NX, i+1)
         ax.set_title(cnames[i])
-        print(param.filters[i].name, cnames[i])
+        print((param.filters[i].name, cnames[i]))
         ok = signoise[i,:] > 2
         if ok.sum() == 0:
             continue
@@ -2408,7 +2408,7 @@ def spatial_offset(root='cosmos', PATH='OUTPUT/', apply=False, candels=False):
         #print i, len(fnumbers), len(cnames)
         
         ax = fig.add_subplot(NY, NX, i+1)
-        print(param.filters[i].name, cnames[i])
+        print((param.filters[i].name, cnames[i]))
         dmag = -2.5*np.log10((fnu/obs_sed)[i,:])
         ok = np.isfinite(dmag) & (signoise[i,:] > 3) & (np.abs(dmag) < 0.1)
         ratio = (fnu/obs_sed)[i,:]
@@ -2484,8 +2484,8 @@ def apply_spatial_offsets(cat='cdfs.v1.3.1.nzp.cat', pfile='cdfs.v1.3.1.nzp.cat.
     #### Fitter is a dictionary with keys equal to the column headings
     #### and whose values are astropy.modeling.Polynomial2D models with 
     #### coordinates 'x' and 'y' from the catalog
-    for col in fitter.keys():
-        print(col, col in c.columns)
+    for col in list(fitter.keys()):
+        print((col, col in c.columns))
         ok = c[col] > -90
         c[col][ok] *= 1./fitter[col](c['x'], c['y'])[ok]
         c[col.replace('f_', 'e_')][ok] *= 1./fitter[col](c['x'], c['y'])[ok]
@@ -2591,7 +2591,7 @@ def show_extinction_effect():
         
         ax.text(0.02, 0.98, os.path.basename(filter.name), ha='left', va='top', transform=ax.transAxes)
         ax.grid()
-        print(filter.name)
+        print((filter.name))
         
         if (ifilt % 4) != 0:
             ax.set_yticklabels([])

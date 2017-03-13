@@ -30,7 +30,7 @@ def skipme(base='_filename', ext='skipme', verbose=True):
     """
     skipfile = '%s.%s' %(base, ext)
     if os.path.exists(skipfile):
-        print 'File %s found' %(skipfile)
+        print('File %s found' %(skipfile))
         return True
     else:
         os.system('touch %s' %(skipfile))
@@ -193,8 +193,8 @@ ASCIItoFITS(infile, [comment='#'])
             header[i] = 'n'+header[i]
             
     if NCOLS == 0:
-        print ('No header line found.  I\'m looking for a first line that'+
-               'begins with %s followed by column names.' %comment)
+        print(('No header line found.  I\'m looking for a first line that'+
+               'begins with %s followed by column names.' %comment))
         return None
         
     #### Check next NCHECK data lines to look for alphanumeric characters
@@ -256,7 +256,7 @@ data = ReadASCIICat(infile, comment='#', force=False, verbose=False)
     """
     
     if os.path.exists(infile) is False:
-        print ('File, %s, not found.' %(infile))
+        print(('File, %s, not found.' %(infile)))
         return None
     
     fileExists = False
@@ -269,13 +269,13 @@ data = ReadASCIICat(infile, comment='#', force=False, verbose=False)
     
     if (fileExists is False) or (force):
         if verbose:
-            print ('Running ASCIItoFITS: %s' %(infile))
+            print(('Running ASCIItoFITS: %s' %(infile)))
         data = ASCIItoFITS(infile,comment=comment)
         #return data
         #return ASCIItoFITS(infile,comment=comment)
     else:
         if verbose:
-            print ('Reading : %s' %(theFITSFile))
+            print(('Reading : %s' %(theFITSFile)))
         hdulist = pyfits.open(theFITSFile)
         #### Check mod time of 'infile'.  
         #### If changed, then re-read with ASCIItoFITS
@@ -286,7 +286,7 @@ data = ReadASCIICat(infile, comment='#', force=False, verbose=False)
             #return hdulist[1].data
         else:
             if verbose:
-                print('%s has changed.  Re-generating FITS file...' %(infile))
+                print(('%s has changed.  Re-generating FITS file...' %(infile)))
             data = ASCIItoFITS(infile,comment=comment)
             #return data
 
@@ -414,7 +414,7 @@ def ASN_footprint(asn_file, color='green', path_to_flt='./', verbose=False):
             
             foot = wcs.calc_footprint()
             if verbose:
-                print exp, foot
+                print(exp, foot)
                  
             poly_str = ', '.join(['%.6f, %.6f' %(foot[i][0], foot[i][1]) for i in range(foot.shape[0])])
             fp.write('polygon(%s) # color=%s\n' %(poly_str, color))
@@ -515,7 +515,7 @@ write(self,out_file=None, clobber=True)
     
         """
         if not out_file:
-            print "USAGE:: asn.write(out_file='output_asn.fits')"
+            print("USAGE:: asn.write(out_file='output_asn.fits')")
         else:
             if out_file == 'self':
                 out_file = self.file
@@ -540,7 +540,7 @@ write(self,out_file=None, clobber=True)
             tbhdu.header.update('ASN_TAB',out_file)
             #### Create HDUList and write it to output file
             self.out_fits = pyfits.HDUList([hdu,tbhdu])
-            if 'EXTEND' not in hdu.header.keys():
+            if 'EXTEND' not in list(hdu.header.keys()):
                 hdu.header.update('EXTEND', True, after='NAXIS')
                 
             self.out_fits.writeto(out_file, clobber=clobber)
@@ -559,8 +559,8 @@ showContents()
         """
         if self.exposures.__len__() > 0:
             for i,exp in enumerate(self.exposures):
-                print '%5d   %s    EXP-DTH      yes' %(i+1,exp)
-            print '%5d   %s    PROD-DTH     yes' %(i+2,self.product)
+                print('%5d   %s    EXP-DTH      yes' %(i+1,exp))
+            print('%5d   %s    PROD-DTH     yes' %(i+2,self.product))
     
     def append(self, new):
         """
@@ -633,7 +633,7 @@ combine_asn_shifts(asn_list, out_root='combined', path_to_FLT='./',
     
     #### Loop through other ASN files
     for asn_file in asn_list[1:]:
-        print asn_file
+        print(asn_file)
         
         #### Read the ASN file
         asn = threedhst.utils.ASNFile(asn_file)
@@ -704,7 +704,7 @@ asn_file_info(asn_file, verbose=1)
     #### Print to stdout
     if verbose > 0:
         for line in lines:
-            print line
+            print(line)
     
 def replace_OrIg():
     """
@@ -716,7 +716,7 @@ def replace_OrIg():
     files=glob.glob('*OrIg_flt.fits')
     for file in files:
         out=file.replace('OrIg_','')
-        print file, out
+        print(file, out)
         shutil.move(file, out)
 
 def biweight(xarr, both=False, mean=False):
@@ -977,7 +977,7 @@ def color_table(value, table='hsv.rgb', normalized=False, show=False):
     if show:
         files = glob.glob(os.path.dirname(threedhst.__file__)+'/data/*rgb')
         for file in files:
-            print os.path.basename(file)
+            print(os.path.basename(file))
             
         return (0,0,0)
         
@@ -1338,7 +1338,7 @@ def subimage(input="test.fits", output="sibimage.fits", ra=0, dec=0, size=10, ex
     out.writeto(output, clobber=True)
     #
     if verbose:
-        print 'Wrote: %s' %(output)
+        print('Wrote: %s' %(output))
         
 def gen_tempname(root='tmp'):
     """
