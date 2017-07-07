@@ -21,6 +21,21 @@ except:
 
 import numpy as np
 
+def skipme(base='_filename', ext='skipme', verbose=True):
+    """
+    Helper function to make a dummy file with some basename as a placeholder to indicate
+    that a script has been started related to the `base` string.  
+    
+    Returns True if the file `base`.`ext` exists, otherwise "touches" that file and returns False
+    """
+    skipfile = '%s.%s' %(base, ext)
+    if os.path.exists(skipfile):
+        print 'File %s found' %(skipfile)
+        return True
+    else:
+        os.system('touch %s' %(skipfile))
+        return False
+        
 def test_conserve():
     xfull = np.arange(0,1000001,1)
     yfull = np.sin(xfull/np.pi/2/20)+1
@@ -866,7 +881,7 @@ def nmad(xarr):
     """
     return 1.48*np.median(np.abs(xarr-np.median(xarr)))
 
-def runmed(xi, yi, NBIN=10, use_median=False, use_nmad=False):
+def runmed(xi, yi, NBIN=10, use_median=False, use_nmad=False, reverse=False):
     """
     Running median/biweight/nmad
     """
@@ -879,6 +894,9 @@ def runmed(xi, yi, NBIN=10, use_median=False, use_nmad=False):
     N = np.arange(NBIN)
     
     so = np.argsort(xi)
+    if reverse:
+        so = so[::-1]
+        
     idx = np.arange(NPER)
     for i in range(NBIN):
         ym[i], ys[i] = biweight(yi[so][idx+NPER*i], both=True)

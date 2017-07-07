@@ -22,6 +22,7 @@ except:
     import pyfits
 
 import numpy as np
+np.set_printoptions(threshold=np.nan)
 
 import matplotlib.pyplot as plt
 
@@ -90,7 +91,10 @@ def set_grism_flat(grism='G141', verbose=True):
         
     return True
     
-def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits'],  path_to_sky = '../CONF/', out_path='./', verbose=False, plot=False, flat_correct=True, sky_subtract=True, second_pass=True, overall=True, combine_skies=False, sky_components=True, add_constant=True):
+def remove_grism_sky(flt='ibhm46ioq_flt.fits', list=['sky_cosmos.fits', 'sky_goodsn_lo.fits', 'sky_goodsn_hi.fits', 'sky_goodsn_vhi.fits'],  
+    path_to_sky = '../CONF/', out_path='./', verbose=False, plot=False, flat_correct=True, 
+    sky_subtract=True, second_pass=True, overall=True, combine_skies=False, 
+    sky_components=True, add_constant=True):
     """ 
     Process a (G141) grism exposure by dividing by the F140W imaging flat-field
     and then subtracting by a master sky image.  
@@ -338,7 +342,8 @@ def obj_lstsq(x, b, A, wht):
     """
     return (b-np.dot(x, A))*wht
     
-def remove_visit_sky(asn_file='GDN12-G102_asn.fits', list=['zodi_G102_clean.fits', 'excess_G102_clean.fits'], add_constant=False, column_average=True, mask_grow=18, flat_correct=True):
+def remove_visit_sky(asn_file='GDN12-G102_asn.fits', list=['zodi_G102_clean.fits', 'excess_G102_clean.fits'], 
+    add_constant=False, column_average=True, mask_grow=18, flat_correct=True):
     """
     Require that all exposures in a visit have the same zodi component.
     """
@@ -447,6 +452,7 @@ def grism_sky_column_average_GP(asn_file='GDN12-G102_asn.fits', mask_grow=8):
     for k in range(len(asn.exposures)):
         #### 1D column averages
         flt = pyfits.open('%s_flt.fits' %(asn.exposures[k]), mode='update')
+        print "Opening {}_flt.fits to update ".format(asn.exposures[k])
         segfile = '%s_flt.seg.fits' %(asn.exposures[k])
         seg = pyfits.open(segfile)[0].data
         seg_mask = nd.maximum_filter((seg > 0), size=mask_grow) == 0
@@ -464,20 +470,26 @@ def grism_sky_column_average_GP(asn_file='GDN12-G102_asn.fits', mask_grow=8):
 
         masked = flt[1].data*1
         masked[~mask] = np.nan
+
         yres = np.zeros(1014)
         yrms = yres*0.
+
         for i in range(1014):
+            #print "i: ", i
             # ymsk = mask[:,i]
             # yres[i] = np.median(flt[1].data[ymsk,i])
             ymsk = masked[:,i]
+            #print "ymsk: ", ymsk
             #ymsk = masked[:,np.maximum(i-10,0):i+10]
             #yres[i] = np.median(ymsk[np.isfinite(ymsk)])
+
             ok = np.isfinite(ymsk)
+            #print "ok: ", ok
             ymsk[(ymsk > np.percentile(ymsk[ok], 84)) | (ymsk < np.percentile(ymsk[ok], 16))] = np.nan
             msk = np.isfinite(ymsk)
             yres[i] = np.mean(ymsk[msk])
             yrms[i] = np.std(ymsk[msk])/np.sqrt(msk.sum())
-            
+
         #
         yok = np.isfinite(yres)
         if 'GSKY00' in flt[0].header.keys():
@@ -485,11 +497,15 @@ def grism_sky_column_average_GP(asn_file='GDN12-G102_asn.fits', mask_grow=8):
         else:
             bg_sky = 1
             
+        print "bg_sky: ", bg_sky
         gp = GaussianProcess(regr='constant', corr='squared_exponential', theta0=8,
                              thetaL=7, thetaU=12,
                              nugget=(yrms/bg_sky)[yok][::1]**2,
                              random_start=10, verbose=True, normalize=True) #, optimizer='Welch')
         #
+        print "yres[yok][::1] ", yres[yok][::1]
+        print "xmsk[yok][::1]) ", xmsk[yok][::1]
+        print "np.atleast_2d(xmsk[yok][::1]).T ", np.atleast_2d(xmsk[yok][::1]).T
         gp.fit(np.atleast_2d(xmsk[yok][::1]).T, yres[yok][::1]+bg_sky)
         y_pred, MSE = gp.predict(np.atleast_2d(xmsk).T, eval_MSE=True)
         gp_sigma = np.sqrt(MSE)
@@ -515,9 +531,9 @@ def grism_sky_column_average_GP(asn_file='GDN12-G102_asn.fits', mask_grow=8):
         ax = fig.add_subplot(111)
         ax.set_title(flt.filename())
 
-        ax.plot(yres+bg_sky, color='black', alpha=0.3)
-        ax.plot(y_pred, color='red', linewidth=2, alpha=0.7)
-        ax.fill_between(xmsk, y_pred + gp_sigma, y_pred - gp_sigma, color='red', alpha=0.3)
+        ax.plot(yres, color='black', alpha=0.3)
+        ax.plot(y_pred-bg_sky, color='red', linewidth=2, alpha=0.7)
+        ax.fill_between(xmsk, y_pred-bg_sky + gp_sigma, y_pred-bg_sky - gp_sigma, color='red', alpha=0.3)
         
         ax.set_xlim(0,1014)
         ax.set_xlabel('x pix'); ax.set_ylabel('BG residual (e/s)')

@@ -1097,7 +1097,8 @@ def fresh_flt_files(asn_filename, from_path="../RAW", preserve_dq = False):
     explist = []
     explist.extend(ASN.exposures)
     for exp in explist:
-        fits_file = threedhst.utils.find_fits_gz(from_path+'/'+exp+'_flt.fits')
+        #fits_file = threedhst.utils.find_fits_gz(from_path+'/'+exp+'_flt.fits')
+        fits_file = threedhst.utils.find_fits_gz(os.path.join(from_path, exp+'_flt.fits'))
         fi = pyfits.open(fits_file)
         
         try:
@@ -1117,7 +1118,10 @@ def fresh_flt_files(asn_filename, from_path="../RAW", preserve_dq = False):
         fi.writeto('./'+exp+'_flt.fits', clobber=True)
         threedhst.prep_flt_files.apply_best_flat(exp+'_flt.fits', verbose=True)
         
-        threedhst.prep_flt_files.apply_persistence_mask(exp+'_flt.fits', limit_sigma=threedhst.options['FLT_PERSISTENCE_THRESH'], filter_size=threedhst.options['FLT_PERSISTENCE_FILTER'], persistence_path=threedhst.options['FLT_PERSISTENCE_PATH'], verbose=True)
+        threedhst.prep_flt_files.apply_persistence_mask(exp+'_flt.fits', 
+            limit_sigma=threedhst.options['FLT_PERSISTENCE_THRESH'], 
+            filter_size=threedhst.options['FLT_PERSISTENCE_FILTER'], 
+            persistence_path=threedhst.options['FLT_PERSISTENCE_PATH'], verbose=True)
         
         #### Make sure most recent IDCTAB is used
         flt = pyfits.open(exp+'_flt.fits','update')

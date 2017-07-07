@@ -184,7 +184,7 @@ SExtractor()
         pars = dict([(k,False) for k in  SExtractor._parinfo])
             
         self.executable = 'sex'
-        
+
         if sexfile:
             #with open(sexfile) as f:
             f =  open(sexfile) #gbb
@@ -209,7 +209,7 @@ SExtractor()
         else:
             self.name = 'threedhst_auto'
                         
-                        
+        print parfile              
         pfile = opts['PARAMETERS_NAME'] if parfile is None else parfile
         if pfile != 'default.param':
             f = open(pfile)
@@ -278,6 +278,7 @@ SExtractor()
         dir = '' if dir=='' else dir+os.sep
         
         self.options['PARAMETERS_NAME'] = dir+fnbase+'.param'
+        print "DEFINED PARAMETERS_NAME as {}".format(dir+fnbase+'.param')
         
         ostr = self._makeOptionStr()
         pstr = self._makeParamStr()

@@ -5,6 +5,7 @@ Drizzlepac/Astrodrizzle rather than Multidrizzle
 xxx still need full "pair" wrapper to put it all together, including adding direct shifts to grism exposures
 
 """
+import glob
 import os
 
 try:
@@ -189,7 +190,7 @@ def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_rad
         #updatewcs.updatewcs('%s_%s.fits' %(exp, ext))
         for i in range(NCHIP):
             se = threedhst.sex.SExtractor()
-            se.options['WEIGHT_IMAGE'] = '%s_%s.fits[%d]' %(exp, dext, wht_ext[i]-1)
+            se.options['WEIGHT_IMAGE'] = '%s_%s.fits[%d]' %(exp, dext, wht_ext[i]) #-1)
             se.options['WEIGHT_TYPE'] = 'MAP_RMS'
             #
             se.params['X_IMAGE'] = True; se.params['Y_IMAGE'] = True
@@ -200,7 +201,9 @@ def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_rad
             se.options['DETECT_THRESH'] = '%f' %(threshold)
             se.options['ANALYSIS_THRESH'] = '%f' %(threshold)
             #
-            se.sextractImage('%s_%s.fits[%d]' %(exp, dext, sci_ext[i]-1))
+            se_img = '%s_%s.fits[%d]' %(exp, dext, sci_ext[i]) #-1)
+            print se_img
+            se.sextractImage(se_img)
             threedhst.sex.sexcatRegions('%s_%s_%d.cat' %(exp, ext, sci_ext[i]), '%s_%s_%d.reg' %(exp, ext, sci_ext[i]), format=1)
     
     #### TweakReg catfile
@@ -241,7 +244,11 @@ def runTweakReg(asn_file='GOODS-S-15-F140W_asn.fits', master_catalog='goodss_rad
     
     #### Run AstroDrizzle again
     if ACS:
-        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output='', clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, preserve=False)
+        if len(asn.exposures) == 1:
+            drizzlepac.astrodrizzle.AstroDrizzle(asn_file, ouptut='', clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, preserve=False, driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False)
+        else:
+            drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output='', clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, preserve=False)
+            
     else:
         if len(asn.exposures) == 1:
             drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output='', clean=True, final_scale=final_scale, final_pixfrac=0.8, context=False, resetbits=4096, final_bits=576, driz_sep_bits=576, preserve=False, driz_cr_snr='8.0 5.0', driz_cr_scale = '2.5 0.7', driz_separate=False, driz_sep_wcs=False, median=False, blot=False, driz_cr=False, driz_cr_corr=False) # , final_wcs=True, final_rot=0)
@@ -401,14 +408,15 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False, se
         
         ### segmentation        
         print 'Segmentation image: %s_blot.fits' %(exp)
-        blotted_seg = astrodrizzle.ablot.do_blot(seg_data, ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
+        blotted_seg = astrodrizzle.ablot.do_blot(seg_data+0, ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
         
         blotted_bkg = 0.
         if sex_background:
-            blotted_bkg = astrodrizzle.ablot.do_blot(bkg_data, ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
+            blotted_bkg = astrodrizzle.ablot.do_blot(bkg_data+0, ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
             flt[1].data -= blotted_bkg
             
-        mask = (blotted_seg == 0) & (flt['DQ'].data == 0) & (flt[1].data > -1) & (xi > 10) & (yi > 10) & (xi < 1004) & (yi < 1004)
+        mask = (blotted_seg == 0) & (flt['DQ'].data == 0) & (flt[1].data > -1) & (xi > 10) & (yi > 10) & (xi < 1004) & (yi < 1004) 
+        mask &= np.isfinite(flt[1].data) & np.isfinite(flt[2].data)
         mask &= (flt[1].data < 5*np.median(flt[1].data[mask]))
         data_range = np.percentile(flt[1].data[mask], [2.5, 97.5])
         mask &= (flt[1].data >= data_range[0]) & (flt[1].data <= data_range[1])
@@ -422,6 +430,7 @@ def subtract_flt_background(root='GOODN-N1-VBA-F105W', scattered_light=False, se
         p0 = np.zeros(NCOMP)
         p0[0] = np.median(data)
         obj_fun = threedhst.grism_sky.obj_lstsq
+        print 'XXX: %d' %(mask.sum())
         popt = scipy.optimize.leastsq(obj_fun, p0, args=(data, templates, wht), full_output=True, ftol=1.49e-8/1000., xtol=1.49e-8/1000.)
         xcoeff = popt[0]
         model = np.dot(xcoeff, bg_flat).reshape((1014,1014))
@@ -614,13 +623,21 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
             #templates = bg_flat[:, mask.flatten()]
         
         ### Run astrodrizzle to make DRZ mosaic, grism-SExtractor mask
-        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output=asn_file.split('_asn')[0], clean=True, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_combine=True, final_wcs=False, resetbits=4096, final_bits=576, driz_sep_bits=576, driz_cr_snr='8.0 5.0', driz_cr_scale = '2.5 0.7')
+        #drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output=asn_file.split('_asn')[0], clean=True, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_combine=True, final_wcs=False, resetbits=4096, final_bits=576, driz_sep_bits=576, driz_cr_snr='8.0 5.0', driz_cr_scale = '2.5 0.7')
+        drizzlepac.astrodrizzle.AstroDrizzle(asn_file, output='', clean=True, context=False, preserve=False, skysub=True, driz_separate=True, driz_sep_wcs=True, median=True, blot=True, driz_cr=True, driz_combine=True, final_wcs=True, final_rot=0, resetbits=4096, final_bits=576, driz_sep_bits=576, driz_cr_snr='8.0 5.0', driz_cr_scale = '2.5 0.7')
+
                 
     else:
         flt = pyfits.open('%s_flt.fits' %(asn.exposures[0]))
         GRISM = flt[0].header['FILTER']
         bg.set_grism_flat(grism=GRISM, verbose=True)
     
+    # Check that the grism drizzled products are in upper case.
+    driz_products = glob.glob(root.lower() + '*')
+    for driz_product in driz_products:
+        print "Renaming {} to uppercaes".format(driz_products)
+        extension = driz_product.split(root.lower())[1]
+        os.rename(driz_product, root.upper() + extension.lower())
         
     se = threedhst.sex.SExtractor()
     se.options['WEIGHT_IMAGE'] = '%s_drz_wht.fits' %(root)
@@ -656,7 +673,10 @@ def subtract_grism_background(asn_file='GDN1-G102_asn.fits', PATH_TO_RAW='../RAW
         flt_wcs = stwcs.wcsutil.HSTWCS(flt, ext=1)
         ### segmentation
         #print 'Segmentation image: %s_blot.fits' %(exp)
-        blotted_seg = astrodrizzle.ablot.do_blot((seg_data)*int(1), ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
+
+        #blotted_seg = astrodrizzle.ablot.do_blot((seg_data)*int(1), ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
+        blotted_seg = astrodrizzle.ablot.do_blot(seg_data+0, ref_wcs, flt_wcs, 1, coeffs=True, interp='nearest', sinscl=1.0, stepsize=10, wcsmap=None)
+
         seg_grow = nd.maximum_filter((blotted_seg > 0)*1, size=8)
         pyfits.writeto('%s_flt.seg.fits' %(exp), header=flt[1].header, data=seg_grow, clobber=True)
         
@@ -747,7 +767,7 @@ def get_vizier_cat(image='RXJ2248-IR_sci.fits', ext=0, catalog="II/246"):
     return True
     
     
-def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goodss-34-G141_asn.fits', radec=None, raw_path='../RAW/', mask_grow=18, scattered_light=False, final_scale=None, skip_direct=False, ACS=False, jump=False, order=2, get_shift=True, align_threshold=20, column_average=True, sky_iter=3):
+def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goodss-34-G141_asn.fits', radec=None, raw_path='../RAW/', mask_grow=18, scattered_light=False, final_scale=None, skip_direct=False, ACS=False, jump=False, order=2, get_shift=True, align_threshold=20, column_average=True, sky_iter=3, run_acs_lacosmic=False):
     """
     Process both the direct and grism observations of a given visit
     """
@@ -776,7 +796,58 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
             for exp in asn.exposures:
                 print 'cp %s/%s_flc.fits.gz .' %(raw_path, exp)
                 os.system('cp %s/%s_flc.fits.gz .' %(raw_path, exp))
-                os.system('gunzip %s_flc.fits.gz' %(exp))
+                os.system('gunzip -f %s_flc.fits.gz' %(exp))
+                
+                if run_acs_lacosmic:
+                    try:
+                        import lacosmicx
+                        status = True
+                    except:
+                        print 'import lacosmicx failed!'
+                        status = False
+                    
+                    if status:
+                        im = pyfits.open('%s_flc.fits' %(exp), mode='update')
+                        for ext in [1,2]:
+                            indata = im['SCI',ext].data
+                            #inmask = im['DQ',ext].data > 0
+
+                            if im['SCI',ext].header['BUNIT'] == 'ELECTRONS':
+                                gain = 1
+                            else:
+                                gain = 1./im[0].header['EXPTIME']
+
+                            if 'MDRIZSK0' in im['SCI',ext].header:
+                                pssl = im['SCI',ext].header['MDRIZSK0']
+                            else:
+                                pssl = 0.
+                            
+                            if 'FLASHLVL' in im[0].header:
+                                pssl += im[0].header['FLASHLVL']
+                                sig_scale = 1.8
+                            else:
+                                sig_scale = 1.
+                                
+                            out = lacosmicx.lacosmicx(indata, inmask=None, 
+                                    sigclip=3.5*sig_scale, sigfrac=0.2,
+                                    objlim=7.0, gain=gain,
+                                    readnoise=im[0].header['READNSEA'], 
+                                    satlevel=np.inf, pssl=pssl, niter=5,
+                                    sepmed=True, cleantype='meanmask',
+                                    fsmode='median', psfmodel='gauss',
+                                    psffwhm=2.5,psfsize=7, psfk=None,
+                                    psfbeta=4.765, verbose=True)
+                        
+                            crmask, cleanarr  = out
+                            im['DQ',ext].data |= 16*crmask
+                            
+                            ### Low pixels
+                            if im[0].header['INSTRUME'] == 'WFC3':
+                                bad = im['SCI',ext].data < -4*im['ERR',ext].data
+                                im['DQ',ext].data |= 16*bad
+                                
+                        im.flush()
+                        
         else:
             threedhst.process_grism.fresh_flt_files(direct_asn, from_path=raw_path)
         
@@ -801,7 +872,12 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
         if ACS:
             for exp in asn.exposures:
                 flc = pyfits.open('%s_flc.fits' %(exp), mode='update')
-                for ext in [1,4]:
+                if 'SUB' in flc[0].header['APERTURE']:
+                    extensions = [1]
+                else:
+                    extensions = [1,4]
+                    
+                for ext in extensions:
                     threedhst.showMessage('Subtract background from %s_flc.fits[%d] : %.4f' %(exp, ext, flc[ext].header['MDRIZSKY']))
                     flc[ext].data -= flc[ext].header['MDRIZSKY']
                     flc[ext].header['MDRIZSK0'] = flc[ext].header['MDRIZSKY']
@@ -825,7 +901,7 @@ def prep_direct_grism_pair(direct_asn='goodss-34-F140W_asn.fits', grism_asn='goo
             for exp in asn.exposures:
                 print 'cp %s/%s_flc.fits.gz .' %(raw_path, exp)
                 os.system('cp %s/%s_flc.fits.gz .' %(raw_path, exp))
-                os.system('gunzip %s_flc.fits.gz' %(exp))
+                os.system('gunzip -f %s_flc.fits.gz' %(exp))
                 updatewcs.updatewcs('%s_flc.fits' %(exp))
 
             prep.copy_adriz_headerlets(direct_asn=direct_asn, grism_asn=grism_asn, ACS=True)
@@ -878,11 +954,17 @@ def subtract_fixed_background(flt_file='ickw10upq_flt.fits', path_to_raw='../RAW
     grism_flat = {'G141':'uc721143i_pfl.fits',
                   'G102':'uc72113oi_pfl.fits'}
     
-    
-    bg = np.loadtxt(glob.glob('%s/%s*ramp.dat' %(path_to_raw, flt_file.split('_')[0][:-1]))[0])
-    
+        
     flt = pyfits.open(flt_file, mode='update')
+    
+    if 'FIXEDBG' in flt[1].header.keys():
+        if flt[1].header['FIXEDBG']:
+            print 'Background already subtracted!'
+            return True
+        
     if 'G1' in flt[0].header['FILTER']:
+
+        bg = np.loadtxt(glob.glob('%s/%s*ramp.dat' %(path_to_raw, flt_file.split('_')[0][:-1]))[0])
 
         time = bg[:,0]
         dt = np.append(time[0], np.diff(time))
@@ -914,7 +996,10 @@ def subtract_fixed_background(flt_file='ickw10upq_flt.fits', path_to_raw='../RAW
         flt.flush()
         
         print '%s zodi: %.2f' %(flt[0].header['FILTER'], flt[1].header['ZODISKY'])
+    
+    flt[1].header['FIXEDBG'] = True
         
     flt.flush()
     
+    return True
     

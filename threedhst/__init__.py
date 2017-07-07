@@ -89,8 +89,8 @@ defaultOptions()
     >>> threedhst.defaultOptions()
     >>> threedhst.showOptions()
     """    
-    import clear_tools
-    from clear_tools.set_paths import paths
+    import clear
+    from clear.set_paths import paths
 
     showMessage('Initializing THREEDHST parameters')
     #### Delete all keywords and reset
